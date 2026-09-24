@@ -19,7 +19,7 @@
     <header class="top"><a class="logo" href="../">itfetter<span>.</span></a><a class="back" href="../">← 返回博客</a></header>
     <div class="eyebrow">EDITOR / 内容管理入口</div>
     <h1>文章管理入口</h1>
-    <p>当前入口会跳转到 GitHub 的文件编辑器；站内登录和可视化文章编辑尚未实现。文章修改与发布由 GitHub 账号和仓库写入权限控制，本页面不接收密码或令牌。</p>
+    <p>当前入口会跳转到 GitHub 的文件编辑器；站内提供写作与预览页面，发布仍由 GitHub 完成。文章修改与发布由 GitHub 账号和仓库写入权限控制，本页面不接收密码或令牌。</p>
     <section class="card" aria-labelledby="login-heading">
       <h2 id="login-heading">使用 GitHub 管理文章</h2>
       <p>使用拥有 <code>itfetter/itfetter.github.io</code> 写入权限的 GitHub 账号登录。每篇文章都是 <code>_posts/</code> 下的独立 Markdown 文件。</p>
@@ -27,15 +27,15 @@
       <p class="hint">未获得仓库写入权限的账号无法直接发布到本博客。本站不会收集 GitHub 密码。</p>
     </section>
     <section class="card" aria-labelledby="articles-heading">
-      <h2 id="articles-heading">当前文章 <a href="https://github.com/itfetter/itfetter.github.io/new/main/_posts" style="float:right;font-size:13px;color:var(--accent);text-decoration:none">＋ 新增文章 ↗</a></h2>
+      <h2 id="articles-heading">当前文章 <a href="/write/" style="float:right;font-size:13px;color:var(--accent);text-decoration:none">＋ 新增文章 ↗</a></h2>
       <div id="articles"><p>正在读取文章列表…</p></div>
     </section>
     <section class="card" aria-labelledby="how-heading">
       <h2 id="how-heading">新增或修改文章</h2>
       <ol class="steps">
-        <li>先登录 GitHub。修改文章可点击下方对应文章的“编辑”；新增文章可点击“新增文章”。</li>
-        <li>新文件命名为 <code>YYYY-MM-DD-英文标题.md</code>，复制仓库 <code>ARTICLE_TEMPLATE.md</code> 的格式，填写独一无二的 <code>blog_id</code>、标题、分类、摘要和 Markdown 正文。</li>
-        <li>点击 GitHub 的 <strong>Commit changes</strong> 保存。提交到 <code>main</code> 后等待 Pages 发布，再到博客首页检查列表、搜索和文章阅读。</li>
+        <li>先登录 GitHub。修改文章可点击下方对应文章的“编辑”；新增文章可点击“新增文章”进入写作页。</li>
+        <li>在写作页填写标题、分类、摘要和英文网址短名，编写正文并预览；页面会生成带唯一 <code>blog_id</code> 和文件名的完整 Markdown。</li>
+        <li>复制或下载 Markdown，到 GitHub 新建或上传文件，点击 <strong>Commit changes</strong> 保存。提交到 <code>main</code> 后等待 Pages 发布，再到博客首页检查列表、搜索和文章阅读。</li>
       </ol>
       <p class="hint">分类按钮会从文章自动生成；首页置顶卡片目前固定指向 <code>hello</code>，更换置顶需修改 <code>index.html</code>。详情见仓库 README 与 AGENTS.md。</p>
     </section>
