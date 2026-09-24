@@ -10,6 +10,8 @@
 - `/admin/` 逐篇链接到 GitHub 的 Markdown 编辑器，也可新建文件；仍是公开静态页，登录及发布权限由 GitHub 控制。**尚无站内输入密码、可视化编辑并直接保存的后台。**
 - 此轮新增 `ARTICLE_TEMPLATE.md` 供写文章复制，README 与 AGENTS 已更新。用户要求以后提交及变更描述用中文，已写入协作规则。
 
+- 新增 `/write/` 独立 Markdown 写作页：标题、分类、摘要、英文短名和正文，支持工具栏、即时预览、本机草稿、复制全文及下载 `.md`。发布仍由 GitHub 账号提交，图片先上传仓库 `assets/`。
+
 ## 项目地图
 
 | 路径 | 用途 |
@@ -19,6 +21,7 @@
 | `_posts/2026-09-24-note.md` | 示范随笔。 |
 | `_layouts/post.html` | Jekyll 独立文章页。 |
 | `posts.js` | Jekyll 从文章源文件自动生成的 JS 模板，源码中包含 Liquid。 |
+| `write/index.html` | 静态写作与预览页；仅生成文件，不持有凭据或直接发布。 |
 | `admin/index.html` | GitHub 登录及文章编辑导航。 |
 | `ARTICLE_TEMPLATE.md` | 新文章 front matter 与 Markdown 写法示例。 |
 | `_config.yml` | Jekyll 构建设置。 |
@@ -37,11 +40,14 @@
 
 | 2026-09-24（图文示例） | `assets/writing-flow.svg`、`_posts/2026-09-24-rich-markdown-demo.md`、`_layouts/post.html`、`index.html`、`ARTICLE_TEMPLATE.md`、`README.md` | 增加明确标注为示例的图文文章与自制配图，并为两种文章阅读方式补充图片、提示框、表格、代码块样式。 | 已在 `https://itfetter.com/articles/rich-markdown-demo/` 在线确认标题、图片加载、提示框和表格渲染；首页哈希阅读样式沿用同一套规则，待单独核查。 |
 
+| 2026-09-24（写作页） | `write/index.html`、`admin/index.html`、`README.md`、`AGENTS.md` | 提供专用写作网址和 Markdown 工具栏、预览、草稿、复制/下载；管理页新增文章入口改为写作页，保留 GitHub 提交与图片上传步骤。 | 已检查 JS 语法与输出格式；待 Pages 部署后在线验证复制、下载和预览。 |
+
 ## 已知问题与风险
 
 1. `posts.js` 的源码现在是 Liquid 模板，不经 GitHub Pages Jekyll 构建不能直接作为普通 JS 执行；若部署工作流禁用 Jekyll，首页文章列表会失效。先查看 **Actions → pages build and deployment**。
 2. 两篇文章迁移时保留了主要内容、原 `blog_id` 和哈希链接；已在线确认 `/articles/hello/` 可访问；`/articles/note/` 尚未逐页检查。
-3. `/admin/` 是公开页面；仅 GitHub 控制仓库修改权限。想在自己域名下安全地直接编辑/保存仍需要可信授权服务，不能把密码或 GitHub 写入令牌放进公开静态页面。
+3. `/write/` 和 `/admin/` 均是公开页面；写作页草稿保存在当前浏览器，清缓存/换设备可能丢失，预览与 Jekyll 的最终渲染可能略有差异；图片和 Markdown 分别提交。仅 GitHub 控制仓库修改权限。想在自己域名下安全地直接编辑/保存仍需要可信授权服务，不能把密码或 GitHub 写入令牌放进公开静态页面。
+4. `/admin/` 是公开页面；仅 GitHub 控制仓库修改权限。想在自己域名下安全地直接编辑/保存仍需要可信授权服务，不能把密码或 GitHub 写入令牌放进公开静态页面。
 4. 首页置顶卡片文案/链接仍写在 `index.html`，改置顶需同步修改。Markdown 原文如果包含不可信 HTML，应在发布前审查。
 5. 使用 GitHub Pages 内置 Jekyll，文章发布日期与时区有关；未来日期可能导致新文章暂不出现在列表。文章源文件以 `YYYY-MM-DD-name.md` 命名。
 6. 修改 `CNAME`、DNS 或 Pages 设置会影响线上域名和 HTTPS；现有域名及配置未在此轮修改。
