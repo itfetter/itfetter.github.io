@@ -21,23 +21,23 @@
     <h1>文章管理入口</h1>
     <p>当前入口会跳转到 GitHub 的文件编辑器；站内登录和可视化文章编辑尚未实现。文章修改与发布由 GitHub 账号和仓库写入权限控制，本页面不接收密码或令牌。</p>
     <section class="card" aria-labelledby="login-heading">
-      <h2 id="login-heading">进入文章编辑器</h2>
-      <p>使用拥有 <code>itfetter/itfetter.github.io</code> 写入权限的 GitHub 账号登录。已登录时会直接进入 GitHub 的文件编辑页。</p>
-      <a class="button" href="https://github.com/login?return_to=%2Fitfetter%2Fitfetter.github.io%2Fedit%2Fmain%2Fposts.js">前往 GitHub 登录并编辑 ↗</a>
-      <p class="hint">文章数据存放在 <code>posts.js</code>。未获得仓库写入权限的账号无法直接向本博客提交发布。</p>
+      <h2 id="login-heading">使用 GitHub 管理文章</h2>
+      <p>使用拥有 <code>itfetter/itfetter.github.io</code> 写入权限的 GitHub 账号登录。每篇文章都是 <code>_posts/</code> 下的独立 Markdown 文件。</p>
+      <a class="button" href="https://github.com/login?return_to=%2Fitfetter%2Fitfetter.github.io%2Ftree%2Fmain%2F_posts">前往 GitHub 登录 ↗</a>
+      <p class="hint">未获得仓库写入权限的账号无法直接发布到本博客。本站不会收集 GitHub 密码。</p>
     </section>
     <section class="card" aria-labelledby="articles-heading">
-      <h2 id="articles-heading">当前文章</h2>
+      <h2 id="articles-heading">当前文章 <a href="https://github.com/itfetter/itfetter.github.io/new/main/_posts" style="float:right;font-size:13px;color:var(--accent);text-decoration:none">＋ 新增文章 ↗</a></h2>
       <div id="articles"><p>正在读取文章列表…</p></div>
     </section>
     <section class="card" aria-labelledby="how-heading">
       <h2 id="how-heading">新增或修改文章</h2>
       <ol class="steps">
-        <li>点击上方按钮，登录 GitHub 并打开 <code>posts.js</code>。</li>
-        <li>修改已有文章，或复制一个 <code>posts</code> 数组中的对象新增文章。为新文章设置不重复的英文 <code>id</code>，填写标题、分类、日期、摘要和正文 HTML。</li>
+        <li>先登录 GitHub。修改文章可点击下方对应文章的“编辑”；新增文章可点击“新增文章”。</li>
+        <li>新文件命名为 <code>YYYY-MM-DD-英文标题.md</code>，复制仓库 <code>ARTICLE_TEMPLATE.md</code> 的格式，填写独一无二的 <code>blog_id</code>、标题、分类、摘要和 Markdown 正文。</li>
         <li>点击 GitHub 的 <strong>Commit changes</strong> 保存。提交到 <code>main</code> 后等待 Pages 发布，再到博客首页检查列表、搜索和文章阅读。</li>
       </ol>
-      <p class="hint">新增分类还需修改 <code>index.html</code> 的筛选按钮；首页置顶文章目前固定指向 <code>hello</code>。详情见仓库的 README 与 AGENTS.md。</p>
+      <p class="hint">分类按钮会从文章自动生成；首页置顶卡片目前固定指向 <code>hello</code>，更换置顶需修改 <code>index.html</code>。详情见仓库 README 与 AGENTS.md。</p>
     </section>
   </main>
   <script src="../posts.js"></script>
@@ -50,10 +50,10 @@
         const info=document.createElement('div');
         const title=document.createElement('strong');title.textContent=post.title;
         const meta=document.createElement('small');meta.textContent=post.category+' · '+post.date+' · #post/'+post.id;
-        const link=document.createElement('a');link.href='https://github.com/itfetter/itfetter.github.io/edit/main/posts.js';link.textContent='在 GitHub 编辑 ↗';
+        const link=document.createElement('a');link.href=/^_posts\/[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9-]+\.md$/.test(post.source)?'https://github.com/itfetter/itfetter.github.io/edit/main/'+post.source:'https://github.com/itfetter/itfetter.github.io/tree/main/_posts';link.textContent='编辑 Markdown ↗';
         info.append(title,meta);row.append(info,link);container.append(row);
       }
-    }else{container.textContent='文章列表加载失败，请在 GitHub 仓库检查 posts.js。'}
+    }else{container.textContent='文章列表加载失败，请在 GitHub 仓库检查 Jekyll 构建和 posts.js。'}
   </script>
 </body>
 </html>
