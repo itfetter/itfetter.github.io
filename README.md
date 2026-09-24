@@ -33,7 +33,7 @@
 
 仓库发布源是 GitHub Pages 的 `main` 分支、`/ (root)`。Pages 会使用内置 Jekyll 构建。修改文章后查看仓库 **Actions** 或 **Settings → Pages** 的构建结果。
 
-只检查首页静态布局时可运行 `python3 -m http.server 8000` 并打开 `http://localhost:8000/`；此方法**不会运行 Jekyll**，直接打开源码中的 `posts.js` 也看不到部署后的文章列表。要在本地完整预览 Markdown 生成的页面，需要安装 Jekyll，并运行 `bundle exec jekyll serve`（需先自行准备相应的 Ruby/Gem 环境）；日常发布只需在 GitHub 提交，**不要求本地安装 Jekyll**。
+只检查首页静态布局时可运行 `python3 -m http.server 8000` 并打开 `http://localhost:8000/`；此方法**不会运行 Jekyll**，直接打开源码中的 `posts.js` 也看不到部署后的文章列表。要在本地完整预览 Markdown 生成的页面，需要先安装 Ruby 与 Jekyll，再运行 `jekyll serve`（本仓库尚未配置 Gemfile）；日常发布只需在 GitHub 提交，**不要求本地安装 Jekyll**。
 
 原 `itfetter.github.io` 地址在绑定自定义域名后通常会跳转到主域名。2026-09-24 站点所有者截图显示 HTTPS 已可访问且已开启 Enforce HTTPS；当时 DNS Check 显示 In Progress，若调整域名解析请重新检查。
 
