@@ -1,6 +1,6 @@
 # itfetter 的个人博客
 
-一个用 GitHub Pages 托管的个人静态博客，记录文章、项目和思考。网站主域名为 [itfetter.com](http://itfetter.com/)；HTTPS 正在核验中，确认可用后应将此链接改为 `https://`。仓库和网站目前均为公开内容。
+一个用 GitHub Pages 托管的个人静态博客，记录文章、项目和思考。网站主域名为 [itfetter.com](https://itfetter.com/)；站点已可通过 HTTPS 访问，GitHub Pages 的 **Enforce HTTPS** 已勾选（据站点所有者截图，2026-09-24）。仓库和网站目前均为公开内容。
 
 页面包含响应式首页、文章列表、分类筛选、关键词搜索、站内文章阅读，以及通向 [CSDN 博客](https://blog.csdn.net/2301_79385221?type=blog) 的入口。目前的建站欢迎文和随笔用于展示站点结构；示例随笔可以替换成正式文章。
 
@@ -36,7 +36,7 @@
 
 当前 GitHub Pages 配置为 **Deploy from a branch → main → / (root)**。将更改推送到 `main` 后，前往仓库 **Actions** 或 **Settings → Pages** 查看部署结果。首页文件必须保持在仓库根目录的 `index.html`。
 
-`CNAME` 保存主域名 `itfetter.com`。域名提供商的 DNS 需单独配置：根域名指向 GitHub Pages 的官方 A 记录，`www` 可通过 CNAME 指向 `itfetter.github.io`。绑定自定义域名后，原 `itfetter.github.io` 地址通常会重定向到主域名。修改 `CNAME` 前，请先核对仓库 Pages 设置与 DNS；HTTPS 证书和 Enforce HTTPS 状态也应单独验证。域名设置的详细过程可参阅 [GitHub 官方文档](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)。
+`CNAME` 保存主域名 `itfetter.com`。域名提供商的 DNS 需单独配置：根域名指向 GitHub Pages 的官方 A 记录，`www` 可通过 CNAME 指向 `itfetter.github.io`。绑定自定义域名后，原 `itfetter.github.io` 地址通常会重定向到主域名。修改 `CNAME` 前，请先核对仓库 Pages 设置与 DNS；2026-09-24 的截图显示 HTTPS 可用且 Enforce HTTPS 已勾选；当时设置页仍显示 **DNS Check in Progress**，如调整解析请再次核对状态。域名设置的详细过程可参阅 [GitHub 官方文档](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)。
 
 ## 开发与检查
 
@@ -44,7 +44,7 @@
 
 ## 下一步
 
-- 核验自定义域名的 HTTPS 证书，启用 Enforce HTTPS。
+- 复查 Pages 中仍显示 **DNS Check in Progress** 的域名检查提示，并验证 `www` 与旧 GitHub 地址的跳转。
 - 用正式文章替换示例随笔，逐步完善内容与分类。
 - 当文章数量增长时，再评估是否需要将文章拆分为独立文件。
 
