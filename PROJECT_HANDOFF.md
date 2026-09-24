@@ -8,7 +8,7 @@
 - 博客目前只有建站欢迎文和一篇用于展示排版的示例随笔；内容现保存在 `posts.js` 的 `posts` 数组里；新增 `/admin/` 作为 GitHub 登录及文章编辑入口。该页面公开可访问，但只有仓库写入者可通过 GitHub 修改并发布；站内尚无带账号会话的后台表单。
 - GitHub Pages 设置为从 `main` 的 `/ (root)` 发布。仓库 `CNAME` 内容为 `itfetter.com`；用户先前截图显示 Pages 的 DNS check successful、根域名能够打开博客；最新截图显示博客已可通过 HTTPS 访问。
 - 2026-09-24 最新截图显示 GitHub Pages 的 Enforce HTTPS 已勾选，浏览器已能打开 `https://itfetter.com/`；同一截图中 DNS 检查仍显示 **DNS Check in Progress**。
-- 本次将文章数据从 `index.html` 拆到 `posts.js`，新增 `admin/index.html` 管理入口，更新文档；未修改 DNS 或 `CNAME`。
+- 文章数据已从 `index.html` 拆到 `posts.js`，新增 `admin/index.html`。本轮又在首页导航增加“登录”入口，并澄清当前仍跳转 GitHub 编辑器，站内登录和可视化编辑尚未实现；未修改 DNS 或 `CNAME`。
 
 ## 当前项目地图
 
@@ -50,7 +50,7 @@
 | 分类筛选 | 按钮列表写死在 HTML 中。 | 新增分类时要同时更新按钮。 |
 | 路由 | 使用 `#post/<id>`，不是服务端文章路径。 | 修改文章 id 将破坏已有链接；搜索仅匹配标题、摘要、分类。 |
 | 外部资源 | Google Fonts 和 CSDN 链接依赖第三方可访问。 | 字体不可用时采用系统字体回退；外部链接失效需维护。 |
-| 管理入口 | `/admin/` 是公开静态页面；登录、授权和编辑由 GitHub 提供，尚无站内表单式后台。 | GitHub 编辑文件需要仓库写权限；想要站内直接编辑还需可信服务端/OAuth 服务。 |\n| NS 与解析 | 曾在阿里云见到 NS 不一致提示；之前出现过 DNS check successful，最新截图却显示 DNS Check in Progress。 | 不据此断言解析出错；若检查长期不结束，再确认权威 NS、公网 DNS 与冲突记录。 |
+| 管理入口 | 首页已显示“登录”，指向公开的 `/admin/`；点击后仍跳至 GitHub 文件编辑器，无站内登录及表单式后台。 | GitHub 编辑需要仓库写权限；站内编辑需新增可信 OAuth 服务、授权校验和安全保存接口。 |\n| NS 与解析 | 曾在阿里云见到 NS 不一致提示；之前出现过 DNS check successful，最新截图却显示 DNS Check in Progress。 | 不据此断言解析出错；若检查长期不结束，再确认权威 NS、公网 DNS 与冲突记录。 |
 
 ## 风险
 
@@ -64,6 +64,6 @@
 
 1. 等待 Pages 的 DNS Check 完成；检查带 `www` 的入口、HTTP 到 HTTPS 和旧 GitHub 地址的跳转。
 2. 使用 `/admin/` 登录 GitHub 后整理正式博客文章并替换示例随笔；按需将长期内容从 CSDN 同步到本站，确保作者有权发布。
-3. 随文章数量增长评估是否需要真正的可视化后台（须部署后端/OAuth）或独立 Markdown、静态生成器。
+3. 若目标为“在博客域名下登录、填写文章并保存”，设计并部署后端/OAuth 服务、会话管理、仓库写入授权和文章编辑 UI；确认服务提供方及 OAuth 应用配置。
 4. 添加必要的网页元信息、站点图标和分享预览；实际需要时再做。
 5. 每次后续变更同步更新本文件的修改记录、风险与下一步。
