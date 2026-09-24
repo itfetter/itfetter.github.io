@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>写文章 · itfetter</title>
+<style>
+:root{--paper:#f5f3ee;--white:#fffefa;--ink:#242722;--muted:#727970;--green:#1f332d;--orange:#c65e3f;--line:#deded6}*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.7 system-ui,"Noto Sans SC",sans-serif}button,input,textarea{font:inherit}a{color:var(--orange)}
+header{max-width:1220px;margin:auto;padding:22px 28px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:16px}
+.brand{font-size:21px;font-weight:800;color:var(--green);text-decoration:none}.brand span{color:var(--orange)}header nav{display:flex;gap:18px;font-size:13px}
+main{max-width:1220px;margin:auto;padding:36px 28px 95px}h1{font-size:clamp(29px,4vw,42px);margin:0 0 4px;letter-spacing:-.04em}.sub{color:var(--muted);margin:0 0 26px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 15px 40px rgba(30,40,30,.035)}
+.fields{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:16px}.field{display:flex;flex-direction:column;gap:6px}.field.summary{grid-column:1/-1}
+label{font-size:13px;font-weight:700}input,textarea{width:100%;border:1px solid #cdd2cb;border-radius:7px;background:#fff;padding:10px 12px;color:var(--ink);outline:none}input:focus,textarea:focus{border-color:#416757;box-shadow:0 0 0 3px #dce9df}small,.hint{color:var(--muted);font-size:12px}
+.workspace{display:grid;grid-template-columns:1fr 1fr;gap:18px}.pane{min-width:0}.pane-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;font-weight:700}.toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+button,.action{cursor:pointer;border:1px solid #cdd2cb;background:#fff;border-radius:6px;padding:8px 11px;color:var(--green);text-decoration:none;font-size:13px;font-weight:650}button:hover,.action:hover{border-color:var(--green)}button.primary,.action.primary{background:var(--green);color:white;border-color:var(--green)}button.primary:hover,.action.primary:hover{background:#345246}
+textarea{min-height:520px;resize:vertical;font:14px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace}.preview{background:#fff;min-height:520px;border:1px solid #d8ddd5;border-radius:8px;padding:25px;overflow:auto;overflow-wrap:anywhere}.preview h2{margin:24px 0 8px}.preview img{max-width:100%;height:auto;border-radius:9px}.preview blockquote{border-left:3px solid var(--orange);background:#f5f3ee;padding:9px 15px;margin:18px 0}.preview pre{background:var(--green);color:white;overflow:auto;padding:14px;border-radius:8px}.preview code{background:#e9eee7;padding:2px 4px}.preview pre code{background:none;padding:0}.preview table{border-collapse:collapse;display:block;overflow-x:auto}.preview td,.preview th{border:1px solid var(--line);padding:7px 10px}.preview .callout{background:#e9eee7;padding:12px;border-left:4px solid #416757}
+.publish{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.filename{display:block;background:#e8eee8;padding:10px 12px;border-radius:6px;margin:12px 0;word-break:break-word}
+.notice{padding:14px 18px;background:#f1e8df;border-left:3px solid var(--orange);margin:18px 0;border-radius:4px}.steps{padding-left:23px;color:#545b54}.steps li{margin:8px 0}#message{min-height:25px;color:#315146;font-weight:700}#message.error{color:#ae422d}
+@media(max-width:830px){.fields{grid-template-columns:1fr 1fr}.fields .field:first-child{grid-column:1/-1}.workspace{grid-template-columns:1fr}.preview{min-height:270px}textarea{min-height:350px}}@media(max-width:520px){header,main{padding-left:17px;padding-right:17px}.fields{grid-template-columns:1fr}.fields .field:first-child{grid-column:auto}.card{padding:18px}header nav{gap:9px}}
+</style>
+</head>
+<body>
+<header><a class="brand" href="/">itfetter<span>.</span></a><nav><a href="/">返回博客</a><a href="/admin/">文章管理</a></nav></header>
+<main>
+<h1>写一篇文章</h1>
+<p class="sub">写作、预览和生成 Markdown 都在这里完成。草稿只保存在当前浏览器，发布时由 GitHub 账号确认提交。</p>
+<section class="card fields" aria-label="文章信息">
+<div class="field"><label for="title">文章标题 *</label><input id="title" placeholder="例如：我的第一篇图文文章" autocomplete="off"></div>
+<div class="field"><label for="category">分类 *</label><input id="category" value="随笔" autocomplete="off"></div>
+<div class="field"><label for="slug">网址短名（英文） *</label><input id="slug" placeholder="my-first-post" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" autocomplete="off"><small>自动根据标题建议；已发布文章的短名不要重复。</small></div>
+<div class="field summary"><label for="summary">摘要 *</label><input id="summary" placeholder="用一句话介绍文章内容" autocomplete="off"></div>
+</section>
+<section class="card workspace" aria-label="文章编辑器">
+<div class="pane"><div class="pane-head"><span>Markdown 正文</span><small>自动保存本机草稿</small></div>
+<div class="toolbar" aria-label="格式工具">
+<button type="button" data-insert="heading">小标题</button><button type="button" data-insert="bold">加粗</button><button type="button" data-insert="italic">斜体</button><button type="button" data-insert="link">链接</button><button type="button" data-insert="list">列表</button><button type="button" data-insert="quote">引用</button><button type="button" data-insert="code">代码</button><button type="button" data-insert="image">图片</button><button type="button" data-insert="accent">重点色</button>
+</div><label for="body" class="hint">在下方写正文；插图请先把图片上传到仓库的 assets 目录。</label><textarea id="body" spellcheck="false" placeholder="从这里开始写..."></textarea>
+</div>
+<div class="pane"><div class="pane-head"><span>即时预览</span><small>以正式文章页为准</small></div><div id="preview" class="preview" aria-live="polite"></div></div>
+</section>
+<section class="card">
+<h2>生成并发布</h2>
+<p class="hint">本站是静态页面，不读取 GitHub 密码，也不自动写入仓库。请先检查文章信息，再通过 GitHub 提交文件。</p>
+<code id="filename" class="filename"></code>
+<div class="publish"><button type="button" class="primary" id="copy">复制完整 Markdown</button><button type="button" id="download">下载 .md 文件</button><a class="action" href="https://github.com/itfetter/itfetter.github.io/new/main/_posts" target="_blank" rel="noopener noreferrer">去 GitHub 新建文章 ↗</a></div>
+<p id="message" role="status"></p>
+<div class="notice"><strong>发布前请看：</strong>点击“复制”，再打开 GitHub 的新建文章页面；把上方文件名填到文件名输入框，粘贴内容，最后点 Commit changes。或者把下载的文件上传到 <code>_posts/</code>。</div>
+<ol class="steps"><li>有图片时先到 <a href="https://github.com/itfetter/itfetter.github.io/upload/main/assets" target="_blank" rel="noopener noreferrer">GitHub 的 assets 上传入口 ↗</a>上传图片并提交；回来点“图片”，输入该图片的真实文件名。图片不会跟随本页的 Markdown 文件一起上传。</li><li>图片写法：<code>![图片说明](/assets/图片名.jpg)</code>。文件名大小写必须一致。</li><li>提交到 main 后等待 Pages 自动部署，再检查首页和文章页。</li></ol>
+</section>
+</main>
+<script src="../posts.js"></script>
+<script>
+(()=>{'use strict';
+const ids=['title','category','slug','summary','body'];
+const fields=Object.fromEntries(ids.map(id=>[id,document.getElementById(id)]));
+const filename=document.getElementById('filename'),preview=document.getElementById('preview'),message=document.getElementById('message');
+const storageKey='itfetter-write-draft-v1';
+const today=()=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));return parts.year+'-'+parts.month+'-'+parts.day};
+const slugify=s=>s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
+const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=s=>/^(https?:\/\/|\/[^/]|#)/i.test(s)?s:'#';
+let editedSlug=false;
+try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(saved&&typeof saved==='object')for(const id of ids)if(typeof saved[id]==='string')fields[id].value=saved[id];editedSlug=!!fields.slug.value}catch(e){}
+function setMessage(s,error=false){message.textContent=s;message.classList.toggle('error',error)}
+function inline(s){let v=escapeHtml(s);v=v.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,(_,alt,url)=>'<img alt="'+alt+'" src="'+escapeHtml(safeUrl(url))+'">');v=v.replace(/\[([^\]]+)\]\(([^)]+)\)/g,(_,label,url)=>'<a href="'+escapeHtml(safeUrl(url))+'" rel="noopener noreferrer">'+label+'</a>');v=v.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*]+)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>');return v}
+function render(md){const lines=md.replace(/\r\n/g,'\n').split('\n');let out='',para=[],list=[],quote=[],code=[],table=[];let inCode=false;
+const flush=()=>{if(para.length){out+='<p>'+inline(para.join(' '))+'</p>';para=[]}if(list.length){out+='<ul>'+list.map(x=>'<li>'+inline(x)+'</li>').join('')+'</ul>';list=[]}if(quote.length){out+='<blockquote>'+quote.map(x=>inline(x)).join('<br>')+'</blockquote>';quote=[]}if(table.length){const rows=table.filter(x=>!/^\s*\|?[\s:|-]+\|?\s*$/.test(x)).map(x=>x.replace(/^\||\|$/g,'').split('|').map(c=>'<td>'+inline(c.trim())+'</td>').join(''));out+='<table>'+rows.map(x=>'<tr>'+x+'</tr>').join('')+'</table>';table=[]}};
+for(const line of lines){if(/^\s*```/.test(line)){flush();if(inCode){out+='<pre><code>'+escapeHtml(code.join('\n'))+'</code></pre>';code=[]}inCode=!inCode;continue}if(inCode){code.push(line);continue}
+if(!line.trim()){flush();continue}if(/^#{1,3}\s/.test(line)){flush();let n=line.match(/^#+/)[0].length;out+='<h'+(n+1)+'>'+inline(line.replace(/^#{1,3}\s*/,''))+'</h'+(n+1)+'>';continue}
+if(/^[-*]\s+/.test(line)){if(para.length||quote.length||table.length)flush();list.push(line.replace(/^[-*]\s+/,''));continue}
+if(/^>\s?/.test(line)){if(para.length||list.length||table.length)flush();quote.push(line.replace(/^>\s?/,''));continue}
+if(/^\|.+\|\s*$/.test(line)){if(para.length||list.length||quote.length)flush();table.push(line);continue}
+if(/^---+$/.test(line)){flush();out+='<hr>';continue}
+para.push(line)
+}flush();if(inCode)out+='<pre><code>'+escapeHtml(code.join('\n'))+'</code></pre>';return out||'<p class="hint">开始输入，预览会显示在这里。</p>'}
+function update(){const slug=fields.slug.value.trim();filename.textContent='_posts/'+today()+'-'+(slug||'文章短名')+'.md';preview.innerHTML=render(fields.body.value);try{localStorage.setItem(storageKey,JSON.stringify(Object.fromEntries(ids.map(id=>[id,fields[id].value]))))}catch(e){setMessage('浏览器无法保存草稿，请及时下载 Markdown 文件。',true)}}
+fields.title.addEventListener('input',()=>{if(!editedSlug){fields.slug.value=slugify(fields.title.value)}update()});
+fields.slug.addEventListener('input',()=>{editedSlug=true;fields.slug.value=slugify(fields.slug.value);update()});
+for(const id of ['category','summary','body'])fields[id].addEventListener('input',update);
+function insert(before,after='',fallback='文字'){const el=fields.body,start=el.selectionStart,end=el.selectionEnd,selection=el.value.slice(start,end)||fallback;el.setRangeText(before+selection+after,start,end,'end');el.focus();el.dispatchEvent(new Event('input',{bubbles:true}))}
+document.querySelectorAll('[data-insert]').forEach(button=>button.addEventListener('click',()=>{const kind=button.dataset.insert;if(kind==='heading')insert('\n## ','\n','小标题');if(kind==='bold')insert('**','**','重点');if(kind==='italic')insert('*','*','文字');if(kind==='link')insert('[','](https://example.com/)','链接文字');if(kind==='list')insert('\n- ','','列表项目');if(kind==='quote')insert('\n> ','','引用内容');if(kind==='code')insert('\n```\n','\n```\n','代码');if(kind==='accent')insert('<span class="text-accent">','</span>','重点文字');if(kind==='image'){const name=prompt('图片上传到仓库 assets/ 后，输入文件名（例如 photo.jpg）：');if(name===null)return;if(!/^[a-zA-Z0-9._-]+\.(png|jpe?g|webp|gif|svg)$/i.test(name)){setMessage('请填写安全的图片文件名，例如 photo.jpg；先到 GitHub 上传图片。',true);return}insert('![图片说明](/assets/'+name+')','','')}}));
+function output(){const title=fields.title.value.trim(),category=fields.category.value.trim(),summary=fields.summary.value.trim(),slug=fields.slug.value.trim(),body=fields.body.value.trim();if(!title||!category||!summary||!body){setMessage('请填写标题、分类、摘要和正文。',true);return null}if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)){setMessage('网址短名只允许小写英文字母、数字和连字符。',true);return null}if(typeof posts!=='undefined'&&posts.some(p=>p.id===slug)){setMessage('这个短名已有文章使用，请换一个。编辑旧文章请直接到 GitHub 修改原文件。',true);return null}const quoted=s=>JSON.stringify(s);return '---\nlayout: post\ntitle: '+quoted(title)+'\ncategory: '+quoted(category)+'\nsummary: '+quoted(summary)+'\nblog_id: '+slug+'\ndate: '+today()+' 00:00:00 +0800\npermalink: /articles/'+slug+'/\n---\n\n'+body+'\n'}
+document.getElementById('copy').addEventListener('click',async()=>{const md=output();if(!md)return;try{await navigator.clipboard.writeText(md);setMessage('已复制完整文章。到 GitHub 新建文件，填写上方文件名后粘贴。')}catch(e){setMessage('浏览器未允许复制，请改用“下载 .md 文件”。',true)}});
+document.getElementById('download').addEventListener('click',()=>{const md=output();if(!md)return;const url=URL.createObjectURL(new Blob([md],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=today()+'-'+fields.slug.value.trim()+'.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('文件已下载；请上传到仓库的 _posts/ 目录并提交。')});
+update();
+})();
+</script>
+</body>
+</html>
