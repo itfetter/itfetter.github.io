@@ -6,8 +6,8 @@
 
 - 已创建公开仓库 `itfetter/itfetter.github.io`，提交独立静态博客首页；网站提供介绍、文章列表、分类筛选、搜索、文章阅读和 CSDN 入口。
 - 博客目前只有建站欢迎文和一篇用于展示排版的示例随笔；内容保存在 `index.html` 的 `posts` 数组里，没有真正的文章管理后台。
-- GitHub Pages 设置为从 `main` 的 `/ (root)` 发布。仓库 `CNAME` 内容为 `itfetter.com`；用户截图曾显示 Pages 的 DNS check successful、网站地址为 `http://itfetter.com/`，且根域名能够打开博客。
-- 最后已知截图中 Enforce HTTPS 不可选，提示域名尚未正确支持 HTTPS。之后是否自动完成证书签发尚未在本次修改中验证，不能写作“已解决”。
+- GitHub Pages 设置为从 `main` 的 `/ (root)` 发布。仓库 `CNAME` 内容为 `itfetter.com`；用户先前截图显示 Pages 的 DNS check successful、根域名能够打开博客；最新截图显示博客已可通过 HTTPS 访问。
+- 2026-09-24 最新截图显示 GitHub Pages 的 Enforce HTTPS 已勾选，浏览器已能打开 `https://itfetter.com/`；同一截图中 DNS 检查仍显示 **DNS Check in Progress**。
 - 本次补齐维护规范、交接记录，更新面向真实开发者的 README；本次不修改网页及 DNS。
 
 ## 当前项目地图
@@ -26,7 +26,7 @@
 | --- | --- | --- | --- |
 | 2026-09-24（初建） | `index.html`、`README.md` | 创建单文件静态博客和基本编辑说明 | 从原有跳转入口发展为可独立阅读的个人博客。 |
 | 2026-09-24（域名） | `CNAME`；另有阿里云 DNS 与 Pages 设置 | 将 Pages 主域名设为 `itfetter.com`，将 `@` 解析到 Pages IP、`www` 指向 `itfetter.github.io` | 使用自己的域名访问博客。域名和 DNS 修改由站点所有者操作；最终 Git 记录中的 `CNAME` 值为 `itfetter.com`。 |
-| 2026-09-24（本次） | `AGENTS.md`、`PROJECT_HANDOFF.md`、`README.md` | 增加项目规则、交接状态和开发者快速上手文档 | 明确真实代码结构、线上状态与后续协作方式。 |
+| 2026-09-24（文档建设） | `AGENTS.md`、`PROJECT_HANDOFF.md`、`README.md` | 增加项目规则、交接状态和开发者快速上手文档 | 明确真实代码结构、线上状态与后续协作方式。 |\n| 2026-09-24（HTTPS 状态更新） | `README.md`、`PROJECT_HANDOFF.md` | 记录 HTTPS 已可访问且 Enforce HTTPS 已勾选；保留 DNS 检查仍在进行中的状态 | 根据用户最新截图修正过时的待办与部署描述。 |
 
 > 更早的逐次提交详情以仓库 Git 历史为准；表格概括阶段性变化，不假装记录了每一次操作。以后每次提交应在这里追加一行，写明实际文件及验证结果。
 
@@ -36,20 +36,20 @@
 - 发布源：GitHub Pages，`main` 分支，仓库根目录。
 - 主域名：`itfetter.com`；根目录 `CNAME` 已存在。
 - 默认 GitHub 地址：`itfetter.github.io`；绑定域名后通常重定向到主域名。
-- 截图所证实的上次已知访问地址：`http://itfetter.com/`。本次仅修改文档，没有现场确认当前 HTTPS、证书、重定向或最新部署结果。
+- 2026-09-24 最新用户截图：浏览器已通过 HTTPS 打开 `itfetter.com`，Pages 的 Enforce HTTPS 已勾选；DNS Check 仍显示 In Progress。未单独核验 `www`、旧 GitHub 地址的跳转及截图之后的状态。
 
 ## 已知问题、限制和潜在问题
 
 | 项目 | 当前情况 | 影响及后续检查 |
 | --- | --- | --- |
-| HTTPS | 上次截图中 Enforce HTTPS 不可选；当前是否已恢复未知。 | 在 Pages 检查证书与 DNS，测试 `https://itfetter.com/` 和 `https://www.itfetter.com/`；可用后开启 Enforce HTTPS。 |
+| HTTPS 与域名检查 | 最新截图证实 `https://itfetter.com/` 可访问、Enforce HTTPS 已勾选；DNS Check 当时仍在进行中。 | 等待 DNS 检查结束；复测 `https://www.itfetter.com/` 与 HTTP 跳转。 |
 | 文章数量与真实性 | 只有欢迎文和示例随笔。 | 对外展示前逐步替换示例；不把示例说成真实发布文章。 |
 | 文章 HTML | `posts[].html` 用 `innerHTML` 注入。 | 当前是仓库受信任的静态内容；若接入外部数据或用户投稿，必须先安全处理，避免 XSS。 |
 | 置顶卡片 | 文案和链接硬编码为 `#post/hello`。 | 更新置顶文章时需要同步维护卡片；否则会出现标题与正文不符。 |
 | 分类筛选 | 按钮列表写死在 HTML 中。 | 新增分类时要同时更新按钮。 |
 | 路由 | 使用 `#post/<id>`，不是服务端文章路径。 | 修改文章 id 将破坏已有链接；搜索仅匹配标题、摘要、分类。 |
 | 外部资源 | Google Fonts 和 CSDN 链接依赖第三方可访问。 | 字体不可用时采用系统字体回退；外部链接失效需维护。 |
-| NS 与解析 | 曾在阿里云见到 NS 不一致提示，之后 Pages DNS check 成功。 | 若 HTTPS 持续失败，再确认权威 NS 与公网 DNS 是否一致、是否存在冲突记录。 |
+| NS 与解析 | 曾在阿里云见到 NS 不一致提示；之前出现过 DNS check successful，最新截图却显示 DNS Check in Progress。 | 不据此断言解析出错；若检查长期不结束，再确认权威 NS、公网 DNS 与冲突记录。 |
 
 ## 风险
 
@@ -57,11 +57,11 @@
 2. 仓库公开，提交密钥、个人隐私或未授权内容将直接暴露。
 3. 改动 `index.html` 底部脚本或文章 ID 可能破坏首页筛选、哈希链接和阅读视图。
 4. 页面没有自动化测试与构建流程；修改后需手动检查浏览器表现及 Pages 部署。
-5. 用户曾在 HTTPS 未启用时看见浏览器“不安全”；公开传播博客地址前应复核 HTTPS 状态。
+5. HTTPS 目前已可访问；日后变更 DNS、`CNAME` 或 Pages 设置后仍需复查证书和 HTTP 到 HTTPS 的跳转。
 
 ## 待办与下一步
 
-1. 在 Settings → Pages 核验 Enforce HTTPS 是否已经可以开启；检查 `https://itfetter.com/`、带 `www` 的入口和旧 GitHub 地址的跳转。
+1. 等待 Pages 的 DNS Check 完成；检查带 `www` 的入口、HTTP 到 HTTPS 和旧 GitHub 地址的跳转。
 2. 整理正式博客文章并替换示例随笔；按需将长期内容从 CSDN 同步到本站，确保作者有权发布。
 3. 为文章增加更易维护的内容组织方案（仅在文章增多后评估独立 Markdown、静态生成器或轻量构建流程）。
 4. 添加必要的网页元信息、站点图标和分享预览；实际需要时再做。
