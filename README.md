@@ -1,51 +1,42 @@
 # itfetter 的个人博客
 
-一个用 GitHub Pages 托管的个人静态博客，记录文章、项目和思考。网站主域名为 [itfetter.com](https://itfetter.com/)；站点已可通过 HTTPS 访问，GitHub Pages 的 **Enforce HTTPS** 已勾选（据站点所有者截图，2026-09-24）。仓库和网站目前均为公开内容。
+使用 GitHub Pages 托管的个人静态博客：[https://itfetter.com/](https://itfetter.com/)。文章采用“一篇 Markdown 一个文件”，提交到 GitHub 后自动构建和发布。现有页面包含首页、文章列表、分类筛选、搜索、阅读视图和 CSDN 博客入口。
 
-页面包含响应式首页、文章列表、分类筛选、关键词搜索、站内文章阅读，以及通向 [CSDN 博客](https://blog.csdn.net/2301_79385221?type=blog) 的入口。目前的建站欢迎文和随笔用于展示站点结构；示例随笔可以替换成正式文章。
+## 项目结构
 
-## 技术与目录
-
-纯 HTML、CSS、原生 JavaScript，没有框架、后端、数据库或构建步骤。文章编辑通过 GitHub 账号及仓库写权限控制。
-
-| 路径 | 作用 |
+| 文件或目录 | 用途 |
 | --- | --- |
-| [`index.html`](index.html) | 站点页面、样式、列表/筛选/搜索和文章阅读逻辑。 |\n| [`posts.js`](posts.js) | 文章数据及正文。 |\n| [`admin/index.html`](admin/index.html) | [文章管理入口](https://itfetter.com/admin/)；登录后跳转到 GitHub 编辑文件。 |
-| [`CNAME`](CNAME) | GitHub Pages 自定义域名 `itfetter.com`。 |
-| [`AGENTS.md`](AGENTS.md) | 开发与 AI 协作约定。 |
-| [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) | 当前进度、变更记录、已知问题与下一步。 |
+| `index.html` | 首页样式、文章列表、搜索、自动分类与旧版 `#post/<id>` 阅读链接。 |
+| `_posts/YYYY-MM-DD-name.md` | **文章源文件**，一篇文章一个文件。 |
+| `_layouts/post.html` | 文章独立页面的布局，地址如 `/articles/hello/`。 |
+| `posts.js` | Jekyll 模板，部署时由 `_posts/` 自动生成前台文章数据；请勿在这里手工写文章。 |
+| `ARTICLE_TEMPLATE.md` | 新文章的可复制模板。 |
+| `admin/index.html` | [文章管理入口](https://itfetter.com/admin/)，登录和编辑交由 GitHub。 |
+| `_config.yml` | Jekyll 配置，包括域名、时区和 Markdown 处理器。 |
+| `CNAME` | GitHub Pages 域名 `itfetter.com`，请勿随意删除。 |
+| `AGENTS.md`、`PROJECT_HANDOFF.md` | 协作规范与当前交接状态。 |
 
-## 快速开始
+## 新增文章
 
-1. 克隆仓库：`git clone https://github.com/itfetter/itfetter.github.io.git`
-2. 进入目录：`cd itfetter.github.io`
-3. 直接用浏览器打开 `index.html` 查看页面。也可用本地静态服务器预览，例如 `python3 -m http.server 8000`，然后访问 `http://localhost:8000/`。
-4. 修改 `index.html` 并在浏览器刷新；本项目不需要运行 `npm install` 或启动后端。
+1. 打开博客的[管理入口](https://itfetter.com/admin/)，使用拥有仓库写权限的 GitHub 账号登录，然后点击“新增文章”。也可以直接打开仓库的 [`_posts` 目录](https://github.com/itfetter/itfetter.github.io/tree/main/_posts)。
+2. 复制 [`ARTICLE_TEMPLATE.md`](ARTICLE_TEMPLATE.md) 的内容，新建 `_posts/YYYY-MM-DD-英文标题.md`。日期写文章发布日期，例如 `2026-09-24-my-first-post.md`。
+3. 填写文件开头的元信息：`title`（标题）、`category`（分类）、`summary`（摘要）、`blog_id`（唯一稳定的英文标识）、`date`（含时区的发布日期）、`permalink`（独立文章网址），然后用 Markdown 写正文。
+4. 在 GitHub 点击 **Commit changes**。提交到 `main` 后等待 Pages 部署，再检查博客首页和文章页。
 
-### 添加文章
+旧文章的 `blog_id` 不要随意更换，否则原有的 `#post/hello` 这类链接会失效。分类按钮从文章的 `category` 自动生成；首页置顶卡片仍固定指向 `hello`，更换置顶时要修改 `index.html`。图片可放在仓库的 `assets/` 目录，在正文中使用 `![说明](/assets/文件名.jpg)`。
 
-在 `posts.js` 中找到 `posts` 数组，复制一个文章对象并更新：
+### 编辑已有文章
 
-- `id`：唯一且稳定的英文标识；文章链接为 `#post/<id>`，旧文章的 `id` 不要随意修改。
-- `title`、`category`、`date`、`summary`：列表与文章页显示的文字。
-- `html`：文章 HTML 正文，仅加入已审阅的可信内容。
+在管理入口的文章列表点击“编辑 Markdown”，即可进入该文章的 GitHub 文件编辑页。保存并提交后，Jekyll 会重新生成文章页和文章列表。站内 `/admin/` 是公开静态导航页，**没有自己的登录会话或可视化保存功能**；只有仓库写入者才能通过 GitHub 发布修改。无需单独的数据库或服务器。
 
-若添加了新分类，同时在 `index.html` 的 `.filters` 区域增加对应筛选按钮。首页置顶卡片目前单独指向 `#post/hello`；换置顶文章时，连同卡片的链接、标题、摘要一起更新。更多字段、逻辑与编辑约束参见 [AGENTS.md](AGENTS.md)。
+## 本地预览与部署
 
-### 登录与权限\n\n首页导航现有“登录”入口，通往 [文章管理入口](https://itfetter.com/admin/)；点击“前往 GitHub 登录并编辑”后进入 GitHub 的 `posts.js` 文件编辑页。已有 GitHub 登录会直接打开编辑页；没有仓库写权限的账号无法向本仓库提交发布。新增或修改文章后点击 GitHub **Commit changes**，等待 Pages 重新部署。\n\n`/admin/` 是公开可访问的静态导航页，**不是带密码保护的后台**；身份验证、授权与实际保存均由 GitHub 完成。页面不收集密码或令牌。当前尚未实现站内登录、站内可视化编辑及保存。要在 `itfetter.com` 上直接使用表单编辑并保存，需要另行部署带 GitHub OAuth 和仓库写入接口的可信服务，配置 OAuth 凭据并授权其访问仓库。\n\n## 部署和域名
+仓库发布源是 GitHub Pages 的 `main` 分支、`/ (root)`。Pages 会使用内置 Jekyll 构建。修改文章后查看仓库 **Actions** 或 **Settings → Pages** 的构建结果。
 
-当前 GitHub Pages 配置为 **Deploy from a branch → main → / (root)**。将更改推送到 `main` 后，前往仓库 **Actions** 或 **Settings → Pages** 查看部署结果。首页文件必须保持在仓库根目录的 `index.html`。
+只检查首页静态布局时可运行 `python3 -m http.server 8000` 并打开 `http://localhost:8000/`；此方法**不会运行 Jekyll**，直接打开源码中的 `posts.js` 也看不到部署后的文章列表。要在本地完整预览 Markdown 生成的页面，需要安装 Jekyll，并运行 `bundle exec jekyll serve`（需先自行准备相应的 Ruby/Gem 环境）；日常发布只需在 GitHub 提交，**不要求本地安装 Jekyll**。
 
-`CNAME` 保存主域名 `itfetter.com`。域名提供商的 DNS 需单独配置：根域名指向 GitHub Pages 的官方 A 记录，`www` 可通过 CNAME 指向 `itfetter.github.io`。绑定自定义域名后，原 `itfetter.github.io` 地址通常会重定向到主域名。修改 `CNAME` 前，请先核对仓库 Pages 设置与 DNS；2026-09-24 的截图显示 HTTPS 可用且 Enforce HTTPS 已勾选；当时设置页仍显示 **DNS Check in Progress**，如调整解析请再次核对状态。域名设置的详细过程可参阅 [GitHub 官方文档](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)。
+原 `itfetter.github.io` 地址在绑定自定义域名后通常会跳转到主域名。2026-09-24 站点所有者截图显示 HTTPS 已可访问且已开启 Enforce HTTPS；当时 DNS Check 显示 In Progress，若调整域名解析请重新检查。
 
-## 开发与检查
+## 开发约定与下一步
 
-修改页面后，至少检查首页、文章链接直达、分类、搜索、窄屏布局和外部链接；提交后再确认 Pages 部署。仓库没有自动测试脚本或 CI 测试门禁。不要向公开仓库提交 API 密钥或私密内容。
-
-## 下一步
-
-- 复查 Pages 中仍显示 **DNS Check in Progress** 的域名检查提示，并验证 `www` 与旧 GitHub 地址的跳转。
-- 通过 `/admin/` 的 GitHub 编辑入口，用正式文章替换示例随笔并逐步完善内容与分类。
-- 当文章数量增长时，再评估是否需要将文章拆分为独立文件。
-
-项目最新状态、未解决问题及修改历史记录在 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)。
+修改功能前阅读 [AGENTS.md](AGENTS.md)；每次变化在 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md) 记录。**后续提交信息与修改说明使用中文。** 当前文章只包含建站欢迎文与示例随笔，下一步应逐步换成正式文章。若未来确实需要在本站直接登录、填写表单和保存文章，仍需可靠的授权与写入服务，GitHub Pages 本身只提供静态托管。
