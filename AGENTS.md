@@ -17,6 +17,7 @@
 | `posts.js` | 带 YAML front matter 的 Liquid 模板；由 `site.posts` 输出前台文章数据，**勿手改数据**。 |
 | `index.html` | 首页样式、文章列表、自动分类、筛选、搜索与 `#post/<id>` 旧链接。 |
 | `_layouts/post.html` | 每篇文章的独立 HTML 页布局。 |
+| `write/index.html` | 无需服务器的写作与预览页；仅在本机保留草稿，生成 Markdown 后由 GitHub 发布。 |
 | `admin/index.html` | GitHub 登录入口、逐篇文件编辑入口及新增文章链接。 |
 | `ARTICLE_TEMPLATE.md` | 新文章格式示例。 |
 | `_config.yml` | Jekyll 的标题、网址、时区和 Markdown 设置。 |
@@ -38,7 +39,7 @@
 - 可以增改文章、修正文案、调整视觉与可访问性；必要时修改 Jekyll 布局或列表逻辑。优先保持现有博客首页布局和旧文章哈希地址。
 - `CNAME`、Pages 分支/目录、DNS 属线上入口，明确域名迁移需求后才改。不要为了布局改版删除域名文件。
 - 不随意更改文章 `blog_id`、`permalink`、现有 CSDN 链接，不把原站改为直接跳转页。
-- 不将密码、个人令牌或私密信息写入公开仓库；也不要在纯前端实现假密码验证并宣称能限制发布。
+- 不将密码、个人令牌或私密信息写入公开仓库；也不要在纯前端实现假密码验证并宣称能限制发布。`/write/` 是公开可访问的本地草稿编辑器，不应请求 GitHub Token 或在浏览器直接写入仓库。
 
 ## API、数据库、前端、部署规则
 
