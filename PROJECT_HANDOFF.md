@@ -26,7 +26,8 @@
 | --- | --- | --- | --- |
 | 2026-09-24（初建） | `index.html`、`README.md` | 创建单文件静态博客和基本编辑说明 | 从原有跳转入口发展为可独立阅读的个人博客。 |
 | 2026-09-24（域名） | `CNAME`；另有阿里云 DNS 与 Pages 设置 | 将 Pages 主域名设为 `itfetter.com`，将 `@` 解析到 Pages IP、`www` 指向 `itfetter.github.io` | 使用自己的域名访问博客。域名和 DNS 修改由站点所有者操作；最终 Git 记录中的 `CNAME` 值为 `itfetter.com`。 |
-| 2026-09-24（文档建设） | `AGENTS.md`、`PROJECT_HANDOFF.md`、`README.md` | 增加项目规则、交接状态和开发者快速上手文档 | 明确真实代码结构、线上状态与后续协作方式。 |\n| 2026-09-24（HTTPS 状态更新） | `README.md`、`PROJECT_HANDOFF.md` | 记录 HTTPS 已可访问且 Enforce HTTPS 已勾选；保留 DNS 检查仍在进行中的状态 | 根据用户最新截图修正过时的待办与部署描述。 |
+| 2026-09-24（文档建设） | `AGENTS.md`、`PROJECT_HANDOFF.md`、`README.md` | 增加项目规则、交接状态和开发者快速上手文档 | 明确真实代码结构、线上状态与后续协作方式。 |
+| 2026-09-24（HTTPS 状态更新） | `README.md`、`PROJECT_HANDOFF.md` | 记录 HTTPS 已可访问且 Enforce HTTPS 已勾选；保留 DNS 检查仍在进行中的状态 | 根据用户最新截图修正过时的待办与部署描述。 |
 
 | 2026-09-24（文章管理入口） | `posts.js`、`index.html`、`admin/index.html`、`README.md`、`AGENTS.md`、`PROJECT_HANDOFF.md` | 分离文章数据，新增 GitHub 登录入口和编辑链接，更新使用说明及状态 | 让授权维护者通过 GitHub 登录和仓库写权限持续维护文章，不在公开 Pages 存密码。 |\n\n> 更早的逐次提交详情以仓库 Git 历史为准；表格概括阶段性变化，不假装记录了每一次操作。以后每次提交应在这里追加一行，写明实际文件及验证结果。
 
