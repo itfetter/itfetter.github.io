@@ -23,7 +23,7 @@
 3. 填写文件开头的元信息：`title`（标题）、`category`（分类）、`summary`（摘要）、`blog_id`（唯一稳定的英文标识）、`date`（含时区的发布日期）、`permalink`（独立文章网址），然后用 Markdown 写正文。
 4. 在 GitHub 点击 **Commit changes**。提交到 `main` 后等待 Pages 部署，再检查博客首页和文章页。
 
-旧文章的 `blog_id` 不要随意更换，否则原有的 `#post/hello` 这类链接会失效。分类按钮从文章的 `category` 自动生成；首页置顶卡片仍固定指向 `hello`，更换置顶时要修改 `index.html`。图片可放在仓库的 `assets/` 目录，在正文中使用 `![说明](/assets/文件名.jpg)`。
+旧文章的 `blog_id` 不要随意更换，否则原有的 `#post/hello` 这类链接会失效。分类按钮从文章的 `category` 自动生成；首页置顶卡片仍固定指向 `hello`，更换置顶时要修改 `index.html`。图片可放在仓库的 `assets/` 目录，在正文中使用 `![说明](/assets/文件名.jpg)`。参考[图文排版示例](/articles/rich-markdown-demo/)学习图片说明、表格、提示框、重点色和代码块。示例配图为仓库内的 `assets/writing-flow.svg`，可替换为自己的图片。
 
 ### 编辑已有文章
 
