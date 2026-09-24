@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>文章管理 · itfetter</title>
+  <style>
+    :root{color-scheme:light;--paper:#f5f3ee;--card:#fffefa;--ink:#242722;--muted:#6d756f;--green:#1f332d;--accent:#ce603e;--line:#deded6}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.75 system-ui,"Noto Sans SC",sans-serif}
+    a{color:inherit}main{max-width:850px;padding:40px 24px 90px;margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:78px}.logo{font-weight:800;font-size:21px;text-decoration:none}.logo span{color:var(--accent)}.back{color:var(--muted);font-size:13px;text-decoration:none}.back:hover,.item a:hover{color:var(--accent)}
+    .eyebrow{font-size:11px;color:var(--accent);letter-spacing:.2em;font-weight:700}h1{font-size:clamp(30px,5vw,48px);line-height:1.25;letter-spacing:-.05em;margin:16px 0 18px}h2{font-size:20px;letter-spacing:-.03em;margin:0 0 8px}p{color:var(--muted);margin:0 0 18px}
+    .card{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:32px;box-shadow:0 20px 65px rgba(34,41,32,.05);margin-top:28px}
+    .button{display:inline-flex;align-items:center;justify-content:center;background:var(--green);color:#fff;text-decoration:none;border-radius:7px;padding:12px 21px;font-weight:650;margin:8px 0 14px}.button:hover{background:#345246}.hint{font-size:13px}.item{display:flex;gap:16px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:16px 0}.item:first-child{border-top:0}.item strong{display:block}.item small{color:var(--muted)}.item a{color:var(--accent);white-space:nowrap;text-decoration:none;font-size:13px;font-weight:700}.steps{padding-left:22px;color:var(--muted);margin:16px 0 0}.steps li{margin:8px 0}code{background:#eeeee6;padding:2px 5px;border-radius:4px;color:var(--ink)}@media(max-width:560px){.top{margin-bottom:45px}.card{padding:22px}.item{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <main>
+    <header class="top"><a class="logo" href="../">itfetter<span>.</span></a><a class="back" href="../">← 返回博客</a></header>
+    <div class="eyebrow">EDITOR / 内容管理入口</div>
+    <h1>登录 GitHub，管理博客文章。</h1>
+    <p>本站由 GitHub Pages 托管。文章修改与发布由 GitHub 账号和仓库写入权限控制；这个页面不接收密码，也不保存登录凭据。</p>
+    <section class="card" aria-labelledby="login-heading">
+      <h2 id="login-heading">进入文章编辑器</h2>
+      <p>使用拥有 <code>itfetter/itfetter.github.io</code> 写入权限的 GitHub 账号登录。已登录时会直接进入 GitHub 的文件编辑页。</p>
+      <a class="button" href="https://github.com/login?return_to=%2Fitfetter%2Fitfetter.github.io%2Fedit%2Fmain%2Fposts.js">使用 GitHub 登录并编辑 ↗</a>
+      <p class="hint">文章数据存放在 <code>posts.js</code>。未获得仓库写入权限的账号无法直接向本博客提交发布。</p>
+    </section>
+    <section class="card" aria-labelledby="articles-heading">
+      <h2 id="articles-heading">当前文章</h2>
+      <div id="articles"><p>正在读取文章列表…</p></div>
+    </section>
+    <section class="card" aria-labelledby="how-heading">
+      <h2 id="how-heading">新增或修改文章</h2>
+      <ol class="steps">
+        <li>点击上方按钮，登录 GitHub 并打开 <code>posts.js</code>。</li>
+        <li>修改已有文章，或复制一个 <code>posts</code> 数组中的对象新增文章。为新文章设置不重复的英文 <code>id</code>，填写标题、分类、日期、摘要和正文 HTML。</li>
+        <li>点击 GitHub 的 <strong>Commit changes</strong> 保存。提交到 <code>main</code> 后等待 Pages 发布，再到博客首页检查列表、搜索和文章阅读。</li>
+      </ol>
+      <p class="hint">新增分类还需修改 <code>index.html</code> 的筛选按钮；首页置顶文章目前固定指向 <code>hello</code>。详情见仓库的 README 与 AGENTS.md。</p>
+    </section>
+  </main>
+  <script src="../posts.js"></script>
+  <script>
+    const container=document.getElementById('articles');
+    if(typeof posts!=='undefined' && Array.isArray(posts)){
+      container.replaceChildren();
+      for(const post of posts){
+        const row=document.createElement('div');row.className='item';
+        const info=document.createElement('div');
+        const title=document.createElement('strong');title.textContent=post.title;
+        const meta=document.createElement('small');meta.textContent=post.category+' · '+post.date+' · #post/'+post.id;
+        const link=document.createElement('a');link.href='https://github.com/itfetter/itfetter.github.io/edit/main/posts.js';link.textContent='在 GitHub 编辑 ↗';
+        info.append(title,meta);row.append(info,link);container.append(row);
+      }
+    }else{container.textContent='文章列表加载失败，请在 GitHub 仓库检查 posts.js。'}
+  </script>
+</body>
+</html>
