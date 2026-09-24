@@ -6,11 +6,11 @@
 
 ## 技术与目录
 
-纯 HTML、CSS、原生 JavaScript，没有框架、后端、数据库或构建步骤。
+纯 HTML、CSS、原生 JavaScript，没有框架、后端、数据库或构建步骤。文章编辑通过 GitHub 账号及仓库写权限控制。
 
 | 路径 | 作用 |
 | --- | --- |
-| [`index.html`](index.html) | 站点的页面、样式、文章数据和交互逻辑。 |
+| [`index.html`](index.html) | 站点页面、样式、列表/筛选/搜索和文章阅读逻辑。 |\n| [`posts.js`](posts.js) | 文章数据及正文。 |\n| [`admin/index.html`](admin/index.html) | [文章管理入口](https://itfetter.com/admin/)；登录后跳转到 GitHub 编辑文件。 |
 | [`CNAME`](CNAME) | GitHub Pages 自定义域名 `itfetter.com`。 |
 | [`AGENTS.md`](AGENTS.md) | 开发与 AI 协作约定。 |
 | [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) | 当前进度、变更记录、已知问题与下一步。 |
@@ -24,7 +24,7 @@
 
 ### 添加文章
 
-在 `index.html` 底部 `<script>` 中找到 `posts` 数组，复制一个文章对象并更新：
+在 `posts.js` 中找到 `posts` 数组，复制一个文章对象并更新：
 
 - `id`：唯一且稳定的英文标识；文章链接为 `#post/<id>`，旧文章的 `id` 不要随意修改。
 - `title`、`category`、`date`、`summary`：列表与文章页显示的文字。
@@ -32,7 +32,7 @@
 
 若添加了新分类，同时在 `index.html` 的 `.filters` 区域增加对应筛选按钮。首页置顶卡片目前单独指向 `#post/hello`；换置顶文章时，连同卡片的链接、标题、摘要一起更新。更多字段、逻辑与编辑约束参见 [AGENTS.md](AGENTS.md)。
 
-## 部署和域名
+### 登录与权限\n\n访问 [文章管理入口](https://itfetter.com/admin/)，点击“使用 GitHub 登录并编辑”后进入 GitHub 的 `posts.js` 文件编辑页。已有 GitHub 登录会直接打开编辑页；没有仓库写权限的账号无法向本仓库提交发布。新增或修改文章后点击 GitHub **Commit changes**，等待 Pages 重新部署。\n\n`/admin/` 是公开可访问的静态导航页，**不是带密码保护的后台**；身份验证、授权与实际保存均由 GitHub 完成。页面不收集密码或令牌。若未来希望在 `itfetter.com` 上直接使用表单编辑并保存，需要另外部署安全的登录与写入服务。\n\n## 部署和域名
 
 当前 GitHub Pages 配置为 **Deploy from a branch → main → / (root)**。将更改推送到 `main` 后，前往仓库 **Actions** 或 **Settings → Pages** 查看部署结果。首页文件必须保持在仓库根目录的 `index.html`。
 
@@ -45,7 +45,7 @@
 ## 下一步
 
 - 复查 Pages 中仍显示 **DNS Check in Progress** 的域名检查提示，并验证 `www` 与旧 GitHub 地址的跳转。
-- 用正式文章替换示例随笔，逐步完善内容与分类。
+- 通过 `/admin/` 的 GitHub 编辑入口，用正式文章替换示例随笔并逐步完善内容与分类。
 - 当文章数量增长时，再评估是否需要将文章拆分为独立文件。
 
 项目最新状态、未解决问题及修改历史记录在 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)。
