@@ -7,7 +7,7 @@
 - 个人博客已部署在 `itfetter.com`，从 GitHub Pages 的 `main` 分支根目录发布；用户截图曾确认 HTTPS 可访问、Enforce HTTPS 已勾选，DNS Check 当时仍显示 In Progress。
 - 首页原有的展示、搜索、分类与 `#post/hello`、`#post/note` 阅读方式保留。首页导航不显示登录入口，维护者可直接访问 `/admin/`。
 - 文章从挤在 `posts.js` 的单行数据迁移为两篇 `_posts/*.md`；Jekyll 构建时生成文章独立页面与 `posts.js` 数据。首页分类按钮现在根据文章自动生成。
-- `/admin/` 逐篇链接到 GitHub 的 Markdown 编辑器，也可新建文件；仍是公开静态页，登录及发布权限由 GitHub 控制。**尚无站内输入密码、可视化编辑并直接保存的后台。**
+- `/admin/` 已改为可视化管理界面，但 Worker 和 GitHub App 尚未配置，当前只显示配置提示与 GitHub 备用入口；站内登录和保存仍未启用。
 - 此轮新增 `ARTICLE_TEMPLATE.md` 供写文章复制，README 与 AGENTS 已更新。用户要求以后提交及变更描述用中文，已写入协作规则。
 
 - `/write/` 现已跳转 GitHub 登录文章表单，原复制/下载式编辑器已移除。
@@ -21,8 +21,8 @@
 | `_posts/2026-09-24-note.md` | 示范随笔。 |
 | `_layouts/post.html` | Jekyll 独立文章页。 |
 | `posts.js` | Jekyll 从文章源文件自动生成的 JS 模板，源码中包含 Liquid。 |
-| `write/index.html` | 静态写作与预览页；仅生成文件，不持有凭据或直接发布。 |
-| `admin/index.html` | GitHub 登录及文章编辑导航。 |
+| `write/index.html` | 跳转 GitHub Issue 文章表单的备用入口。 |
+| `admin/index.html` | 可视化后台，配置 Worker 后支持文章增删改与图片。 |
 | `ARTICLE_TEMPLATE.md` | 新文章 front matter 与 Markdown 写法示例。 |
 | `_config.yml` | Jekyll 构建设置。 |
 | `CNAME` | Pages 主域名 `itfetter.com`。 |
