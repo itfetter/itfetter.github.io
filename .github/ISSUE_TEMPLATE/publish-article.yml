@@ -1,0 +1,36 @@
+name: 发布博客文章
+description: 登录 GitHub 后填写文章，提交即可自动写入博客并请求部署
+title: "[发布文章] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        仅仓库所有者 itfetter 提交的表单会自动发布。提交的内容会立即成为公开 Issue，请勿放私密草稿。
+        正文支持 Markdown；插图可直接拖入正文输入框，等待上传完成后确认出现图片链接。
+  - type: input
+    id: category
+    attributes:
+      label: 分类
+      description: 首页将按此分类自动归类
+      placeholder: 随笔
+    validations:
+      required: true
+  - type: input
+    id: summary
+    attributes:
+      label: 摘要
+      description: 出现在首页文章列表
+      placeholder: 用一句话介绍这篇文章
+    validations:
+      required: true
+  - type: textarea
+    id: body
+    attributes:
+      label: 正文
+      description: 在此写 Markdown，可使用预览；图片直接拖入编辑框
+      placeholder: |
+        从这里开始写……
+        ## 小标题
+        正文支持 **加粗**、链接、列表和图片。
+    validations:
+      required: true
