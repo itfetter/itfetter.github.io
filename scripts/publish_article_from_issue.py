@@ -80,15 +80,19 @@ def main():
     )
     encoded_path = urllib.parse.quote(path, safe="/")
     try:
+        existing = api("GET", f"/repos/{REPO}/contents/{encoded_path}?ref=main")
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise
+        existing = None
+    if existing:
+        print(f"文件已存在，跳过重复提交：{path}")
+    else:
         api("PUT", f"/repos/{REPO}/contents/{encoded_path}", {
             "message": f"发布文章：{title}",
             "content": base64.b64encode(article.encode("utf-8")).decode("ascii"),
             "branch": "main",
         })
-    except urllib.error.HTTPError as error:
-        if error.code == 422:
-            raise ValueError(f"目标文章文件已存在：{path}；请检查 Issue #{number}。") from error
-        raise
     # GITHUB_TOKEN 提交不触发分支模式下的 Pages 构建，显式请求构建。
     api("POST", f"/repos/{REPO}/pages/builds")
     url = f"https://itfetter.com/articles/{slug}/"
