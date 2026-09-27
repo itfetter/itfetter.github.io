@@ -44,9 +44,9 @@
 
 | 文件 | 原因 | 验证 |
 | --- | --- | --- |
-| `.github/ISSUE_TEMPLATE/publish-article.yml` | 用 GitHub 登录表单接收标题、分类、摘要和 Markdown。 | 已提交；待作者实测。 |
-| `.github/workflows/publish-article.yml`、`scripts/publish_article_from_issue.py` | 验证 itfetter 用户 ID，生成文章并请求 Pages 构建。 | 已核对源码；尚未提交真实文章端到端验证。 |
-| `write/index.html`、`README.md`、`AGENTS.md`、本文 | 入口改为 GitHub 表单并更新文档。 | 待 Pages 构建后核对线上跳转。 |
+| `.github/ISSUE_TEMPLATE/publish-article.yml` | 用 GitHub 登录表单接收标题、分类、摘要和 Markdown。 | 已提交；Issue #1 的分类、摘要、正文已被成功解析。 |
+| `.github/workflows/publish-article.yml`、`scripts/publish_article_from_issue.py` | 验证 itfetter 用户 ID，生成文章并请求 Pages 构建。 | 已核对源码；Issue #1（测试文章）已由作者提交；补正标题后工作流运行，生成文章并请求 Pages 构建。 |
+| `write/index.html`、`README.md`、`AGENTS.md`、本文 | 入口改为 GitHub 表单并更新文档。 | 自动文章写入已验证；线上跳转和页面可达仍待核对。 |
 
 自动文章使用 `article-<Issue 序号>` 链接。Issue 内容在提交后公开，图片可直接拖入正文。若 Pages API 调用失败，文章可能已写入但尚未部署，需查看 Actions 和 Issue 错误信息。旧文仍在 GitHub 文件编辑器修改。下一步由 itfetter 账号发布一篇真实文章，核对工作流、Pages 与前台页面。
 
@@ -67,3 +67,10 @@
 2. 用站点所有者的 GitHub 账号检查 `/admin/` 的登录、逐篇编辑与新建文件；提交一篇测试文章后确认 Pages 自动更新。
 3. 后续更新文章直接改 `_posts/*.md`，不要直接编辑 `posts.js`。持续记录中文提交信息、实际变更和验证结果。
 4. 内容增加时再评估图片、站点图标、分享预览和必要的文章管理体验改进；若要站内写作与发布，另行设计安全的授权/写入服务。
+
+## 2026-09-27 Issue #1 验证记录
+
+- 作者 itfetter 建立 Issue #1 时标题为“测试文章”，缺少工作流要求的 `[发布文章] ` 前缀，因此首次未运行。
+- 更新 `.github/workflows/publish-article.yml` 监听 `issues: edited`，在 Issue 开启且作者 ID 匹配时允许补正标题重新触发；随后将 Issue #1 标题改为 `[发布文章] 测试文章`。
+- 工作流生成 `_posts/2026-09-27-article-1.md`，Issue 机器人评论指出 Pages 构建已请求，Issue 自动关闭。生成文件元信息为分类“测试”、摘要“上传测试”、北京时间 2026-09-27 18:05:57、地址 `/articles/article-1/`。
+- 当前仅证实文章已入库且 Pages 构建请求已被接受；站点页面是否已显示，仍需确认 Pages 构建最终状态和线上访问。
