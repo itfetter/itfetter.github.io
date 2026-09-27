@@ -92,7 +92,7 @@ def main():
     # GITHUB_TOKEN 提交不触发分支模式下的 Pages 构建，显式请求构建。
     api("POST", f"/repos/{REPO}/pages/builds")
     url = f"https://itfetter.com/articles/{slug}/"
-    comment(number, f"已生成 \`{path}\`，并已请求 GitHub Pages 构建。部署完成后访问：{url}\n\n若页面尚未出现，请查看仓库 Actions 中的 Pages 构建结果。")
+    comment(number, f"已生成 `{path}`，并已请求 GitHub Pages 构建。部署完成后访问：{url}\n\n若页面尚未出现，请查看仓库 Actions 中的 Pages 构建结果。")
     api("PATCH", f"/repos/{REPO}/issues/{number}", {"state": "closed"})
     print(f"文章已提交并请求 Pages 构建：{url}")
 
