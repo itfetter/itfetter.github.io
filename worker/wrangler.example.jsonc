@@ -1,0 +1,15 @@
+{
+  "name": "itfetter-blog-admin",
+  "main": "index.js",
+  "compatibility_date": "2026-09-27",
+  "vars": {
+    "ADMIN_ORIGIN": "https://itfetter.com",
+    "GITHUB_CLIENT_ID": "替换为你的 GitHub App Client ID"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "替换为 Cloudflare KV namespace ID"
+    }
+  ]
+}
