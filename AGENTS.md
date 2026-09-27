@@ -9,7 +9,7 @@
 ## 技术栈和项目地图
 
 - GitHub Pages 从 `main` 分支 `/ (root)` 发布，内置 Jekyll 在构建时处理 Markdown 和 Liquid。前台仍为原生 HTML、CSS、JavaScript。
-- 没有自有 API、服务端数据库、单独登录后端；`/admin/` 是公开导航页，登录与文件提交由 GitHub 负责。
+- 可视化后台代码包括 Pages 的 `/admin/` 和尚待部署的 Cloudflare Worker 授权 API；目前 `admin/config.js` 为空，线上后台仍未启用。无自有数据库；Worker KV 仅保存短期登录状态。
 
 | 路径 | 作用 |
 | --- | --- |
@@ -20,7 +20,9 @@
 | `write/index.html` | 公开跳转至 GitHub 登录文章表单。 |
 | `.github/ISSUE_TEMPLATE/publish-article.yml` | GitHub 文章表单。 |
 | `.github/workflows/publish-article.yml`、`scripts/publish_article_from_issue.py` | 验证作者用户 ID，自动写入文章并请求 Pages 构建。 |
-| `admin/index.html` | GitHub 登录入口、逐篇文件编辑入口及新增文章链接。 |
+| `admin/index.html`、`admin/config.js` | 可视化管理界面及公开的 Worker 地址配置。 |
+| `worker/index.js`、`worker/wrangler.example.jsonc` | GitHub App OAuth 回调、只允许 itfetter 管理文章/图片的 API、部署配置样例。 |
+| `worker/README.md`、`worker/test.mjs` | 授权部署步骤及后台核心行为测试。 |
 | `ARTICLE_TEMPLATE.md` | 新文章格式示例。 |
 | `_config.yml` | Jekyll 的标题、网址、时区和 Markdown 设置。 |
 | `CNAME` | Pages 主域名 `itfetter.com`。 |
@@ -41,13 +43,13 @@
 - 可以增改文章、修正文案、调整视觉与可访问性；必要时修改 Jekyll 布局或列表逻辑。优先保持现有博客首页布局和旧文章哈希地址。
 - `CNAME`、Pages 分支/目录、DNS 属线上入口，明确域名迁移需求后才改。不要为了布局改版删除域名文件。
 - 不随意更改文章 `blog_id`、`permalink`、现有 CSDN 链接，不把原站改为直接跳转页。
-- 不将密码、个人令牌或私密信息写入公开仓库；`/write/` 是公开跳转页，真正的编辑和登录由 GitHub 提供。工作流只处理 itfetter 稳定用户 ID 138357073 的新文章 Issue，不得执行 Issue 中的任意脚本。
+- 不将密码、Client Secret、GitHub token 或真实 Worker 密钥写入公开仓库。后台仅允许 GitHub 数字用户 ID 138357073；对每次文章写入核对路径和版本 SHA。浏览器仅保存短期后台会话，GitHub token 留在 Worker。Issue 发文工作流保持备用。
 
 ## API、数据库、前端、部署规则
 
-- API/数据库：当前均无；如未来引入，要先明确数据模型、授权、迁移、备份和凭据保管方案。浏览器不保管 GitHub 写入令牌。
+- API/数据库：Worker 的 `/api/post` 限定 `_posts/*.md`，`/api/image` 限定 `assets/uploads/`，OAuth 令牌短期放在 Worker KV。不要允许前端提供任意仓库路径，不要在浏览器保管 GitHub token。变更权限或数据模型时同步更新文档。
 - 前端：维持响应式布局、键盘可用、清晰的替代文本。新增外部新窗口链接加 `rel="noopener noreferrer"`；尽量避免 HTTP 混合内容。
-- 部署：GitHub Pages 构建 `main` 根目录；自动工作流使用 GITHUB_TOKEN 写入时必须显式请求 Pages 构建；加入文章后检查 Pages/Actions 构建状态、首页和独立文章链接。Jekyll 构建后才会把 `posts.js` 模板转成可执行数据；仅用普通静态服务器预览源文件不等于线上效果。
+- 部署：GitHub Pages 构建 `main` 根目录，`worker/` 被排除；部署 Worker 与 GitHub App 后才填写 `admin/config.js`。自动工作流使用 GITHUB_TOKEN 写入时必须显式请求 Pages 构建；加入文章后检查 Pages/Actions 构建状态、首页和独立文章链接。Jekyll 构建后才会把 `posts.js` 模板转成可执行数据；仅用普通静态服务器预览源文件不等于线上效果。
 - 命名：文章文件小写英文和连字符，`blog_id` 小写英文且稳定；已有 JS 字段与函数使用 camelCase。
 
 ## 测试与验收
