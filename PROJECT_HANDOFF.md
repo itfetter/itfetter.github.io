@@ -74,3 +74,18 @@
 - 更新 `.github/workflows/publish-article.yml` 监听 `issues: edited`，在 Issue 开启且作者 ID 匹配时允许补正标题重新触发；随后将 Issue #1 标题改为 `[发布文章] 测试文章`。
 - 工作流生成 `_posts/2026-09-27-article-1.md`，Issue 机器人评论指出 Pages 构建已请求，Issue 自动关闭。生成文件元信息为分类“测试”、摘要“上传测试”、北京时间 2026-09-27 18:05:57、地址 `/articles/article-1/`。
 - 当前仅证实文章已入库且 Pages 构建请求已被接受；站点页面是否已显示，仍需确认 Pages 构建最终状态和线上访问。
+
+## 2026-09-27 可视化后台开发记录
+
+| 文件 | 修改原因 | 验证 |
+| --- | --- | --- |
+| `admin/index.html`、`admin/config.js` | 增加文章列表、Markdown 编辑与预览、图片上传、保存及删除界面；未配置服务时保留 GitHub 备用入口。 | 前端脚本通过 Node 语法检查；真实 OAuth 页面尚未登录验证。 |
+| `worker/index.js`、`worker/package.json`、`worker/test.mjs` | 引入 GitHub App OAuth + Cloudflare Worker API，以数字用户 ID 核对作者，限文章与图片目录，按 SHA 防冲突。 | `npm test` 三项通过：未登录/跨站拒绝、文章 CRUD 路径与冲突、非所有者授权拒绝。 |
+| `worker/wrangler.example.jsonc`、`worker/README.md`、`.gitignore` | 提供可配置部署示例、KV/密钥说明，避免误提交真实凭据。 | 文件已提交；Cloudflare 账户资源尚未创建。 |
+| `_config.yml`、`README.md`、`AGENTS.md`、本文 | 避免 Worker 服务代码成为 Pages 静态资源，并记录启用条件。 | 需待 Pages 构建确认后台静态界面。 |
+
+**部署状态：** GitHub Pages 主站仍在 `itfetter.com`。Worker 未部署，GitHub App 未注册，`admin/config.js` 的 Worker 地址为空；因此目前的 `/admin/` 只显示配置提示，**尚不能使用站内登录和增删改**。现有 Issue 表单 `/write/` 仍可发布，GitHub 文件编辑仍可修改旧文。本轮没有改变 DNS、CNAME 或 Pages 发布源。
+
+**下一步：** 先在 Cloudflare 创建 Worker 和 KV，取得 Worker URL；按 `worker/README.md` 注册仅安装到本仓库的 GitHub App，将回调设置为 Worker 的 `/auth/callback`；在 Worker Secrets 设置 Client Secret、部署代码，再将 Worker URL 填入 `admin/config.js`。最后实际测试登录、文章增删改、图片上传和 Pages 构建。
+
+**已知风险：** 前端页面公开可读，访问控制只发生在 Worker；浏览器短期会话 ID 存在当前标签，GitHub token 位于 Worker KV。GitHub App 回调与 Worker URL 必须精确匹配；图片上传大小限制 5 MB。删除文章不会清理历史与孤立图片。上述账户配置及上线端到端流程未验证，不能宣称后台已经可用。
