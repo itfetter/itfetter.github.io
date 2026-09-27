@@ -1,6 +1,6 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
-> 更新于 2026-09-24。此处记录仓库中的实际实现；GitHub Pages 是否已构建成功及最新 HTTPS/DNS 状态以设置页和线上访问为准。后续修改记录和提交信息请使用中文。
+> 更新于 2026-09-27。此处记录仓库中的实际实现；GitHub Pages 是否已构建成功及最新 HTTPS/DNS 状态以设置页和线上访问为准。后续修改记录和提交信息请使用中文。
 
 ## 当前开发到哪里
 
@@ -10,7 +10,7 @@
 - `/admin/` 逐篇链接到 GitHub 的 Markdown 编辑器，也可新建文件；仍是公开静态页，登录及发布权限由 GitHub 控制。**尚无站内输入密码、可视化编辑并直接保存的后台。**
 - 此轮新增 `ARTICLE_TEMPLATE.md` 供写文章复制，README 与 AGENTS 已更新。用户要求以后提交及变更描述用中文，已写入协作规则。
 
-- 新增 `/write/` 独立 Markdown 写作页：标题、分类、摘要、英文短名和正文，支持工具栏、即时预览、本机草稿、复制全文及下载 `.md`。发布仍由 GitHub 账号提交，图片先上传仓库 `assets/`。
+- `/write/` 现已跳转 GitHub 登录文章表单，原复制/下载式编辑器已移除。
 
 ## 项目地图
 
@@ -39,6 +39,16 @@
 | 2026-09-24（本轮） | `_config.yml`、`_layouts/post.html`、`_posts/*.md`、`posts.js`、`admin/index.html`、`index.html`、`ARTICLE_TEMPLATE.md`、三个项目文档 | 一篇文章一个 Markdown 文件，构建时自动生成列表与独立页面，逐篇编辑；提交信息改中文。 | 已在线检查首页显示两篇文章及自动分类，`/articles/hello/` 正常显示 Markdown 正文，`/admin/` 显示逐篇编辑和新增入口；尚未使用账号实际提交新文章。 |
 | 2026-09-24（图文示例） | `assets/writing-flow.svg`、`_posts/2026-09-24-rich-markdown-demo.md`、`_layouts/post.html`、`index.html`、`ARTICLE_TEMPLATE.md`、`README.md` | 增加明确标注为示例的图文文章与自制配图，并为两种文章阅读方式补充图片、提示框、表格、代码块样式。 | 已在 `https://itfetter.com/articles/rich-markdown-demo/` 在线确认标题、图片加载、提示框和表格渲染；首页哈希阅读样式沿用同一套规则，待单独核查。 |
 | 2026-09-24（写作页） | `write/index.html`、`admin/index.html`、`README.md`、`AGENTS.md` | 提供专用写作网址和 Markdown 工具栏、预览、草稿、复制/下载；管理页新增文章入口改为写作页，保留 GitHub 提交与图片上传步骤。 | 已在线核对页面打开、实时预览、文件名和复制的完整 Markdown；下载按钮尚未单独验证。 |
+
+## 2026-09-27 自动发文改动
+
+| 文件 | 原因 | 验证 |
+| --- | --- | --- |
+| `.github/ISSUE_TEMPLATE/publish-article.yml` | 用 GitHub 登录表单接收标题、分类、摘要和 Markdown。 | 已提交；待作者实测。 |
+| `.github/workflows/publish-article.yml`、`scripts/publish_article_from_issue.py` | 验证 itfetter 用户 ID，生成文章并请求 Pages 构建。 | 已核对源码；尚未提交真实文章端到端验证。 |
+| `write/index.html`、`README.md`、`AGENTS.md`、本文 | 入口改为 GitHub 表单并更新文档。 | 待 Pages 构建后核对线上跳转。 |
+
+自动文章使用 `article-<Issue 序号>` 链接。Issue 内容在提交后公开，图片可直接拖入正文。若 Pages API 调用失败，文章可能已写入但尚未部署，需查看 Actions 和 Issue 错误信息。旧文仍在 GitHub 文件编辑器修改。下一步由 itfetter 账号发布一篇真实文章，核对工作流、Pages 与前台页面。
 
 ## 已知问题与风险
 
