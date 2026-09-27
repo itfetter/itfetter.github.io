@@ -1,6 +1,6 @@
 # 博客文章后台部署
 
-主站仍由 GitHub Pages 托管，`/admin/` 在主站展示。此 Worker 只处理 GitHub 授权与文章 API。后台启用前，`/admin/` 显示配置说明及旧的 GitHub 入口；不要在公开文件里填写任何密钥。
+主站仍由 GitHub Pages 托管，`/admin/` 在主站展示。此 Worker 只处理 GitHub 授权与文章 API。**整个部署可以在 Cloudflare 和 GitHub 网站上完成，不需要下载 GitHub 桌面软件，也不要求安装 Wrangler。** 后台启用前，`/admin/` 显示配置说明及旧的 GitHub 入口；不要在公开文件里填写任何密钥。
 
 ## 1. 预留 Worker 地址
 
