@@ -11,7 +11,7 @@
 | `_layouts/post.html` | 文章独立页面的布局，地址如 `/articles/hello/`。 |
 | `posts.js` | Jekyll 模板，部署时由 `_posts/` 自动生成前台文章数据；请勿在这里手工写文章。 |
 | `ARTICLE_TEMPLATE.md` | 新文章的可复制模板。 |
-| `write/index.html` | [专用写作页](https://itfetter.com/write/)：填写信息、Markdown 工具栏、预览、草稿、复制和下载。 |
+| `write/index.html` | [写作入口](https://itfetter.com/write/)跳转至 GitHub 登录文章表单。 |
 | `admin/index.html` | [文章管理入口](https://itfetter.com/admin/)，登录和编辑交由 GitHub。 |
 | `_config.yml` | Jekyll 配置，包括域名、时区和 Markdown 处理器。 |
 | `CNAME` | GitHub Pages 域名 `itfetter.com`，请勿随意删除。 |
@@ -19,7 +19,7 @@
 
 ## 新增文章
 
-更简单的方式：打开 [写作页](https://itfetter.com/write/)，填写标题、分类、摘要与英文网址短名，输入正文并即时预览。草稿自动保存在当前浏览器。点击“复制完整 Markdown”，再打开 GitHub 新建文章页面，填入写作页显示的文件名并粘贴；或者下载 `.md` 后上传到 `_posts/`。最后在 GitHub 点击 **Commit changes**。上传图片需要先单独提交到仓库 `assets/`，然后在正文插入 `/assets/图片名.jpg`；写作页不会自动上传图片或直接发布。此页公开可访问，浏览器草稿不是私密云存储，也不要输入密码或令牌。
+新增文章：打开 [写作入口](https://itfetter.com/write/)，会跳转到 GitHub 的 [发布文章表单](https://github.com/itfetter/itfetter.github.io/issues/new?template=publish-article.yml)。登录 itfetter 账号，接在 `[发布文章]` 后填写标题，填分类、摘要与 Markdown 正文（可预览并拖入图片），点击 **Submit new issue**。工作流核对作者身份后自动生成 `_posts/YYYY-MM-DD-article-序号.md`，请求 Pages 构建，并在 Issue 留下文章链接。无需复制内容或手工新建文件。Issue 在提交后公开；发布可能需等待 Pages 构建。当前 `/write/` 是公开跳转页，真正的登录编辑器位于 GitHub；只允许 itfetter 的 GitHub 用户 ID 自动发布。自动方式仅支持新文章，已发布文章仍到 GitHub 编辑原文件。
 
 手工方式仍可使用：
 
