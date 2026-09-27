@@ -2,7 +2,11 @@
 
 主站仍由 GitHub Pages 托管，`/admin/` 在主站展示。此 Worker 只处理 GitHub 授权与文章 API。后台启用前，`/admin/` 显示配置说明及旧的 GitHub 入口；不要在公开文件里填写任何密钥。
 
-## 1. 注册 GitHub App
+## 1. 预留 Worker 地址
+
+先在 Cloudflare Workers 创建 `itfetter-blog-admin`，记下它的 `https://<名字>.<账号>.workers.dev` 地址。此时可以先不启用后台，地址将用于下一步设置准确的 GitHub 回调。
+
+## 2. 注册 GitHub App
 
 在 GitHub **Settings → Developer settings → GitHub Apps → New GitHub App** 新建一个私有用途的 App：
 
@@ -14,9 +18,9 @@
 
 App 的用户访问令牌受到 App 权限和 itfetter 本人仓库权限的双重限制。后台又核对 GitHub 的数字用户 ID `138357073`，因此别的账号即使授权了 App 也不能保存文章。
 
-## 2. 部署 Cloudflare Worker
+## 3. 部署 Cloudflare Worker
 
-创建 Cloudflare 账号，在 Workers 中创建 `itfetter-blog-admin`，使用本目录的 `index.js` 代码；也可以用 Wrangler CLI 部署。创建一个 KV namespace 供一次性登录票据和会话使用，将其绑定名设为 `SESSIONS`。
+在刚创建的 Worker 中使用本目录的 `index.js` 代码；也可以在本目录运行 `npm install` 后用 Wrangler CLI 部署。创建一个 KV namespace 供一次性登录票据和会话使用，将其绑定名设为 `SESSIONS`。
 
 参考 `wrangler.example.jsonc` 填入真实 KV ID、GitHub App Client ID，并将文件复制为 `wrangler.jsonc`；`GITHUB_CLIENT_SECRET` 要通过 Cloudflare 的 **Secrets** 配置，不能写进 `wrangler.jsonc`。如果用 Wrangler CLI，可在本目录运行 `npx wrangler secret put GITHUB_CLIENT_SECRET`。不要把真实配置或本地密钥文件提交到公开仓库。
 
@@ -31,7 +35,7 @@ Worker 环境变量：
 
 Worker 部署后拿到 `https://<名字>.<账号>.workers.dev`，将这个完整根地址填入 `admin/config.js` 的 `BLOG_ADMIN_API`，提交到 `main`。再把同一地址加 `/auth/callback` 设置到 GitHub App Callback URL。两处地址必须一致且为 HTTPS。
 
-## 3. 验证
+## 4. 验证
 
 1. 打开 `https://itfetter.com/admin/`，点击 GitHub 登录；退出和重新登录都应正常。
 2. 用其他 GitHub 账号登录应收到 403，不能增改删。
