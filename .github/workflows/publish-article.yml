@@ -1,14 +1,14 @@
 name: 发布博客文章
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    if: ${{ github.event.issue.user.id == 138357073 && startsWith(github.event.issue.title, '[发布文章] ') }}
+    if: ${{ github.event.issue.user.id == 138357073 && github.event.issue.state == 'open' && startsWith(github.event.issue.title, '[发布文章] ') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
