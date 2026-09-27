@@ -1,0 +1,25 @@
+name: 发布博客文章
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: ${{ github.event.issue.user.id == 138357073 && startsWith(github.event.issue.title, '[发布文章] ') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pages: write
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+      - name: 生成文章并请求 Pages 构建
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/publish_article_from_issue.py
