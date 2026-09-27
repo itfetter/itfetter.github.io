@@ -1,0 +1,4 @@
+worker/wrangler.jsonc
+worker/.dev.vars
+worker/.env
+worker/node_modules/
