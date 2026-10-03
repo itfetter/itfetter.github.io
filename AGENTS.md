@@ -6,7 +6,7 @@
 
 - GitHub 保存程序源码；Cloudflare Workers + Static Assets 运行前台和 `/admin/`。
 - `worker/index.js` 提供 API，D1 `posts` 保存文章，R2 `IMAGES` 保存上传图片。
-- Cloudflare Access 登录。管理页面和每个管理 API 必须验证 JWT 签名、issuer、audience、有效期及唯一 ADMIN_EMAIL；页面规则不能替代服务端验证。
+- 用户于 2026-10-03 改为自建账号密码登录，不再依赖 Zero Trust / Access。D1 保存单管理员 scrypt 密码哈希和会话哈希；Worker 对后台页面和每个管理 API 检查会话及密码版本，不信任前端或 Access 请求头。
 - 文章发布不写 GitHub，不依赖 Pages/Jekyll 或代码重构建。
 - 迁移尚未线上执行。`_posts/`、旧 `posts.js`、Jekyll 配置、Issue 发文工作流暂时保留；必须完成备份、导入、链接与域名验收后才能清理。线上状态以实际验证为准。
 
@@ -16,12 +16,12 @@
 
 AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；明确区分云端工作目录已修改、已提交、已推送、已构建和已上线，不能把其中一个状态当成另一个。按用户授权提交或推送，提交信息使用中文。
 
-正式使用自动部署后，避免单独在 Cloudflare 在线编辑另一份程序代码；修复通过源码提交进入构建流程。文章增删改和图片上传直接操作 D1/R2，不改 GitHub 源码，不触发代码构建。Cloudflare 中的账户资源、Access 策略和构建配置按部署文档维护，不将密钥放入仓库。
+正式使用自动部署后，避免单独在 Cloudflare 在线编辑另一份程序代码；修复通过源码提交进入构建流程。文章增删改和图片上传直接操作 D1/R2，不改 GitHub 源码，不触发代码构建。Cloudflare 中的账户资源、管理员初始化和构建配置按部署文档维护，不将密钥放入仓库。
 
 ## 路径与约束
 
 `index.html` 保留首页布局、分类、搜索、CSDN 入口和旧 `#post/<id>`。
-`admin/index.html` 为后台编辑器，使用同源 Access Cookie，不在浏览器存 GitHub token 或自建长期会话。
+`admin/index.html` 为后台编辑器，使用同源 HttpOnly、Secure、SameSite=Strict 的短期会话 Cookie，不在浏览器存 GitHub token、密码或 localStorage 会话。
 `worker/index.js` 使用参数绑定操作 D1，并以 id/version 保护更新和删除；不能关闭并发检查。
 `worker/content.js` 负责 Markdown 和 HTML 清理；标题、摘要等字段插入 HTML 必须转义，不能允许脚本、事件属性或危险协议。
 `worker/migrations/` 为数据库迁移，不改已发布迁移，新增迁移描述后续结构变化。
@@ -31,13 +31,17 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 
 文章 id 必须唯一稳定、为小写英文数字与连字符；permalink 保持 `/articles/<id>/`，不能随意更改旧链接。读者无需登录。不得把示例写成正式成果。
 
-不得写入公开仓库的内容：密码、账户 token、真实密钥、`worker/.dev.vars`、真实 wrangler 配置、迁移数据及线上备份。Access 标识和邮箱在账户配置中设置；禁止把 ENVIRONMENT=development 配置到生产。
+不得写入公开仓库的内容：密码、账户 token、真实密钥、`worker/.dev.vars`、真实 wrangler 配置、迁移数据及线上备份。管理员初始化/重置 SQL、密码哈希和数据库备份均视为私密数据，禁止提交；禁止把 ENVIRONMENT=development 配置到生产。
+
+## 自建登录维护规则
+
+认证实现为 `worker/auth.js`，新增表在 `0002_auth.sql`，不得改动已上线迁移。不开放注册、公开重置密码或 localhost 免登录后门。所有写请求检查同源 Origin；登录限定 HTTPS，HTTP localhost 仅显式开发模式允许，仍须账号密码。限速必须在 D1 原子计数，不使用实例内计数器。密码采用固定 scrypt 参数 N=16384,r=8,p=5 和随机盐，不为省 CPU 降低哈希强度；部署时实测运行额度。初始化/重置通过可信终端工具生成私密 SQL，重置撤销旧会话，账户版本检查防止与登录竞争。密码及会话不得记录日志。
 
 ## 验证与交接
 
 开发使用 Node.js 24，`npm --prefix worker ci`、`npm --prefix worker run build`、`npm --prefix worker test`。本地 D1 通过 Wrangler migrations 初始化，导入 SQL 后运行 `npm run dev`，执行实际 HTTP 与必要的浏览器功能验证；普通静态服务器无法验证动态文章与 API。
 
-前端变化检查手机宽度、键盘操作、搜索分类及旧链接；管理变化检查未登录、非管理员、签名无效/过期、跨站写入、版本冲突和文章 CRUD。上传检查大小、格式、可读性。
+前端变化检查手机宽度、键盘操作、搜索分类及旧链接；管理变化检查未登录、错误账号/密码、伪造/过期/撤销会话、登录限速、跨站登录和写入、版本冲突和文章 CRUD。上传检查大小、格式、可读性。
 
 域名/DNS、Pages 停用、GitHub 仓库私有化和线上数据迁移影响实际服务。先准备可审查结果，按用户授权执行，禁止未验证便称上线。每次开发更新 PROJECT_HANDOFF.md 中的文件、原因、验证、已知问题和待办；改变工作流同步 README 与本文。
 
@@ -51,3 +55,4 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 - 开发前读取这两个文件和 README，核对实际代码与已有用户改动；开发完成前检查文档是否覆盖本次工作。即使验证失败或工作受阻，也记录已做事项、具体失败和继续工作的前提，不得遗漏。
 - 最新有效状态应容易找到；被新方案替代的说明明确标为历史。保留重要决策依据，不让旧说明与当前规则混淆。
 - 文档随相应代码进入同一次提交；如未提交或未推送，明确说明目前仅在工作目录中。密钥、令牌及其他凭据值不得记入维护文档。
+

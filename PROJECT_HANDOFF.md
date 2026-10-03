@@ -1,6 +1,18 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
-> 更新于 2026-10-03。当前开发采用 Cloudflare 全站架构，以下“最新交接”及文末迁移记录为当前依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
+> 更新于 2026-10-03。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
+
+## 2026-10-03 自建管理员登录（当前有效方案）
+
+用户明确改用自建账号密码登录，取消 Zero Trust / Access 作为部署前提。旧 Access 设计与下方 Access 阻塞记录仅作为历史依据。GitHub 保存源码、Workers + Static Assets、D1 文章、R2 图片、旧链接与版本冲突规则保持。
+
+本次文件：worker/auth.js（scrypt 密码、哈希会话、共享限速）；worker/migrations/0002_auth.sql（单管理员、会话、限速表）；worker/index.js（登录/退出路由、会话鉴权、登录页跳转、同源/HTTPS 检查和管理页面响应头）；admin/index.html（账号密码表单、退出、过期提示）；scripts/create-admin.mjs（可信终端交互生成私密初始化/重置 SQL）；worker/auth.test.mjs 和 test.mjs（认证行为与路由回归）；worker/package.json（初始化和测试命令）；worker/wrangler.example.jsonc（移除 Access 变量、开启观测）；.github/workflows/validate-worker.yml（云端完整验证）；README、AGENTS 与本文件（当前流程和长期规则）。jose 不再用于运行时认证；暂保留锁文件中的旧依赖，避免无依赖安装的手工锁文件改写。
+
+安全行为：不开放注册或公开密码重置，不设置默认管理员密码；未初始化管理员时拒绝登录。scrypt N=16384,r=8,p=5、16 字节随机盐、时序安全比较；会话随机 256 位，只存 SHA-256，最长 8 小时，HttpOnly/Secure/SameSite=Strict，退出撤销。密码重置版本检查防止并发登录产生仍有效的旧凭据会话。D1 原子登录计数，15 分钟 IP 10 次/全局100次（成功计数），429 带 Retry-After；该全局防护可使攻击期间管理员暂时无法登录。开发 HTTP localhost 仍需认证，取消原免登录模式。线上不得配置 development。
+
+验证：本机 Node 24.19.0 的 4 项独立认证测试通过，覆盖随机盐、错误密码/账号、无管理员、Cookie 属性、哈希存储、换发、过期、退出撤销、重置版本、限速窗口和开发模式边界。完整项目依赖未安装，完整 Markdown/CRUD/构建回归交由新增 GitHub Actions；CI 结果及源码发布状态后续记录。尚未在 Workers runtime 测试 scrypt CPU 额度、真实浏览器与线上 D1/R2；不能沿用旧 Access 测试当成本次上线验收。没有安装本机依赖、下载工具链或改 DNS。
+
+部署待办：应用新增迁移；在可信交互终端初始化管理员（不要聊天发送密码），导入私密 SQL 后移除临时文件；配置 Workers Builds 并部署，验收登录、限速、退出、CSRF、手机表单、旧链接、文章 CRUD、图片与 CPU/内存额度。当前未创建管理员、未部署 Worker、未切域名。已创建 D1/R2 和 GitHub 仓库连接继续复用，Access 无需继续配置。已开通 Zero Trust 不需关闭；截图确认团队域名存在，但插件近期 transport 错误，未完成线上操作。
 
 ## 2026-10-03 GitHub 构建授权已恢复（最新补充）
 
@@ -55,15 +67,20 @@
 | 文件或目录 | 内容与职责 | 什么时候修改，以及关联文件 |
 | --- | --- | --- |
 | `index.html` | 博客首页 HTML、CSS 和页面脚本；文章列表、分类、搜索、置顶卡片、旧 `#post/<id>` 阅读视图、CSDN 入口 | 改首页布局、筛选搜索、哈希阅读时修改；数据来自 Worker 的动态 `/posts.js`；阅读样式变化同时核对独立文章模板 |
-| `admin/index.html` | 管理后台布局、编辑器、工具栏、预览、文章列表、发布编辑删除、图片上传、Access 登录状态处理 | 改后台交互或字段时修改；字段/API 变化同步 `worker/index.js`；预览与最终渲染规则不同，需一并核对 |
+| `admin/index.html` | 管理后台布局、编辑器、工具栏、预览、文章列表、发布编辑删除、图片上传、自建登录状态处理 | 改后台交互或字段时修改；字段/API 变化同步 `worker/index.js`；预览与最终渲染规则不同，需一并核对 |
 | `_layouts/post.html` | 独立文章页 HTML/CSS 模板；构建时把 Liquid 转为占位符，运行时插入文章数据 | 改 `/articles/<id>/` 页面样式时修改；新增模板字段同步 `scripts/build.mjs` 和 Worker 模板替换逻辑；当前仍使用，不属于待删除文件 |
-| `worker/index.js` | 请求路由、Access JWT 验证、来源检查、D1 CRUD、版本冲突检查、图片上传/R2 读取、动态文章列表和文章页、Static Assets 转发 | 改接口、权限、数据读写或公开路由时修改；同步后台调用、测试和部署说明；文章数据通过 D1 参数绑定操作 |
+| `worker/index.js` | 请求路由、D1 会话验证、来源检查、D1 CRUD、版本冲突检查、图片上传/R2 读取、动态文章列表和文章页、Static Assets 转发 | 改接口、权限、数据读写或公开路由时修改；同步后台调用、测试和部署说明；文章数据通过 D1 参数绑定操作 |
+| `worker/auth.js` | 密码哈希校验、会话建立/查询/撤销、HTTPS 与共享登录限速 | 修改认证策略时同步路由、数据库迁移、测试和部署文档 |
+| `worker/auth.test.mjs` | 使用真实 SQLite 的独立认证测试，仅依赖 Node 内置模块 | 无依赖环境执行认证回归；完整路由回归在 test.mjs |
+| `worker/migrations/0002_auth.sql` | 单管理员、带凭据版本的哈希会话、限速表 | 新增认证表；上线后结构变化新建迁移 |
+| `scripts/create-admin.mjs` | 可信终端输入账号密码并生成私密初始化/重置 SQL | 修改初始化格式时同步 auth.js 与迁移；不公开注册 |
+| `.github/workflows/validate-worker.yml` | GitHub Actions 云端安装依赖、测试与构建 | 修改 CI 验证流程时使用，禁止本机为了验证自动安装依赖 |
 | `worker/content.js` | Markdown 转 HTML、危险 HTML 清理、标题等字段转义；允许的标签、属性、样式类与链接协议 | 改正文排版支持或渲染安全规则时修改；同步后台预览、文章样式和相关测试 |
 | `worker/migrations/0001_posts.sql` | 初始 D1 `posts` 表与索引；id、标题、分类、摘要、正文、发布日期、永久链接、版本号、更新时间 | 数据结构后续变化新增迁移文件；同步 API、导入脚本和测试，不修改已上线迁移 |
-| `worker/test.mjs` | 自动测试：Access 签名与身份、D1 增删改/冲突、跨站写入、请求大小、图片接口、文章导入与公开时间 | 改权限、接口、数据模型、渲染或上传规则时补充相关行为验证；SQLite 为真实本地数据库，R2 接口测试使用内存实现 |
+| `worker/test.mjs` | 自动测试：账号密码与会话、D1 增删改/冲突、跨站写入、请求大小、图片接口、文章导入与公开时间 | 改权限、接口、数据模型、渲染或上传规则时补充相关行为验证；SQLite 为真实本地数据库，R2 接口测试使用内存实现 |
 | `worker/package.json` | npm 构建、开发、测试、导入命令，以及运行和开发依赖 | 改工具命令或依赖时修改；同步锁文件、README 和环境启动说明 |
 | `worker/package-lock.json` | 固定依赖解析结果，供 `npm ci` 重现安装 | 更新依赖时由 npm 生成，勿手工拼写版本或校验信息 |
-| `worker/wrangler.example.jsonc` | 可提交的部署样例：Worker 入口、Static Assets、D1/R2 绑定、Access 配置占位值 | 改绑定名、资源结构或运行兼容设置时修改；同步代码和 `worker/README.md`，不填账户密钥 |
+| `worker/wrangler.example.jsonc` | 可提交的部署样例：Worker 入口、Static Assets、D1/R2 绑定及运行配置 | 改绑定名、资源结构或运行兼容设置时修改；同步代码和 `worker/README.md`，不填账户密钥 |
 | `scripts/build.mjs` | 构建静态发布目录：只复制首页、后台和 `assets/`，生成独立文章模板 | 新增公开页面/资源或模板字段时修改白名单；不复制整个仓库，不发布后台源码、配置或文章 SQL |
 | `scripts/import-posts.mjs` | 读取旧文章 YAML/Markdown，校验 id、链接、日期，生成不覆盖已有数据的 D1 SQL | 改旧文章迁移格式时修改；同步 D1 字段和导入测试，不自动执行线上导入或删除原文章 |
 | `assets/` | 随程序发布的静态图片和设计资源；当前包含示例插画 | 修改站点固定资源时使用；后台上传的新增图片存 R2，不写此目录 |
@@ -93,6 +110,7 @@
 | 路径或资源 | 来源和维护方式 |
 | --- | --- |
 | `dist/`、`dist/article-template.html` | 由 `npm run build` 生成；修改对应源文件再重建，禁止只改生成文件 |
+| `.migration/admin.sql` | 可信终端生成的私密管理员初始化/重置数据；不提交、不公开，导入后删除 |
 | `.migration/posts.sql` | 导入脚本生成的文章数据；被忽略，核对并备份后执行，不能提交文章数据到源码仓库 |
 | `worker/.wrangler/` | Wrangler 本地 D1/R2 和运行状态；被忽略，不是线上数据库 |
 | `worker/node_modules/` | npm 安装的依赖；通过声明与锁文件管理，不手工修改作为修复 |
@@ -281,3 +299,4 @@ R2 是对象存储，D1 才是文章数据库。R2 开通需要完成订阅/付�
 ## 2026-10-03 推送权限恢复与正式提交
 
 用户调整权限后要求重新尝试。远端读取和推送预检成功，当前本地改造与远端 main 可正常快进合并，无需强制推送。此前 403 作为历史诊断保留，不再是当前阻塞；本次将代码、维护规则和文件地图一起推送至 main，并核对远端 HEAD 与本地提交一致。仅更新交接中的提交状态，不修改业务代码；git diff --check 通过，业务验证沿用此前通过的 4 项自动测试及浏览器验收。本次不执行 Cloudflare 部署或域名切换，Workers Builds 连通仍待账户配置与验收。
+

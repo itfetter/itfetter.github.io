@@ -1,23 +1,9 @@
-// 同源 Cloudflare 博客：Static Assets + D1 + R2，管理端验证 Access JWT。
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+// 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
+import { identity, login, logout, secureTransport } from './auth.js';
 import { escapeHtml, renderMarkdown } from './content.js';
-const keys = new Map();
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
 const fail = (message, status = 400) => json({error: message}, status);
-async function identity(request, env) {
-  const url = new URL(request.url);
-  if (env.ENVIRONMENT === 'development' && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return {email: 'local-development'};
-  if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(env.ACCESS_TEAM_DOMAIN || '') || !env.ACCESS_AUD || !env.ADMIN_EMAIL) return null;
-  const token = request.headers.get('cf-access-jwt-assertion');
-  if (!token) return null;
-  const issuer = 'https://' + env.ACCESS_TEAM_DOMAIN;
-  if (!keys.has(issuer)) keys.set(issuer, createRemoteJWKSet(new URL(issuer + '/cdn-cgi/access/certs')));
-  try {
-    const {payload} = await jwtVerify(token, keys.get(issuer), {issuer, audience: env.ACCESS_AUD, algorithms: ['RS256'], requiredClaims: ['exp', 'iat', 'sub', 'email']});
-    return payload.email === env.ADMIN_EMAIL ? payload : null;
-  } catch { return null; }
-}
 async function readJson(request, max = 400000) {
   if (Number(request.headers.get('content-length')) > max) throw Object.assign(new Error('请求过大。'), {status: 413});
   const reader = request.body?.getReader(), chunks = []; let length = 0;
@@ -53,13 +39,30 @@ function validImage(bytes, type) {
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  const authPath = path === '/api/login' || path === '/api/logout';
+  if (authPath) {
+    if (method !== 'POST') return fail('请使用 POST。',405);
+    if (!secureTransport(request,env)) return fail('登录必须使用 HTTPS。',403);
+    if (request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
+    if (path === '/api/logout') return logout(request,env);
+    if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
+    return login(request,env,await readJson(request,2048));
+  }
+  if (path === '/admin/login' || path === '/admin/login/') {
+    if (!['GET','HEAD'].includes(method)) return fail('请使用 GET。',405);
+    if (!secureTransport(request,env)) return fail('登录必须使用 HTTPS。',403);
+    return env.ASSETS.fetch(new Request(url.origin+'/admin/',{method}));
+  }
   const managed = path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/');
   if (managed) {
-    // Access 页面规则不能代替 API 自身的 JWT 验证。
+    // 每个管理请求均查询数据库中的有效会话。
     const user = await identity(request, env);
-    if (!user) return fail('请通过 Cloudflare Access 使用管理员账号登录。', 401);
+    if (!user) {
+      if (path === '/admin' || path.startsWith('/admin/')) return Response.redirect(url.origin+'/admin/login/',302);
+      return fail('请登录管理员账号。',401);
+    }
     if (!['GET','HEAD'].includes(method) && request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
-    if (path === '/api/me' && method === 'GET') return json({login:user.email});
+    if (path === '/api/me' && method === 'GET') return json({login:user.username});
     if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,published_at,version FROM posts ORDER BY published_at DESC,id').all()).results);
     if (path === '/api/post' && method === 'GET') {
       const id = url.searchParams.get('id');
@@ -137,7 +140,12 @@ export default {
       const response = new Response(original.body, original);
       response.headers.set('x-content-type-options','nosniff');
       response.headers.set('referrer-policy','strict-origin-when-cross-origin');
-      if (new URL(request.url).pathname.startsWith('/admin')) response.headers.set('cache-control','no-store');
+      const pathname=new URL(request.url).pathname;
+      if (pathname.startsWith('/admin') || pathname.startsWith('/api/')) {
+        response.headers.set('cache-control','no-store');
+        response.headers.set('x-frame-options','DENY');
+        response.headers.set('content-security-policy',"frame-ancestors 'none'; form-action 'self'; base-uri 'none'");
+      }
       return response;
     } catch(error) {
       if (error.status) return fail(error.message,error.status);
@@ -146,3 +154,4 @@ export default {
     }
   }
 };
+
