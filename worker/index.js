@@ -1,224 +1,148 @@
-// Cloudflare Worker：GitHub App OAuth + 文章管理 API。所有仓库写操作只在这里执行。
-const REPO = "itfetter/itfetter.github.io";
-const OWNER_ID = 138357073;
-const GITHUB = "https://api.github.com";
-const textEncoder = new TextEncoder();
-
-function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers } });
+// 同源 Cloudflare 博客：Static Assets + D1 + R2，管理端验证 Access JWT。
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { escapeHtml, renderMarkdown } from './content.js';
+const keys = new Map();
+const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
+const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
+const fail = (message, status = 400) => json({error: message}, status);
+async function identity(request, env) {
+  const url = new URL(request.url);
+  if (env.ENVIRONMENT === 'development' && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return {email: 'local-development'};
+  if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(env.ACCESS_TEAM_DOMAIN || '') || !env.ACCESS_AUD || !env.ADMIN_EMAIL) return null;
+  const token = request.headers.get('cf-access-jwt-assertion');
+  if (!token) return null;
+  const issuer = 'https://' + env.ACCESS_TEAM_DOMAIN;
+  if (!keys.has(issuer)) keys.set(issuer, createRemoteJWKSet(new URL(issuer + '/cdn-cgi/access/certs')));
+  try {
+    const {payload} = await jwtVerify(token, keys.get(issuer), {issuer, audience: env.ACCESS_AUD, algorithms: ['RS256'], requiredClaims: ['exp', 'iat', 'sub', 'email']});
+    return payload.email === env.ADMIN_EMAIL ? payload : null;
+  } catch { return null; }
 }
-function randomId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
-}
-function cors(origin, env) {
-  return origin === env.ADMIN_ORIGIN ? {
-    "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "access-control-allow-headers": "Authorization, Content-Type",
-    "vary": "Origin",
-  } : {};
-}
-function fail(message, status = 400) { return json({ error: message }, status); }
-async function github(path, token, method = "GET", body, accept = "application/vnd.github+json") {
-  const response = await fetch(GITHUB + path, {
-    method,
-    headers: {
-      "authorization": "Bearer " + token,
-      "accept": accept,
-      "x-github-api-version": "2022-11-28",
-      ...(body === undefined ? {} : { "content-type": "application/json" }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const raw = await response.text();
-  let data;
-  try { data = JSON.parse(raw); } catch { data = raw; }
-  if (!response.ok) {
-    const error = new Error(typeof data === "object" && data?.message ? data.message : "GitHub 请求失败");
-    error.status = response.status;
-    throw error;
-  }
-  return data;
-}
-function base64(bytes) {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-  return btoa(binary);
-}
-function decode64(source) {
-  const binary = atob(source.replace(/\s/g, ""));
-  return new TextDecoder().decode(Uint8Array.from(binary, ch => ch.charCodeAt(0)));
-}
-function yamlString(value) { return JSON.stringify(value); }
-function readFrontMatter(content) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(content);
-  if (!match) throw new Error("文章缺少有效 front matter，请在 GitHub 检查原文件。");
-  const fields = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const pair = /^([a-z_]+):\s*(.*)$/.exec(line);
-    if (!pair) continue;
-    let value = pair[2];
-    if (value.startsWith('"')) {
-      try { value = JSON.parse(value); } catch { throw new Error("文章元信息无法解析。"); }
+async function readJson(request, max = 400000) {
+  if (Number(request.headers.get('content-length')) > max) throw Object.assign(new Error('请求过大。'), {status: 413});
+  const reader = request.body?.getReader(), chunks = []; let length = 0;
+  if (reader) {
+    while (true) {
+      const {done, value} = await reader.read(); if (done) break;
+      length += value.byteLength;
+      if (length > max) { await reader.cancel(); throw Object.assign(new Error('请求过大。'), {status: 413}); }
+      chunks.push(value);
     }
-    fields[pair[1]] = value;
   }
-  return { fields, body: match[2] };
+  const bytes = new Uint8Array(length); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const raw = new TextDecoder().decode(bytes);
+  try { return JSON.parse(raw); } catch { throw Object.assign(new Error('请求必须为 JSON。'), {status: 400}); }
 }
-function validSlug(value) { return typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70; }
-function validInfo(data) {
-  if (!data || typeof data !== "object") throw new Error("文章信息格式不正确。");
-  for (const [key, max] of [["title", 160], ["category", 80], ["summary", 300], ["body", 300000]]) {
-    if (typeof data[key] !== "string" || !data[key].trim() || data[key].length > max) throw new Error(key + " 不能为空或超出长度限制。");
+function validate(data) {
+  for (const [field, max] of [['title',160], ['category',80], ['summary',300], ['body',300000]]) {
+    if (typeof data?.[field] !== 'string' || !data[field].trim() || data[field].length > max) throw Object.assign(new Error(field + ' 不能为空或超出长度限制。'), {status:400});
   }
 }
-function documentFor(data, stable) {
-  return "---\nlayout: post\n" +
-    "title: " + yamlString(data.title.trim()) + "\n" +
-    "category: " + yamlString(data.category.trim()) + "\n" +
-    "summary: " + yamlString(data.summary.trim()) + "\n" +
-    "blog_id: " + stable.id + "\n" +
-    "date: " + stable.date + "\n" +
-    "permalink: /articles/" + stable.id + "/\n" +
-    "---\n\n" + data.body.trim() + "\n";
+function publicPost(post) {
+  return {id: post.id, title: post.title, category: post.category, summary: post.summary,
+    date: new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit'}).format(new Date(post.published_at)).replace('/', '.'),
+    permalink: post.permalink, html: renderMarkdown(post.body)};
 }
-function postPath(path) { return typeof path === "string" && /^_posts\/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$/.test(path); }
-function contentPath(path) { return "/repos/" + REPO + "/contents/" + path.split("/").map(encodeURIComponent).join("/"); }
-async function authorize(request, env) {
-  const bearer = /^Bearer ([a-f0-9]{64})$/.exec(request.headers.get("authorization") || "");
-  if (!bearer) return null;
-  const session = await env.SESSIONS.get("session:" + bearer[1], "json");
-  if (!session || session.userId !== OWNER_ID || session.expires < Date.now()) return null;
-  return session;
+function validImage(bytes, type) {
+  const start = (...values) => values.every((v,i) => bytes[i] === v);
+  return type === 'image/png' ? start(137,80,78,71,13,10,26,10) :
+    type === 'image/jpeg' ? start(255,216,255) :
+    type === 'image/gif' ? ['GIF87a','GIF89a'].includes(new TextDecoder().decode(bytes.slice(0,6))) :
+    type === 'image/webp' && new TextDecoder().decode(bytes.slice(0,4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8,12)) === 'WEBP';
 }
 async function handle(request, env) {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  if (path === "/auth/login" && request.method === "GET") {
-    const state = randomId();
-    await env.SESSIONS.put("state:" + state, "1", { expirationTtl: 600 });
-    const callback = new URL("/auth/callback", url.origin).href;
-    const target = new URL("https://github.com/login/oauth/authorize");
-    target.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
-    target.searchParams.set("redirect_uri", callback);
-    target.searchParams.set("state", state);
-    target.searchParams.set("login", "itfetter");
-    return Response.redirect(target.href, 302);
-  }
-  if (path === "/auth/callback" && request.method === "GET") {
-    const state = url.searchParams.get("state") || "";
-    const code = url.searchParams.get("code") || "";
-    if (!/^[a-f0-9]{64}$/.test(state) || !code || !await env.SESSIONS.get("state:" + state)) return fail("授权状态无效，请重新登录。", 403);
-    await env.SESSIONS.delete("state:" + state);
-    const exchange = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: { "accept": "application/json", "content-type": "application/json" },
-      body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: new URL("/auth/callback", url.origin).href }),
-    });
-    const auth = await exchange.json();
-    if (!exchange.ok || !auth.access_token) return fail("GitHub 授权未完成，请重新登录。", 403);
-    const user = await github("/user", auth.access_token);
-    if (user.id !== OWNER_ID) return fail("只有 itfetter 账号能管理文章。", 403);
-    // URL 中只放一次性票据，不放 GitHub token；session token 只发给页面 JS。
-    const ticket = randomId();
-    await env.SESSIONS.put("ticket:" + ticket, JSON.stringify({ token: auth.access_token, userId: user.id, expires: Date.now() + Math.min((auth.expires_in || 28800) * 1000, 28800000) }), { expirationTtl: 120 });
-    return Response.redirect(env.ADMIN_ORIGIN + "/admin/?ticket=" + ticket, 302);
-  }
-  if (path === "/api/session" && request.method === "POST") {
-    const body = await request.json();
-    const ticket = String(body.ticket || "");
-    if (!/^[a-f0-9]{64}$/.test(ticket)) return fail("登录票据无效。", 403);
-    const session = await env.SESSIONS.get("ticket:" + ticket, "json");
-    if (!session) return fail("登录票据已过期，请重新登录。", 403);
-    await env.SESSIONS.delete("ticket:" + ticket);
-    const key = randomId();
-    await env.SESSIONS.put("session:" + key, JSON.stringify(session), { expirationTtl: Math.max(60, Math.floor((session.expires - Date.now()) / 1000)) });
-    return json({ session: key, expires: session.expires });
-  }
-  if (!path.startsWith("/api/")) return fail("不存在的接口。", 404);
-  const session = await authorize(request, env);
-  if (!session) return fail("请重新登录。", 401);
-  if (path === "/api/me" && request.method === "GET") return json({ login: "itfetter" });
-  if (path === "/api/logout" && request.method === "POST") {
-    const key = request.headers.get("authorization").slice(7);
-    await env.SESSIONS.delete("session:" + key);
-    return json({ ok: true });
-  }
-  if (path === "/api/posts" && request.method === "GET") {
-    const files = await github(contentPath("_posts"), session.token);
-    return json(files.filter(file => file.type === "file" && postPath("_posts/" + file.name)).map(file => ({ path: "_posts/" + file.name, sha: file.sha })));
-  }
-  if (path === "/api/post" && request.method === "GET") {
-    const file = url.searchParams.get("path");
-    if (!postPath(file)) return fail("无效文章路径。");
-    const data = await github(contentPath(file), session.token);
-    const article = readFrontMatter(decode64(data.content));
-    return json({ path: file, sha: data.sha, ...article.fields, body: article.body });
-  }
-  if (path === "/api/post" && request.method === "PUT") {
-    const data = await request.json();
-    validInfo(data);
-    let file, stable, sha;
-    if (data.path) {
-      if (!postPath(data.path) || !/^[a-f0-9]{40}$/.test(data.sha || "")) return fail("文章路径或版本无效。");
-      const existing = await github(contentPath(data.path), session.token);
-      if (existing.sha !== data.sha) return fail("文章已在其他地方修改，请刷新后再编辑。", 409);
-      const original = readFrontMatter(decode64(existing.content));
-      stable = { id: original.fields.blog_id, date: original.fields.date };
-      if (!validSlug(stable.id) || !stable.date || original.fields.permalink !== "/articles/" + stable.id + "/") return fail("原文章元信息异常，暂不允许覆盖。", 400);
-      file = data.path;
-      sha = existing.sha;
-    } else {
-      if (!validSlug(data.slug)) return fail("网址短名只能用小写英文、数字和连字符。");
-      const files = await github(contentPath("_posts"), session.token);
-      if (files.some(item => item.name.endsWith("-" + data.slug + ".md"))) return fail("网址短名已被使用。", 409);
-      const now = new Date();
-      const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(now);
-      const value = type => parts.find(part => part.type === type).value;
-      const day = [value("year"), value("month"), value("day")].join("-");
-      stable = { id: data.slug, date: day + " " + [value("hour"), value("minute"), value("second")].join(":") + " +0800" };
-      file = "_posts/" + day + "-" + data.slug + ".md";
+  const url = new URL(request.url), path = url.pathname, method = request.method;
+  const managed = path === '/admin' || path.startsWith('/admin/') || path.startsWith('/api/');
+  if (managed) {
+    // Access 页面规则不能代替 API 自身的 JWT 验证。
+    const user = await identity(request, env);
+    if (!user) return fail('请通过 Cloudflare Access 使用管理员账号登录。', 401);
+    if (!['GET','HEAD'].includes(method) && request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
+    if (path === '/api/me' && method === 'GET') return json({login:user.email});
+    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,published_at,version FROM posts ORDER BY published_at DESC,id').all()).results);
+    if (path === '/api/post' && method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (!slug(id)) return fail('无效文章标识。');
+      const post = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
+      return post ? json(post) : fail('文章不存在。',404);
     }
-    const markdown = documentFor(data, stable);
-    const result = await github(contentPath(file), session.token, "PUT", {
-      message: (sha ? "修改文章：" : "发布文章：") + data.title.trim(),
-      content: base64(textEncoder.encode(markdown)),
-      branch: "main",
-      ...(sha ? { sha } : {}),
-    });
-    return json({ path: file, sha: result.content.sha, url: "https://itfetter.com/articles/" + stable.id + "/" });
+    if (path === '/api/post' && method === 'PUT') {
+      const data = await readJson(request); validate(data);
+      const now = new Date().toISOString();
+      if (data.id) {
+        if (!slug(data.id) || !Number.isSafeInteger(data.version) || data.version < 1) return fail('文章标识或版本无效。');
+        const result = await env.DB.prepare('UPDATE posts SET title=?,category=?,summary=?,body=?,version=version+1,updated_at=? WHERE id=? AND version=?')
+          .bind(data.title.trim(),data.category.trim(),data.summary.trim(),data.body,now,data.id,data.version).run();
+        if (!result.meta.changes) return fail('文章已被修改或删除，请刷新后重试。',409);
+        return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/'});
+      }
+      if (!slug(data.slug)) return fail('网址短名只能用小写英文、数字和连字符。');
+      const result = await env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
+        .bind(data.slug,data.title.trim(),data.category.trim(),data.summary.trim(),data.body,now,'/articles/'+data.slug+'/',now).run();
+      if (!result.meta.changes) return fail('网址短名已被使用。',409);
+      return json({id:data.slug,version:1,url:url.origin+'/articles/'+data.slug+'/'},201);
+    }
+    if (path === '/api/post' && method === 'DELETE') {
+      const data = await readJson(request);
+      if (!slug(data.id) || !Number.isSafeInteger(data.version) || data.version < 1) return fail('删除请求无效。');
+      const result = await env.DB.prepare('DELETE FROM posts WHERE id=? AND version=?').bind(data.id,data.version).run();
+      return result.meta.changes ? json({ok:true}) : fail('文章已被修改或删除，请刷新后重试。',409);
+    }
+    if (path === '/api/image' && method === 'POST') {
+      const data = await readJson(request, 7100000);
+      const ext = {'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/gif':'gif'}[data.type];
+      if (!ext || typeof data.base64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.base64)) return fail('图片格式无效。');
+      let bytes;
+      try { bytes = Uint8Array.from(atob(data.base64), c => c.charCodeAt(0)); } catch { return fail('图片编码无效。'); }
+      if (bytes.length > 5*1024*1024 || !validImage(bytes,data.type)) return fail('仅支持 5 MB 内的有效 PNG、JPG、WebP 或 GIF。');
+      const key = crypto.randomUUID()+'.'+ext;
+      await env.IMAGES.put(key,bytes,{httpMetadata:{contentType:data.type}});
+      const imagePath = '/images/'+key;
+      return json({path:imagePath,markdown:'!['+String(data.alt||'图片').replace(/[\[\]\r\n]/g,'').slice(0,80)+']('+imagePath+')'},201);
+    }
+    if (path.startsWith('/api/')) return fail('不存在的接口。',404);
   }
-  if (path === "/api/post" && request.method === "DELETE") {
-    const data = await request.json();
-    if (!postPath(data.path) || !/^[a-f0-9]{40}$/.test(data.sha || "")) return fail("删除请求无效。");
-    await github(contentPath(data.path), session.token, "DELETE", { message: "删除文章：" + data.path, sha: data.sha, branch: "main" });
-    return json({ ok: true });
+  if (path.startsWith('/images/') && ['GET','HEAD'].includes(method)) {
+    const key = path.slice(8);
+    if (!/^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/.test(key)) return fail('图片不存在。',404);
+    const object = await env.IMAGES.get(key);
+    if (!object) return fail('图片不存在。',404);
+    const headers = new Headers({'cache-control':'public, max-age=31536000, immutable','x-content-type-options':'nosniff'});
+    object.writeHttpMetadata(headers); headers.set('etag', object.httpEtag);
+    return new Response(method==='HEAD'?null:object.body,{headers});
   }
-  if (path === "/api/image" && request.method === "POST") {
-    const data = await request.json();
-    const match = /^(image\/(?:png|jpeg|webp|gif))$/.exec(data.type || "");
-    if (!match || typeof data.base64 !== "string" || data.base64.length > 7000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.base64)) return fail("仅支持 5 MB 内的 PNG、JPG、WebP 或 GIF。");
-    const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" }[match[1]];
-    const name = "assets/uploads/" + new Date().toISOString().slice(0, 10) + "-" + randomId().slice(0, 12) + "." + ext;
-    await github(contentPath(name), session.token, "PUT", { message: "上传文章图片：" + name, content: data.base64, branch: "main" });
-    return json({ markdown: "![" + String(data.alt || "图片").replace(/[\[\]\r\n]/g, "").slice(0, 80) + "](/" + name + ")", path: name });
+  if (path === '/posts.js' && method === 'GET') {
+    const {results} = await env.DB.prepare('SELECT * FROM posts WHERE published_at<=? ORDER BY published_at DESC,id').bind(new Date().toISOString()).all();
+    // JSON 内的 < 转义，避免未来嵌入 HTML 时出现脚本边界。
+    return new Response('const posts = '+JSON.stringify(results.map(publicPost)).replace(/</g,'\\u003c')+';', {headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'}});
   }
-  return fail("不存在的接口。", 404);
+  if (path.startsWith('/articles/') && ['GET','HEAD'].includes(method)) {
+    const article = await env.DB.prepare('SELECT * FROM posts WHERE permalink=? AND published_at<=?').bind(path,new Date().toISOString()).first();
+    if (!article) return new Response('文章不存在。',{status:404,headers:{'content-type':'text/plain; charset=utf-8'}});
+    const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
+    if (!template.ok) throw new Error('缺少文章模板');
+    const replacements = {TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
+    const html = (await template.text()).replace(/@@(TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
+    return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+  }
+  if (path === '/write' || path === '/write/') return Response.redirect(url.origin+'/admin/',302);
+  if (path === '/article-template.html') return new Response('Not found',{status:404});
+  return env.ASSETS.fetch(request);
 }
 export default {
-  async fetch(request, env) {
-    const origin = request.headers.get("origin");
-    const headers = cors(origin, env);
-    if (request.method === "OPTIONS") return new Response(null, { status: origin === env.ADMIN_ORIGIN ? 204 : 403, headers });
-    if (new URL(request.url).pathname.startsWith("/api/") && origin && origin !== env.ADMIN_ORIGIN) return json({ error: "来源未获允许。" }, 403);
+  async fetch(request,env) {
     try {
-      const response = await handle(request, env);
-      for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+      const original = await handle(request,env);
+      const response = new Response(original.body, original);
+      response.headers.set('x-content-type-options','nosniff');
+      response.headers.set('referrer-policy','strict-origin-when-cross-origin');
+      if (new URL(request.url).pathname.startsWith('/admin')) response.headers.set('cache-control','no-store');
       return response;
-    } catch (error) {
-      const status = error.status === 404 ? 404 : error.status === 409 ? 409 : error.status === 401 ? 401 : 500;
-      return json({ error: status === 500 ? "操作失败，请检查后台日志。" : error.message }, status, headers);
+    } catch(error) {
+      if (error.status) return fail(error.message,error.status);
+      console.error('博客请求失败',error);
+      return fail('操作失败，请检查后台日志。',500);
     }
-  },
+  }
 };

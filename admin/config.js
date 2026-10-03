@@ -1,3 +1,2 @@
-// Worker 部署完成后填入其 HTTPS 根地址，例如 https://blog-admin.example.workers.dev
-// 这里只放公开地址，绝不要填写 GitHub token 或 Client Secret。
-window.BLOG_ADMIN_API = "";
+// Cloudflare 新架构使用同源 API 和 Access 登录，不需要单独 Worker 地址或浏览器令牌。
+// 此文件仅为旧 Pages 页面迁移保留；新构建不加载它。

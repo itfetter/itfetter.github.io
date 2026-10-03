@@ -1,71 +1,53 @@
 # AGENTS.md — 博客项目开发与 AI 协作规则
 
-## 最新方向（2026-10-03，尚未迁移）
+适用于整个仓库。修改前阅读本文、README.md、PROJECT_HANDOFF.md；提交信息和修改记录使用中文。尊重现有文章、链接和用户改动。
 
-用户已决定：源码保存在 GitHub，由 Cloudflare 连接仓库自动构建部署；前台与后台迁往 Workers Static Assets + Worker，文章存 D1，图片存 R2，管理员由 Access 保护。现有 GitHub Pages/Jekyll 和 GitHub API 代理是旧实现，迁移尚未实施。本轮确认 `admin/config.js` 的 API 地址仍为空。请先阅读 [PROJECT_HANDOFF.md 的最新交接](PROJECT_HANDOFF.md)，核实资源状态后继续；保留线上站点直到新架构验收，所有提交描述使用中文。
+## 当前目标架构
 
+- GitHub 保存程序源码；Cloudflare Workers + Static Assets 运行前台和 `/admin/`。
+- `worker/index.js` 提供 API，D1 `posts` 保存文章，R2 `IMAGES` 保存上传图片。
+- Cloudflare Access 登录。管理页面和每个管理 API 必须验证 JWT 签名、issuer、audience、有效期及唯一 ADMIN_EMAIL；页面规则不能替代服务端验证。
+- 文章发布不写 GitHub，不依赖 Pages/Jekyll 或代码重构建。
+- 迁移尚未线上执行。`_posts/`、旧 `posts.js`、Jekyll 配置、Issue 发文工作流暂时保留；必须完成备份、导入、链接与域名验收后才能清理。线上状态以实际验证为准。
 
+## 源码发布与维护流程
 
-适用于整个仓库。修改前阅读本文件、[README.md](README.md) 与 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)，以实际代码和 GitHub Pages 设置为准。**以后所有提交信息及修改记录均使用中文描述。**
+代码变更通过 GitHub 提交作为版本依据。Cloudflare Workers Builds 连接仓库和指定分支后，由 Cloudflare 自动拉取提交、构建 Static Assets 并部署 Worker。当前连接尚未配置，必须验证实际构建和部署结果后才能宣称自动部署可用。
 
-## 项目与业务目标
+AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；明确区分云端工作目录已修改、已提交、已推送、已构建和已上线，不能把其中一个状态当成另一个。按用户授权提交或推送，提交信息使用中文。
 
-这是 itfetter 的个人博客，托管于 GitHub Pages，域名 `itfetter.com`。目标是持续发布自己的文章与项目记录，同时保留 CSDN 入口。读者访问站点无需登录；文章发布由 GitHub 仓库写权限控制。不得把示例文章写成正式成果。
+正式使用自动部署后，避免单独在 Cloudflare 在线编辑另一份程序代码；修复通过源码提交进入构建流程。文章增删改和图片上传直接操作 D1/R2，不改 GitHub 源码，不触发代码构建。Cloudflare 中的账户资源、Access 策略和构建配置按部署文档维护，不将密钥放入仓库。
 
-## 技术栈和项目地图
+## 路径与约束
 
-- GitHub Pages 从 `main` 分支 `/ (root)` 发布，内置 Jekyll 在构建时处理 Markdown 和 Liquid。前台仍为原生 HTML、CSS、JavaScript。
-- 可视化后台代码包括 Pages 的 `/admin/` 和尚待部署的 Cloudflare Worker 授权 API；目前 `admin/config.js` 为空，线上后台仍未启用。无自有数据库；Worker KV 仅保存短期登录状态。
+`index.html` 保留首页布局、分类、搜索、CSDN 入口和旧 `#post/<id>`。
+`admin/index.html` 为后台编辑器，使用同源 Access Cookie，不在浏览器存 GitHub token 或自建长期会话。
+`worker/index.js` 使用参数绑定操作 D1，并以 id/version 保护更新和删除；不能关闭并发检查。
+`worker/content.js` 负责 Markdown 和 HTML 清理；标题、摘要等字段插入 HTML 必须转义，不能允许脚本、事件属性或危险协议。
+`worker/migrations/` 为数据库迁移，不改已发布迁移，新增迁移描述后续结构变化。
+`scripts/build.mjs` 使用静态资源白名单；禁止发布账户配置、Worker 源码、文章迁移 SQL、node_modules 或整个仓库。
+`_layouts/post.html` 当前仍为独立文章模板；构建替换 Liquid，Worker 插入数据库内容。
+`scripts/import-posts.mjs` 只生成导入 SQL，不能自动删除源文章或覆盖 D1 已有文章。
 
-| 路径 | 作用 |
-| --- | --- |
-| `_posts/YYYY-MM-DD-name.md` | 文章唯一内容来源；每篇一文件。 |
-| `posts.js` | 带 YAML front matter 的 Liquid 模板；由 `site.posts` 输出前台文章数据，**勿手改数据**。 |
-| `index.html` | 首页样式、文章列表、自动分类、筛选、搜索与 `#post/<id>` 旧链接。 |
-| `_layouts/post.html` | 每篇文章的独立 HTML 页布局。 |
-| `write/index.html` | 公开跳转至 GitHub 登录文章表单。 |
-| `.github/ISSUE_TEMPLATE/publish-article.yml` | GitHub 文章表单。 |
-| `.github/workflows/publish-article.yml`、`scripts/publish_article_from_issue.py` | 验证作者用户 ID，自动写入文章并请求 Pages 构建。 |
-| `admin/index.html`、`admin/config.js` | 可视化管理界面及公开的 Worker 地址配置。 |
-| `worker/index.js`、`worker/wrangler.example.jsonc` | GitHub App OAuth 回调、只允许 itfetter 管理文章/图片的 API、部署配置样例。 |
-| `worker/README.md`、`worker/test.mjs` | 授权部署步骤及后台核心行为测试。 |
-| `ARTICLE_TEMPLATE.md` | 新文章格式示例。 |
-| `_config.yml` | Jekyll 的标题、网址、时区和 Markdown 设置。 |
-| `CNAME` | Pages 主域名 `itfetter.com`。 |
-| `README.md`、`PROJECT_HANDOFF.md` | 公开说明和项目进度/风险交接。 |
+文章 id 必须唯一稳定、为小写英文数字与连字符；permalink 保持 `/articles/<id>/`，不能随意更改旧链接。读者无需登录。不得把示例写成正式成果。
 
-## 核心文章模型
+不得写入公开仓库的内容：密码、账户 token、真实密钥、`worker/.dev.vars`、真实 wrangler 配置、迁移数据及线上备份。Access 标识和邮箱在账户配置中设置；禁止把 ENVIRONMENT=development 配置到生产。
 
-每篇 Markdown 文件以 YAML front matter 开头，包含 `layout: post`、`title`、`category`、`summary`、`blog_id`、`date`、`permalink`，正文为 Markdown。文件名为 `YYYY-MM-DD-英文短名.md`。发布日期不要晚于计划发布时间，否则 Jekyll 默认可能不显示文章。
+## 验证与交接
 
-- `blog_id` 必须唯一且稳定；首页旧地址为 `#post/<blog_id>`。修改已发布 ID 会破坏旧链接。
-- `permalink` 必须唯一，示例：`/articles/hello/`；与已存在网址冲突可能覆盖页面。
-- `category` 决定自动生成的分类按钮；`summary` 用于列表；文章正文由 Jekyll 转 HTML。
-- `posts.js` 把文章字段转成 JavaScript；`index.html` 的 `renderList()` 和 `route()` 实现搜索与阅读；首页置顶卡片当前固定指向 `hello`，更换时同步改文案及链接。
-- Markdown 中尽量使用普通相对站点路径与 HTTPS 外链；只有可信作者可提交原始 HTML。前台详情通过 `innerHTML` 展示构建后的文章 HTML，不得将不可信用户输入直接注入。
+开发使用 Node.js 24，`npm --prefix worker ci`、`npm --prefix worker run build`、`npm --prefix worker test`。本地 D1 通过 Wrangler migrations 初始化，导入 SQL 后运行 `npm run dev`，执行实际 HTTP 与必要的浏览器功能验证；普通静态服务器无法验证动态文章与 API。
 
-## 可修改与谨慎修改
+前端变化检查手机宽度、键盘操作、搜索分类及旧链接；管理变化检查未登录、非管理员、签名无效/过期、跨站写入、版本冲突和文章 CRUD。上传检查大小、格式、可读性。
 
-- 可以增改文章、修正文案、调整视觉与可访问性；必要时修改 Jekyll 布局或列表逻辑。优先保持现有博客首页布局和旧文章哈希地址。
-- `CNAME`、Pages 分支/目录、DNS 属线上入口，明确域名迁移需求后才改。不要为了布局改版删除域名文件。
-- 不随意更改文章 `blog_id`、`permalink`、现有 CSDN 链接，不把原站改为直接跳转页。
-- 不将密码、Client Secret、GitHub token 或真实 Worker 密钥写入公开仓库。后台仅允许 GitHub 数字用户 ID 138357073；对每次文章写入核对路径和版本 SHA。浏览器仅保存短期后台会话，GitHub token 留在 Worker。Issue 发文工作流保持备用。
+域名/DNS、Pages 停用、GitHub 仓库私有化和线上数据迁移影响实际服务。先准备可审查结果，按用户授权执行，禁止未验证便称上线。每次开发更新 PROJECT_HANDOFF.md 中的文件、原因、验证、已知问题和待办；改变工作流同步 README 与本文。
 
-## API、数据库、前端、部署规则
+## 必须持续记录的维护要求（用户明确要求，2026-10-03）
 
-- API/数据库：Worker 的 `/api/post` 限定 `_posts/*.md`，`/api/image` 限定 `assets/uploads/`，OAuth 令牌短期放在 Worker KV。不要允许前端提供任意仓库路径，不要在浏览器保管 GitHub token。变更权限或数据模型时同步更新文档。
-- 前端：维持响应式布局、键盘可用、清晰的替代文本。新增外部新窗口链接加 `rel="noopener noreferrer"`；尽量避免 HTTP 混合内容。
-- 部署：GitHub Pages 构建 `main` 根目录，`worker/` 被排除；部署 Worker 与 GitHub App 后才填写 `admin/config.js`。自动工作流使用 GITHUB_TOKEN 写入时必须显式请求 Pages 构建；加入文章后检查 Pages/Actions 构建状态、首页和独立文章链接。Jekyll 构建后才会把 `posts.js` 模板转成可执行数据；仅用普通静态服务器预览源文件不等于线上效果。
-- 命名：文章文件小写英文和连字符，`blog_id` 小写英文且稳定；已有 JS 字段与函数使用 camelCase。
+每次修改、更新、修复、配置调整或新增约束，都必须同步维护仓库文档，不得仅留在聊天记录中。此规则适用于后续所有开发窗口和 AI 协作任务。
 
-## 测试与验收
-
-文章变更至少检查 YAML 合法、发布日期、唯一 `blog_id` 和 `permalink`、Markdown 渲染、首页列表、分类、搜索、`#post/<id>` 与独立文章页。前端变更额外检查手机宽度和键盘操作；域名相关变更检查 HTTPS 与重定向。Jekyll 构建失败时查看 Pages 工作流日志，不得在未验证时宣称上线成功。没有现成自动测试，不为纯文档改动写形式化测试。
-
-## AI 和开发人员修改前后的规范
-
-1. 读取目标文件及本文档，确认现有改动，列出影响范围，保持最小必要修改。
-2. 增文章请在 `_posts/` 建 Markdown；不要直接给 `posts.js` 填文章，更不要把密码写入前台。
-3. 先检验文件格式与路径，再检查 Jekyll 构建及前台行为；无法验证的状态如实写明。
-4. 更新 `PROJECT_HANDOFF.md` 的“文件、原因、验证、已知问题、待办”；改变编辑或部署方式时同步更新 README 与本文件。
-5. 使用**中文提交信息**，向维护者说明修改内容、验证范围和剩余风险。尊重现有文章内容和未提交改动。
+- `PROJECT_HANDOFF.md`：每次工作记录具体文件、改动内容、原因、实际验证及结果、已知问题、待办，以及提交/推送/部署状态。记录重要决策和适用条件，确保另一个窗口无需依赖原聊天即可接续。
+- `PROJECT_HANDOFF.md` 必须维护当前文件地图：写清关键文件/目录的内容和职责、哪些需求对应哪些修改入口、关联文件，以及源码、生成输出、线上数据和旧迁移文件的区别。新增、移动、删除文件或改变职责时同步地图，旧地图明确标为历史；接手 AI 修改前先阅读当前地图。
+- `AGENTS.md`：同步记录新增或变化的长期维护规则、架构约束、权限要求、开发与发布流程；临时进度写入交接文件，避免把过期任务状态当成长期规则。
+- 开发前读取这两个文件和 README，核对实际代码与已有用户改动；开发完成前检查文档是否覆盖本次工作。即使验证失败或工作受阻，也记录已做事项、具体失败和继续工作的前提，不得遗漏。
+- 最新有效状态应容易找到；被新方案替代的说明明确标为历史。保留重要决策依据，不让旧说明与当前规则混淆。
+- 文档随相应代码进入同一次提交；如未提交或未推送，明确说明目前仅在工作目录中。密钥、令牌及其他凭据值不得记入维护文档。

@@ -1,15 +1,14 @@
 {
-  "name": "itfetter-blog-admin",
+  "name": "itfetter-blog",
   "main": "index.js",
-  "compatibility_date": "2026-09-27",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {"directory": "../dist", "binding": "ASSETS", "run_worker_first": true},
   "vars": {
-    "ADMIN_ORIGIN": "https://itfetter.com",
-    "GITHUB_CLIENT_ID": "替换为你的 GitHub App Client ID"
+    "ACCESS_TEAM_DOMAIN": "your-team.cloudflareaccess.com",
+    "ACCESS_AUD": "replace-with-access-application-aud",
+    "ADMIN_EMAIL": "replace-with-your-email"
   },
-  "kv_namespaces": [
-    {
-      "binding": "SESSIONS",
-      "id": "替换为 Cloudflare KV namespace ID"
-    }
-  ]
+  "d1_databases": [{"binding": "DB", "database_name": "itfetter-blog", "database_id": "replace-with-d1-id", "migrations_dir": "migrations"}],
+  "r2_buckets": [{"binding": "IMAGES", "bucket_name": "itfetter-blog-images"}]
 }

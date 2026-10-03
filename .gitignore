@@ -2,3 +2,8 @@ worker/wrangler.jsonc
 worker/.dev.vars
 worker/.env
 worker/node_modules/
+
+# Cloudflare 构建、开发状态和文章迁移输出
+dist/
+worker/.wrangler/
+.migration/
