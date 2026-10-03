@@ -2,7 +2,15 @@
 
 > 更新于 2026-10-03。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
-## 2026-10-03 Worker 应用创建与绑定（最新部署进度）
+## 2026-10-03 GitHub 连接与首次实际部署（最新部署进度）
+
+用户已在控制台连接仓库并创建构建令牌。API 核对 trigger d46e6bfd-80eb-467d-b8ce-2f735a375caa：仓库 itfetter/itfetter.github.io、生产 main、root=/worker、构建配置环境变量正确。通过 API 启动 build 228070b0-d5eb-4733-a8c9-a031f615ee9a，2026-10-03 09:15 UTC 云端构建及部署成功；8 项测试全部通过，生成静态资源并上传实际 Worker，覆盖旧 503 占位模块。部署版本 b3853eed-2be4-4f7f-9dac-24799a15c7ef，绑定 DB、IMAGES、ASSETS 均正确。依赖安装仅在 Cloudflare 云端进行。
+
+临时入口 https://itfetter-blog.itfetterit.workers.dev 。首次 Wrangler 默认开启预览 URL，已通过 API 关闭 previews_enabled，同时构建环境 JSON 增加 preview_urls=false 防止后续再次打开；保留 workers.dev 主入口。正式域名未改。
+
+本机 HTTP 请求受网络限制，web 工具也无法打开临时入口，因此目前只确认平台部署成功，不能宣称线上页面和登录验收通过。管理员初始化、5 篇旧文章导入、真实 Workers CPU/登录/CRUD/R2 验收仍待执行。当前没有默认密码，未初始化管理员时拒绝登录。此前应用创建章节为首次实际部署前的历史状态。本轮仅更新本交接文件，配置修改保存在 Cloudflare Builds，未提交账户配置或令牌。
+
+## 2026-10-03 Worker 应用创建与绑定（历史状态）
 
 用户要求继续创建应用、拉取 GitHub 并部署。通过 API 创建 Worker `itfetter-blog`，Worker tag 为 `8dda8f9ac9f24df8bc033d5c4e28580e`。已绑定 D1 `DB` 到 `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`，R2 `IMAGES` 到 `itfetter-blog-images`，开启 observability，compatibility_date=2026-10-03、nodejs_compat。
 
