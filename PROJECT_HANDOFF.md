@@ -14,6 +14,9 @@
 
 部署待办：应用新增迁移；在可信交互终端初始化管理员（不要聊天发送密码），导入私密 SQL 后移除临时文件；配置 Workers Builds 并部署，验收登录、限速、退出、CSRF、手机表单、旧链接、文章 CRUD、图片与 CPU/内存额度。当前未创建管理员、未部署 Worker、未切域名。已创建 D1/R2 和 GitHub 仓库连接继续复用，Access 无需继续配置。已开通 Zero Trust 不需关闭；截图确认团队域名存在，但插件近期 transport 错误，未完成线上操作。
 
+
+实际发布与追加验证：自建登录代码、测试和文档在同一提交 `d379d3607944e39184d76a224bbc8e70708c8192` 发布到 GitHub main。GitHub Actions“验证博客 Worker”运行 `37105277637` 已完成且 success（https://github.com/itfetter/itfetter.github.io/actions/runs/37105277637），完整 npm test 与构建均通过。Cloudflare 插件随后恢复，通过 D1 query API 执行 0002_auth.sql 的所有语句并核对 admin_users、admin_sessions、login_limits 三表存在，管理员数为 0；这是实际线上建表操作，不是只生成本地 SQL。尚未通过 Wrangler 的迁移记录机制执行，后续运行 migrations 时注意核对；语句均为 IF NOT EXISTS。未写入密码或会话，未导入文章。Worker 列表仍为空，build tokens 列表也为空，自动构建与部署尚未配置完成。Access 已从部署前提中移除。
+
 ## 2026-10-03 GitHub 构建授权已恢复（最新补充）
 
 用户通过 Cloudflare 控制台完成 GitHub 授权，截图显示 Continue with GitHub。随后 API 实际创建目标仓库连接成功：`itfetter/itfetter.github.io`，repo_connection_uuid 为 `6743b7b9-ce99-4223-94d1-a362c7d63529`。此前 8000008 / Git account disconnected 阻塞已解决。
