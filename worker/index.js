@@ -20,9 +20,9 @@ async function readJson(request, max = 400000) {
   const raw = new TextDecoder().decode(bytes);
   try { return JSON.parse(raw); } catch { throw Object.assign(new Error('请求必须为 JSON。'), {status: 400}); }
 }
-function validate(data) {
+function validate(data, draft = false) {
   for (const [field, max] of [['title',160], ['category',80], ['summary',300], ['body',300000]]) {
-    if (typeof data?.[field] !== 'string' || !data[field].trim() || data[field].length > max) throw Object.assign(new Error(field + ' 不能为空或超出长度限制。'), {status:400});
+    if (typeof data?.[field] !== 'string' || (!draft && !data[field].trim()) || data[field].length > max) throw Object.assign(new Error(field + ' 不能为空或超出长度限制。'), {status:400});
   }
 }
 function publicPost(post) {
@@ -67,7 +67,7 @@ async function handle(request, env) {
       return changePassword(request,env,await readJson(request,2048));
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
-    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,summary,published_at,updated_at,permalink,version FROM posts ORDER BY published_at DESC,id').all()).results);
+    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
     if (path === '/api/preview' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       const data=await readJson(request,400000);
@@ -78,23 +78,31 @@ async function handle(request, env) {
       const id = url.searchParams.get('id');
       if (!slug(id)) return fail('无效文章标识。');
       const post = await env.DB.prepare('SELECT * FROM posts WHERE id=?').bind(id).first();
-      return post ? json(post) : fail('文章不存在。',404);
+      if(!post)return fail('文章不存在。',404);
+      const editable={...post,has_draft:post.draft_body!==null};
+      for(const field of ['title','category','summary','body']){editable[field]=post['draft_'+field]??post[field];delete editable['draft_'+field];}
+      return json(editable);
     }
     if (path === '/api/post' && method === 'PUT') {
-      const data = await readJson(request); validate(data);
+      const data = await readJson(request);
+      if (data.status !== undefined && !['draft','published'].includes(data.status)) return fail('保存状态无效。');
+      const draft=data.status==='draft'; validate(data,draft);
       const now = new Date().toISOString();
       if (data.id) {
         if (!slug(data.id) || !Number.isSafeInteger(data.version) || data.version < 1) return fail('文章标识或版本无效。');
-        const result = await env.DB.prepare('UPDATE posts SET title=?,category=?,summary=?,body=?,version=version+1,updated_at=? WHERE id=? AND version=?')
-          .bind(data.title.trim(),data.category.trim(),data.summary.trim(),data.body,now,data.id,data.version).run();
+        const sql=draft
+          ? 'UPDATE posts SET draft_title=?,draft_category=?,draft_summary=?,draft_body=?,version=version+1,updated_at=? WHERE id=? AND version=?'
+          : "UPDATE posts SET title=?,category=?,summary=?,body=?,status='published',published_at=CASE WHEN status='draft' THEN ? ELSE published_at END,draft_title=NULL,draft_category=NULL,draft_summary=NULL,draft_body=NULL,version=version+1,updated_at=? WHERE id=? AND version=?";
+        const values=[data.title.trim(),data.category.trim(),data.summary.trim(),data.body,...(draft?[]:[now]),now,data.id,data.version];
+        const result=await env.DB.prepare(sql).bind(...values).run();
         if (!result.meta.changes) return fail('文章已被修改或删除，请刷新后重试。',409);
-        return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/'});
+        return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/',savedAs:draft?'draft':'published'});
       }
       if (!slug(data.slug)) return fail('网址短名只能用小写英文、数字和连字符。');
-      const result = await env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
-        .bind(data.slug,data.title.trim(),data.category.trim(),data.summary.trim(),data.body,now,'/articles/'+data.slug+'/',now).run();
+      const result = await env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at,status,draft_title,draft_category,draft_summary,draft_body) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
+        .bind(data.slug,draft?'':data.title.trim(),draft?'':data.category.trim(),draft?'':data.summary.trim(),draft?'':data.body,now,'/articles/'+data.slug+'/',now,draft?'draft':'published',draft?data.title.trim():null,draft?data.category.trim():null,draft?data.summary.trim():null,draft?data.body:null).run();
       if (!result.meta.changes) return fail('网址短名已被使用。',409);
-      return json({id:data.slug,version:1,url:url.origin+'/articles/'+data.slug+'/'},201);
+      return json({id:data.slug,version:1,url:url.origin+'/articles/'+data.slug+'/',savedAs:draft?'draft':'published'},201);
     }
     if (path === '/api/post' && method === 'DELETE') {
       const data = await readJson(request);
@@ -126,12 +134,12 @@ async function handle(request, env) {
     return new Response(method==='HEAD'?null:object.body,{headers});
   }
   if (path === '/posts.js' && method === 'GET') {
-    const {results} = await env.DB.prepare('SELECT * FROM posts WHERE published_at<=? ORDER BY published_at DESC,id').bind(new Date().toISOString()).all();
+    const {results} = await env.DB.prepare("SELECT * FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
     // JSON 内的 < 转义，避免未来嵌入 HTML 时出现脚本边界。
     return new Response('const posts = '+JSON.stringify(results.map(publicPost)).replace(/</g,'\\u003c')+';', {headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'}});
   }
   if (path.startsWith('/articles/') && ['GET','HEAD'].includes(method)) {
-    const article = await env.DB.prepare('SELECT * FROM posts WHERE permalink=? AND published_at<=?').bind(path,new Date().toISOString()).first();
+    const article = await env.DB.prepare("SELECT * FROM posts WHERE status='published' AND permalink=? AND published_at<=?").bind(path,new Date().toISOString()).first();
     if (!article) return new Response('文章不存在。',{status:404,headers:{'content-type':'text/plain; charset=utf-8'}});
     const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
     if (!template.ok) throw new Error('缺少文章模板');

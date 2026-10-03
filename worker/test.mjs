@@ -10,6 +10,7 @@ const token=async()=> '__Host-blog_session='+sessionToken;
 function setup(){
  const db=new DatabaseSync(':memory:'); db.exec(readFileSync(new URL('migrations/0001_posts.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0002_auth.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0003_drafts.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -91,5 +92,36 @@ test('后台文章目录完整返回摘要和旧链接，预览使用正式清�
  const preview=await (await s.request('/api/preview','POST',{body:'**正文**\n<script>alert(1)</script><img src=x onerror="alert(1)">'},cookie)).json();
  assert.match(preview.html,/<strong>正文<\/strong>/);assert.doesNotMatch(preview.html,/<script>|onerror/);
  assert.equal((await s.request('/api/preview','POST',{body:3},cookie)).status,400);
+ }finally{s.db.close()}
+});
+
+test('不完整草稿不可公开；已发布文章草稿保留公开版本，发布和删除检查版本',async()=>{
+ const s=setup(),cookie=await token();try{
+ const incomplete={slug:'draft-note',title:'未完成',category:'',summary:'',body:'草稿秘密',status:'draft'};
+ assert.equal((await s.request('/api/post','PUT',incomplete)).status,401);
+ const cross=new Request(origin+'/api/post',{method:'PUT',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify(incomplete)});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ assert.equal((await s.request('/api/post','PUT',incomplete,cookie)).status,201);
+ assert.equal((await s.request('/articles/draft-note/')).status,404);
+ assert.doesNotMatch(await(await s.request('/posts.js')).text(),/草稿秘密|draft-note/);
+ let editing=await(await s.request('/api/post?id=draft-note','GET',undefined,cookie)).json();
+ assert.equal(editing.body,'草稿秘密');assert.equal(editing.status,'draft');
+ assert.equal((await s.request('/api/post','PUT',{...incomplete,id:'draft-note',version:1,status:'published'},cookie)).status,400);
+ const complete={...article,id:'draft-note',version:1,status:'published',title:'公开版本',body:'公开正文'};
+ assert.equal((await s.request('/api/post','PUT',complete,cookie)).status,200);
+ assert.match(await(await s.request('/articles/draft-note/')).text(),/公开正文/);
+ assert.equal((await s.request('/api/post','PUT',{...complete,version:2,status:'draft',title:'私密改动',body:'未发布的新正文'},cookie)).status,200);
+ let publicHtml=await(await s.request('/articles/draft-note/')).text();assert.match(publicHtml,/公开正文/);assert.doesNotMatch(publicHtml,/私密改动|未发布的新正文/);
+ const publicList=await(await s.request('/posts.js')).text();assert.doesNotMatch(publicList,/私密改动|未发布的新正文|draft_body/);
+ editing=await(await s.request('/api/post?id=draft-note','GET',undefined,cookie)).json();assert.equal(editing.body,'未发布的新正文');assert.equal(editing.version,3);assert.equal(editing.has_draft,true);
+ const catalog=await(await s.request('/api/posts','GET',undefined,cookie)).json();assert.equal(catalog[0].has_draft,1);
+ assert.equal((await s.request('/api/post','PUT',{...complete,version:2},cookie)).status,409);
+ assert.equal((await s.request('/api/post','DELETE',{id:'draft-note',version:2},cookie)).status,409);
+ assert.equal((await s.request('/api/post','PUT',{...complete,version:3,body:editing.body},cookie)).status,200);
+ editing=await(await s.request('/api/post?id=draft-note','GET',undefined,cookie)).json();assert.equal(editing.has_draft,false);
+ assert.match(await(await s.request('/articles/draft-note/')).text(),/未发布的新正文/);
+ assert.equal((await s.request('/api/post','PUT',{...incomplete,slug:'remove-draft'},cookie)).status,201);
+ assert.equal((await s.request('/api/post','DELETE',{id:'remove-draft',version:1},cookie)).status,200);
+ assert.equal((await s.request('/api/post?id=remove-draft','GET',undefined,cookie)).status,404);
  }finally{s.db.close()}
 });

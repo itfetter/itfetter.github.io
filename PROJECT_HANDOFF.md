@@ -2,6 +2,16 @@
 
 > 更新于 2026-10-04。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
+## 2026-10-04 数据库草稿与粘贴图片（当前文件地图）
+
+用户要求保存草稿及像 CSDN 一样直接复制粘贴图片。实现未发布草稿与已发表文章待发布修改：公开字段和 draft_* 分开；保存草稿不影响前台，发布一次性替换公开内容并清空草稿。共用 posts.version 避免跨窗口覆盖，原文章日期和链接保持。首次保存时短名固定，未填短名保存草稿会自动生成。
+
+文件地图：worker/migrations/0003_drafts.sql 新增 status（默认 published）与 draft_title/category/summary/body；worker/index.js 处理状态校验、草稿宽松字段、认证目录/编辑、公开接口限定 published，原子保存/发布及版本冲突；admin/index.html 添加草稿按钮、状态筛选/统计、快捷键草稿保存、粘贴/拖入图片、占位符上传定位及保存中编辑保护；assets/admin-utils.mjs 统计/筛选；worker/test.mjs 草稿隔离、公开版本、发布、删除与冲突测试；worker/admin.test.mjs 状态统计筛选。README、worker/README、AGENTS 更新使用和维护规则。
+
+普通文字粘贴保持默认；仅正文 paste 事件提取图片文件，限制格式与每张 5 MB，不主动读取系统剪贴板。上传中禁止保存和切换，失败移除占位符并保留其他文本。R2 图片继续公开随机 URL，草稿文章私密不等于图片附件私密。当前手动保存草稿，无自动保存、修订历史。
+
+本机无依赖安装；已有 Node 语法、HTML ID 检查与文章库 3 项测试通过，完整 SQLite/Markdown 路由测试交由 Cloudflare。生产已通过 D1 API 实施 0003 新增字段并记录 d1_migrations；迁移前保存仅 posts 的小型快照在本机 work/posts-before-drafts.json（不含账号表，未提交仓库）。迁移后全部原字段逐行一致，5 篇原文章均 published。SQLite 本机迁移验证通过。提交与云端部署结果后续追加。
+
 ## 2026-10-04 后台升级与旧文章恢复（当前文件地图与状态）
 
 用户已完成 DNS 切换并确认 itfetter.com 可访问；Cloudflare API 确认正式域名绑定当前 Worker。后台空列表原因是 D1 posts 原为 0 条，并非隐藏或分页遗漏。已按 GitHub 原文参数化导入 5 篇文章，冲突时不覆盖；再次查询核对正文、日期与链接完全一致，保留 _posts 原文件。

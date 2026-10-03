@@ -12,6 +12,13 @@ test('文章库跨页无丢失、搜索包含摘要，筛选后页码回到有�
  assert.equal(posts[0].id,'post-0');
 });
 test('统计区分未来发布日期，分类去重并处理空文章库',()=>{
- assert.deepEqual(postStats(posts,'2026-01-10T00:00:00.000Z'),{total:23,visible:10,categories:2});
- assert.deepEqual(postStats([]),{total:0,visible:0,categories:0});
+ assert.deepEqual(postStats(posts,'2026-01-10T00:00:00.000Z'),{total:23,visible:10,drafts:0,categories:2});
+ assert.deepEqual(postStats([]),{total:0,visible:0,drafts:0,categories:0});
+});
+
+test('草稿状态筛选与公开统计不把未发布文章计入前台',()=>{
+ const rows=[{...posts[0],status:'draft',has_draft:1},{...posts[1],status:'published',has_draft:1},{...posts[2],status:'published',has_draft:0}];
+ assert.equal(selectPosts(rows,{status:'draft'}).total,1);assert.equal(selectPosts(rows,{status:'pending'}).total,1);
+ assert.equal(selectPosts(rows,{status:'published'}).total,2);
+ assert.equal(postStats(rows,'2027-01-01').visible,2);assert.equal(postStats(rows).drafts,2);
 });

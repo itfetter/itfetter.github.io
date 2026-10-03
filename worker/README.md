@@ -81,3 +81,7 @@ npm run build
 
 D1 中的版本号用于并发保护，不是文章历史。现阶段不实现草稿、定时发布界面、审计记录、自动数据备份或图片清理。定期使用 `wrangler d1 export` 备份数据库，另行备份 R2；GitHub 源码备份不包含线上文章。Markdown 经渲染并清理危险 HTML 后公开展示，示例的 callout/text-accent 样式保留。
 
+
+## 2026-10-04 草稿迁移
+
+先应用新增 `0003_drafts.sql` 再部署对应 Worker；它只新增列，既有文章默认 published。生产通过 API 分列预检后执行新增字段，并在 d1_migrations 记录 0003，避免后续 Wrangler 重复 ALTER。不要改 0001/0002。后台 PUT /api/post 的 status=draft 保存独立草稿，published 发布；省略 status 仍按发布处理。未发布草稿不进入 /posts.js 与 /articles/；已发表草稿不覆盖公开版本，所有写入继续检查 version。Ctrl / ⌘ + S 保存草稿；图片粘贴和拖入沿用 /api/image，5 MB/张，上传期间阻止保存。首次保存草稿后网址短名固定，未填时自动生成。当前无自动保存及版本历史。

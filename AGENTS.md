@@ -21,7 +21,7 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 ## 路径与约束
 
 `index.html` 保留首页布局、分类、搜索、CSDN 入口和旧 `#post/<id>`。
-`assets/admin-utils.mjs` 提供文章库筛选、排序、分页与统计，回归测试位于 `worker/admin.test.mjs`。预览调用已登录同源 `/api/preview` 并复用正式 Markdown 清理，不能另写不安全的客户端渲染器。后台导出仅包含当前 Markdown，不等于数据库或图片备份；当前无草稿与自动保存。
+`assets/admin-utils.mjs` 提供文章库筛选、排序、分页与统计，回归测试位于 `worker/admin.test.mjs`。预览调用已登录同源 `/api/preview` 并复用正式 Markdown 清理，不能另写不安全的客户端渲染器。后台导出仅包含当前 Markdown，不等于数据库或图片备份；草稿字段只通过认证管理 API 返回；公开文章接口显式限定 status=published 且只渲染公开字段。首次保存固定短名，草稿与发布共用 version 防止并发覆盖。当前无自动保存。
 `admin/index.html` 为工作台、文章库、编辑器和账号设置，使用同源 HttpOnly、Secure、SameSite=Strict 的短期会话 Cookie，不在浏览器存 GitHub token、密码或 localStorage 会话。
 `worker/index.js` 使用参数绑定操作 D1，并以 id/version 保护更新和删除；不能关闭并发检查。
 `worker/content.js` 负责 Markdown 和 HTML 清理；标题、摘要等字段插入 HTML 必须转义，不能允许脚本、事件属性或危险协议。
@@ -60,3 +60,7 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 - 最新有效状态应容易找到；被新方案替代的说明明确标为历史。保留重要决策依据，不让旧说明与当前规则混淆。
 - 文档随相应代码进入同一次提交；如未提交或未推送，明确说明目前仅在工作目录中。密钥、令牌及其他凭据值不得记入维护文档。
 
+
+## 草稿与图片编辑维护（2026-10-04）
+
+新增迁移 0003_drafts.sql 为 posts 添加 status 和独立草稿字段，原文章默认 published；不得改旧迁移。保存已发布文章草稿仅更新 draft_*，保留公开正文与发布日期；发布原子更新公开字段并清空草稿。所有保存与删除使用 id/version。剪贴板只在正文 paste 事件读取用户当前提供的图片文件，不后台读取系统剪贴板；上传使用随机占位符定位插入，上传中阻止保存与切换，普通文字粘贴保持浏览器默认行为。图片沿用公开 R2 读取，不宣称私密附件。
