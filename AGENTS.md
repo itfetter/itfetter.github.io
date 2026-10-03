@@ -1,5 +1,11 @@
 # AGENTS.md — 博客项目开发与 AI 协作规则
 
+## 最新方向（2026-10-03，尚未迁移）
+
+用户已决定：源码保存在 GitHub，由 Cloudflare 连接仓库自动构建部署；前台与后台迁往 Workers Static Assets + Worker，文章存 D1，图片存 R2，管理员由 Access 保护。现有 GitHub Pages/Jekyll 和 GitHub API 代理是旧实现，迁移尚未实施。本轮确认 `admin/config.js` 的 API 地址仍为空。请先阅读 [PROJECT_HANDOFF.md 的最新交接](PROJECT_HANDOFF.md)，核实资源状态后继续；保留线上站点直到新架构验收，所有提交描述使用中文。
+
+
+
 适用于整个仓库。修改前阅读本文件、[README.md](README.md) 与 [PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)，以实际代码和 GitHub Pages 设置为准。**以后所有提交信息及修改记录均使用中文描述。**
 
 ## 项目与业务目标
