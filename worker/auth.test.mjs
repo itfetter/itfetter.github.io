@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {hashPassword,verifyPassword,identity,login,logout,digest} from './auth.js';
+import {hashPassword,verifyPassword,identity,login,logout,digest,changePassword} from './auth.js';
 const password='test-only-long-password-42';
 const encoded=await hashPassword(password);
 function setup(){
@@ -52,4 +52,37 @@ test('共享数据库限速原子计数，窗口重置、HTTP 与本地模式边
  const result=await login(local,s.env,{username:'admin',password});assert.ok(result.headers.get('set-cookie').startsWith('blog_session_local='));
  assert.equal(await identity(new Request('http://localhost/admin/'),s.env),null);
  }finally{s.db.close();}
+});
+
+test('改密校验、旧密码拒绝与所有旧会话撤销',async()=>{
+ const s=setup();try{
+ const r1=await login(s.request(),s.env,{username:'admin',password});
+ const r2=await login(s.request(),s.env,{username:'admin',password});
+ const c1=r1.headers.get('set-cookie').split(';')[0],c2=r2.headers.get('set-cookie').split(';')[0];
+ const next='new-test-only-password-84';
+ const data={currentPassword:password,newPassword:next,confirmPassword:next};
+ assert.equal((await changePassword(s.request(),s.env,data)).status,401);
+ assert.equal((await changePassword(s.request(c1),s.env,{...data,currentPassword:'wrong'})).status,400);
+ assert.equal((await changePassword(s.request(c1),s.env,{...data,confirmPassword:'different'})).status,400);
+ assert.equal((await changePassword(s.request(c1),s.env,{...data,newPassword:'short',confirmPassword:'short'})).status,400);
+ assert.equal((await changePassword(s.request(c1),s.env,{currentPassword:password,newPassword:password,confirmPassword:password})).status,400);
+ assert.ok(await identity(s.request(c1),s.env));
+ const changed=await changePassword(s.request(c1),s.env,data);assert.equal(changed.status,200);
+ assert.ok(changed.headers.get('set-cookie').includes('Max-Age=0'));
+ assert.equal(await identity(s.request(c1),s.env),null);assert.equal(await identity(s.request(c2),s.env),null);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM admin_sessions').get().n,0);
+ assert.equal((await login(s.request(),s.env,{username:'admin',password})).status,401);
+ assert.equal((await login(s.request(),s.env,{username:'admin',password:next})).status,200);
+ }finally{s.db.close()}
+});
+test('并发改密仅一次生效，改密沿用共享限速',async()=>{
+ const s=setup();try{
+ const r=await login(s.request(),s.env,{username:'admin',password}),cookie=r.headers.get('set-cookie').split(';')[0];
+ const data={currentPassword:password,newPassword:'new-test-password-for-race',confirmPassword:'new-test-password-for-race'};
+ const results=await Promise.all([changePassword(s.request(cookie),s.env,data),changePassword(s.request(cookie),s.env,data)]);
+ assert.equal(results.filter(r=>r.status===200).length,1);assert.ok(results.some(r=>r.status===409));
+ const r2=await login(s.request(),s.env,{username:'admin',password:data.newPassword});
+ s.db.prepare('UPDATE login_limits SET attempts=10 WHERE key=?').run('ip:'+digest('192.0.2.1'));
+ assert.equal((await changePassword(s.request(r2.headers.get('set-cookie').split(';')[0]),s.env,data)).status,429);
+ }finally{s.db.close()}
 });

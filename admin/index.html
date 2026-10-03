@@ -22,7 +22,7 @@ input,textarea{display:block;width:100%;padding:10px 12px;border:1px solid #c8d0
 <main><h1>文章管理</h1><p class="sub">登录管理员账号后，可在这里写作、发布和管理文章。</p>
 <section id="login" class="card hidden"><h2>管理员登录</h2><p>输入管理员账号和密码。</p><form id="login-form"><label for="username">账号</label><input id="username" autocomplete="username" maxlength="100" required><label for="password">密码</label><input id="password" type="password" autocomplete="current-password" maxlength="128" required><button id="login-submit" class="primary" style="margin-top:16px">登录</button></form><p id="login-notice" role="status"></p></section>
 <div id="dashboard" class="layout hidden">
-  <aside class="card sidebar"><div class="row spread"><h2>文章</h2><button id="new" class="primary">＋ 新建</button></div><div id="post-list" class="post-list">加载中…</div><p class="legacy"><button id="logout">退出登录</button></p></aside>
+  <aside class="card sidebar"><div class="row spread"><h2>文章</h2><button id="new" class="primary">＋ 新建</button></div><div id="post-list" class="post-list">加载中…</div><p class="legacy"><button id="password-toggle" type="button" aria-expanded="false" aria-controls="password-panel">修改密码</button></p><section id="password-panel" class="hidden"><h2>修改密码</h2><p>修改后所有设备须重新登录，请先保存文章。</p><form id="password-form"><label for="current-password">当前密码</label><input id="current-password" type="password" autocomplete="current-password" maxlength="128" required><label for="new-password">新密码（14–128 字符）</label><input id="new-password" type="password" autocomplete="new-password" minlength="14" maxlength="128" required><label for="confirm-password">确认新密码</label><input id="confirm-password" type="password" autocomplete="new-password" minlength="14" maxlength="128" required><button id="password-submit" class="primary" style="margin-top:12px">确认修改</button></form><p id="password-notice" role="status"></p></section><p class="legacy"><button id="logout">退出登录</button></p></aside>
   <section class="card"><div class="row spread"><h2 id="mode">新文章</h2><span class="muted" id="file-path"></span></div>
     <div class="fields">
       <label>标题 *<input id="title" maxlength="160" placeholder="文章标题"></label>
@@ -52,8 +52,20 @@ function renderList(){const target=$("post-list");target.replaceChildren();if(!l
 function discard(){return !dirty||confirm("当前修改尚未保存，确定离开吗？")}
 async function openPost(id){if(!discard())return;message("正在读取文章…");try{const article=await api("/api/post?id="+encodeURIComponent(id));current={id,version:article.version};for(const id of ["title","category","summary","body"])fields[id].value=article[id]||"";fields.slug.value=article.id||"";fields.slug.disabled=true;$("mode").textContent="编辑文章";$("file-path").textContent=id;$("delete").classList.remove("hidden");$("view").href="/articles/"+article.id+"/";$("view").classList.remove("hidden");dirty=false;preview();renderList();message("")}catch(e){message(e.message,true)}}
 async function refresh(){listing=await api("/api/posts");renderList()}
-async function login(){try{await api("/api/me");$("login").classList.add("hidden");$("dashboard").classList.remove("hidden");await refresh();clear()}catch(e){$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("login-notice").textContent=e.message}}
+async function login(){try{await api("/api/me");$("login").classList.add("hidden");$("dashboard").classList.remove("hidden");await refresh();clear()}catch(e){$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("login-notice").textContent=new URLSearchParams(location.search).get("password")==="changed"?"密码已修改，请使用新密码登录。":e.message}}
 $("login-form").onsubmit=async e=>{e.preventDefault();$("login-submit").disabled=true;$("login-notice").textContent="正在登录…";try{await api("/api/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});$("password").value="";location.replace("/admin/")}catch(error){$("password").value="";$("login-notice").textContent=error.message}finally{$("login-submit").disabled=false}};
+$("password-toggle").onclick=()=>{const visible=$("password-panel").classList.toggle("hidden")===false;$("password-toggle").setAttribute("aria-expanded",String(visible));$("password-form").reset();$("password-notice").textContent="";if(visible)$("current-password").focus()};
+$("password-form").onsubmit=async e=>{
+ e.preventDefault();
+ if(dirty){$("password-notice").textContent="请先保存文章或放弃未保存的修改，再修改密码。";return}
+ const currentPassword=$("current-password").value,newPassword=$("new-password").value,confirmPassword=$("confirm-password").value;
+ if(newPassword!==confirmPassword){$("password-notice").textContent="两次新密码不一致。";return}
+ $("password-submit").disabled=true;$("password-notice").textContent="正在修改…";
+ try{await api("/api/password",{method:"POST",body:JSON.stringify({currentPassword,newPassword,confirmPassword})});$("password-form").reset();location.replace("/admin/login/?password=changed")}
+ catch(error){$("password-form").reset();$("password-notice").textContent=error.message}
+ finally{$("password-submit").disabled=false}
+};
+if(new URLSearchParams(location.search).get("password")==="changed")$("login-notice").textContent="密码已修改，请使用新密码登录。";
 function insert(before,after="",fallback="文字"){const el=fields.body,start=el.selectionStart,end=el.selectionEnd,selected=el.value.slice(start,end)||fallback;el.setRangeText(before+selected+after,start,end,"end");el.focus();el.dispatchEvent(new Event("input"))}
 document.querySelectorAll("[data-insert]").forEach(button=>button.onclick=()=>{const kind=button.dataset.insert;if(kind==="heading")insert("\n## ","\n","小标题");if(kind==="bold")insert("**","**","重点");if(kind==="link")insert("[","](https://example.com/)","链接文字");if(kind==="list")insert("\n- ","","列表项目");if(kind==="quote")insert("\n> ","","引用内容");if(kind==="code")insert("\n```\n","\n```\n","代码")});
 for(const field of Object.values(fields))field.addEventListener("input",()=>{dirty=true;preview()});

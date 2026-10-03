@@ -33,7 +33,7 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 
 ## 管理员登录
 
-先执行数据库迁移，再在可信终端运行 `npm --prefix worker run create:admin`，工具交互输入账号和密码，生成被忽略的 `.migration/admin.sql`；按部署指南导入对应数据库。工具不会联网或自动覆盖数据库。密码至少 14 字符，登录会话最多 8 小时，退出后立即撤销。重置密码再次运行该工具并执行 SQL，会撤销所有旧会话。没有公众注册与邮件找回密码。
+先执行数据库迁移，再在可信终端运行 `npm --prefix worker run create:admin`，工具交互输入账号和密码，生成被忽略的 `.migration/admin.sql`；按部署指南导入对应数据库。工具不会联网或自动覆盖数据库。密码至少 14 字符，登录会话最多 8 小时，退出后立即撤销。登录后可在后台侧栏点击“修改密码”，输入当前密码、新密码和确认密码（14–128 字符）；先保存文章，修改成功后所有旧会话失效，须用新密码重新登录。忘记密码时再次运行可信终端工具并执行 SQL，会撤销所有旧会话。没有公众注册与邮件找回密码。
 
 本机缺少依赖时不自动安装，可运行独立 `npm --prefix worker run test:auth`，完整构建和测试使用 GitHub Actions 的验证工作流。
 

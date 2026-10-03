@@ -1,5 +1,5 @@
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
-import { identity, login, logout, secureTransport } from './auth.js';
+import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import { escapeHtml, renderMarkdown } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
@@ -62,6 +62,10 @@ async function handle(request, env) {
       return fail('请登录管理员账号。',401);
     }
     if (!['GET','HEAD'].includes(method) && request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
+    if (path === '/api/password' && method === 'POST') {
+      if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
+      return changePassword(request,env,await readJson(request,2048));
+    }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
     if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,published_at,version FROM posts ORDER BY published_at DESC,id').all()).results);
     if (path === '/api/post' && method === 'GET') {

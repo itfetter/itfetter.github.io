@@ -70,3 +70,12 @@ test('未来文章不公开；SQL 导入保留原日期和链接且不会覆盖�
  s.db.exec("UPDATE posts SET published_at='2999-01-01T00:00:00.000Z' WHERE id='hello'");assert.equal((await s.request('/articles/hello/')).status,404);assert.doesNotMatch(await (await s.request('/posts.js')).text(),/"id":"hello"/);s.db.close();
 });
 
+
+test('改密接口拒绝未登录、跨站及非 JSON 请求，并限制请求大小',async()=>{
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/password','POST',{})).status,401);
+ assert.equal((await worker.fetch(new Request(origin+'/api/password',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:'{}'}),s.env)).status,403);
+ assert.equal((await worker.fetch(new Request(origin+'/api/password',{method:'POST',headers:{origin,cookie,'content-type':'text/plain'},body:'{}'}),s.env)).status,415);
+ assert.equal((await s.request('/api/password','POST',{currentPassword:'a'.repeat(2100)},cookie)).status,413);
+ }finally{s.db.close()}
+});

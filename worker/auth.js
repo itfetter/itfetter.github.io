@@ -34,11 +34,11 @@ function token(request,env) {
 export async function identity(request,env) {
   if(!secureTransport(request,env))return null;
   const value=token(request,env);if(!value)return null;
-  return env.DB.prepare('SELECT u.username FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND s.auth_version=u.updated_at')
+  return env.DB.prepare('SELECT u.username,u.updated_at FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND s.auth_version=u.updated_at')
     .bind(digest(value),Math.floor(Date.now()/1000)).first();
 }
 const response=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});
-export async function login(request,env,data) {
+async function limitAttempts(request,env) {
   const now=Math.floor(Date.now()/1000),window=Math.floor(now/900);
   // 每次尝试先原子计数；无需先读取再更新，多个实例共享限制。
   const ip=request.headers.get('cf-connecting-ip') || (local(request,env)?'localhost':'unknown');
@@ -47,6 +47,11 @@ export async function login(request,env,data) {
     if(row.attempts>maximum)return response({error:'登录尝试过多，请稍后再试。'},429,{'retry-after':String(900-now%900)});
   }
   await env.DB.prepare('DELETE FROM login_limits WHERE window<?').bind(window-1).run();
+  return null;
+}
+export async function login(request,env,data) {
+  const limited=await limitAttempts(request,env);if(limited)return limited;
+  const now=Math.floor(Date.now()/1000);
   if(typeof data?.username!=='string'||data.username.length>100||typeof data.password!=='string'||data.password.length>128)return response({error:'账号或密码错误。'},401);
   const user=await env.DB.prepare('SELECT id,username,password_hash,updated_at FROM admin_users WHERE id=1').first();
   const valid=await verifyPassword(data.password,user?.password_hash||DUMMY);
@@ -62,5 +67,28 @@ export async function login(request,env,data) {
 export async function logout(request,env) {
   const value=token(request,env);
   if(value)await env.DB.prepare('DELETE FROM admin_sessions WHERE token_hash=?').bind(digest(value)).run();
+  return response({ok:true},200,{'set-cookie':cookie(request,env,'',0)});
+}
+
+export async function changePassword(request,env,data) {
+  const session=await identity(request,env);
+  if(!session)return response({error:'请重新登录。'},401);
+  const limited=await limitAttempts(request,env);if(limited)return limited;
+  if(typeof data?.currentPassword!=='string'||data.currentPassword.length>128 ||
+     typeof data.newPassword!=='string'||data.newPassword.length<14||data.newPassword.length>128)
+    return response({error:'新密码须为 14–128 个字符。'},400);
+  if(data.newPassword!==data.confirmPassword)return response({error:'两次新密码不一致。'},400);
+  if(data.currentPassword===data.newPassword)return response({error:'新密码不能与当前密码相同。'},400);
+  const user=await env.DB.prepare('SELECT id,username,password_hash,updated_at FROM admin_users WHERE id=1').first();
+  if(!user||user.updated_at!==session.updated_at)return response({error:'会话已失效，请重新登录。'},401);
+  if(!await verifyPassword(data.currentPassword,user.password_hash))return response({error:'当前密码错误。'},400);
+  const hash=await hashPassword(data.newPassword);
+  // 唯一版本避免同毫秒更新；条件更新防止并发改密覆盖。
+  const version=new Date().toISOString()+':'+randomBytes(16).toString('hex');
+  const result=await env.DB.prepare('UPDATE admin_users SET password_hash=?,updated_at=? WHERE id=1 AND updated_at=?')
+    .bind(hash,version,user.updated_at).run();
+  if(!result.meta.changes)return response({error:'密码已被修改，请重新登录。'},409);
+  // 版本更新即刻使所有旧会话失效，随后清理旧记录。
+  await env.DB.prepare('DELETE FROM admin_sessions WHERE auth_version<>?').bind(version).run();
   return response({ok:true},200,{'set-cookie':cookie(request,env,'',0)});
 }
