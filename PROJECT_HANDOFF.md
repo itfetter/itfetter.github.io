@@ -2,6 +2,27 @@
 
 > 更新于 2026-10-03。当前开发采用 Cloudflare 全站架构，以下“最新交接”及文末迁移记录为当前依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
+## 2026-10-03 Cloudflare 账户资源初始化（最新部署进度）
+
+用户授权开始创建 Cloudflare 应用并部署。通过 Cloudflare 插件核对当前连接账户 `44bd0c60ac0075b4a4b9fea76032f0f9`；该账户起初没有 Worker、D1 或 R2，Workers 子域名为 `itfetterit.workers.dev`。它与历史规划中提到的 `itfetpro.workers.dev` 不同，不能混用历史账户资源。
+
+已实际完成：
+- 创建亚太 D1 数据库 `itfetter-blog`，UUID 为 `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`。
+- 按仓库 `worker/migrations/0001_posts.sql` 的结构通过 D1 API 初始化 `posts` 表和 `posts_published` 索引。未通过 Wrangler migration 命令执行；后续执行同一初始迁移前应核对迁移记录，其建表语句为 IF NOT EXISTS。
+- 创建 R2 标准存储桶 `itfetter-blog-images`，位置 APAC。未启用公开桶访问，后续由 Worker 图片路由读取。
+- 用户已确认唯一管理员登录邮箱；具体值应配置在 Cloudflare 账户配置中，不记入公开交接文档。
+
+实际验证：创建接口均返回 success；查询 sqlite_master 确认 posts 表存在，文章数为 0。尚未导入旧文章，也没有上传图片。
+
+阻塞与证据：
+- Access 列表及组织查询返回 9999 / access.api.error.not_enabled；创建 Zero Trust organization 返回 10000 / Authentication error。当前连接不能完成初始化，需要通过账户控制台启用 Access，并检查插件所需权限。没有创建 Access 应用或放宽管理权限。
+- 尝试为目标 GitHub 仓库建立 Workers Builds 仓库连接，接口返回 8000008 / Git account disconnected。需要账户控制台连接 GitHub，并授权 itfetter/itfetter.github.io；GitHub 插件的仓库访问不等于 Cloudflare 构建服务已获得访问。
+- 浏览器控制台备用路径不可用：Chrome inventory 报连接错误；in-app browser 打开控制台超时，未完成任何控制台变更。
+
+当前状态：D1/R2 已创建，D1 空表已初始化；Worker 未创建或部署，Access 未启用，Workers Builds 未连通，正式站点与 DNS 未改动。没有在本机安装依赖或下载构建环境。此次只更新本交接文件；正文中的旧“账户资源尚未创建”描述由本节更新。
+
+继续前提与顺序：管理员启用 Access / Zero Trust 并连接 Cloudflare 的 GitHub 集成后，重新读取账户状态；创建同一 AUD 覆盖 admin 和 api 的应用、配置邮箱 Allow 策略，生成构建环境账户配置，连接 main 的 Workers Builds，导入并核对 5 篇旧文章，在临时域名验证权限、文章与图片后再切换正式域名。清理旧站仍须等验收通过。本交接通过 GitHub contents API 提交至 main；业务部署尚未发生。
+
 ## 最新交接：当前代码与部署状态
 
 - 云端工作目录已完成 Workers + Static Assets + D1 + R2 + Access 改造，相关文件及验证结果见文末“2026-10-03 Cloudflare 全站架构迁移”。
