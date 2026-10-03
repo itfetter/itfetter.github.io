@@ -53,9 +53,10 @@ function renderList(){
  const summary=document.createElement("small");summary.textContent=item.summary||item.id;title.append(button,summary);tr.append(title);
  for(const value of [item.category,item.status==="draft"?"草稿":item.has_draft?"已发布 · 有草稿":item.published_at>new Date().toISOString()?"待到期公开":"已发布",formatDate(item.published_at),formatDate(item.updated_at||item.published_at)]){
  const td=document.createElement("td");td.textContent=value;tr.append(td)}
- const actions=document.createElement("td"),edit=document.createElement("button"),view=document.createElement("a");
+ const actions=document.createElement("td"),edit=document.createElement("button"),view=document.createElement("a"),remove=document.createElement("button");
  edit.textContent="编辑";edit.onclick=()=>openPost(item.id);view.textContent="查看";view.href=item.permalink||"/articles/"+item.id+"/";view.target="_blank";view.rel="noopener noreferrer";view.className="button subtle";
- actions.className="table-actions";actions.append(edit);if(item.status!=="draft")actions.append(view);tr.append(actions);target.append(tr);
+ remove.textContent="删除";remove.className="danger";remove.setAttribute("aria-label","删除文章："+(item.title||"未命名草稿"));remove.onclick=()=>deleteFromList(item,remove);
+ actions.className="table-actions";actions.append(edit);if(item.status!=="draft")actions.append(view);actions.append(remove);tr.append(actions);target.append(tr);
  }
  const recent=$("recent-list");recent.replaceChildren();
  for(const item of selectPosts(listing,{order:"updated",pageSize:5}).items){
@@ -63,6 +64,24 @@ function renderList(){
  const title=document.createElement("span"),date=document.createElement("small");title.textContent=item.title||"未命名草稿";date.textContent=formatDate(item.updated_at||item.published_at);
  button.append(title,date);button.onclick=()=>openPost(item.id);recent.append(button)}
  if(!listing.length)recent.textContent="发布第一篇文章后，这里会显示最近更新。";
+}
+const deletingIds=new Set();
+async function deleteFromList(item,button){
+ if(deletingIds.has(item.id))return;
+ const notice=$("list-notice");notice.classList.remove("error");
+ if(uploads||saving){notice.textContent="请等保存或图片上传完成后再删除。";return}
+ const title=item.title||"未命名草稿";
+ const warning=current?.id===item.id&&dirty?"当前编辑器还有未保存的修改，也会一并放弃。\n":"";
+ if(!confirm(warning+'确定删除“'+title+'”？\n文章及其草稿将被删除，已发布内容会从前台撤下。此操作无法撤销。'))return;
+ deletingIds.add(item.id);button.disabled=true;button.textContent="删除中…";notice.textContent="正在删除“"+title+"”…";
+ try{
+ await api("/api/post",{method:"DELETE",body:JSON.stringify({id:item.id,version:item.version})});
+ listing=listing.filter(post=>post.id!==item.id);
+ if(current?.id===item.id)clear();else renderList();
+ notice.textContent="“"+title+"”已删除。";
+ try{await refresh()}catch(error){notice.textContent="文章已删除，但刷新列表失败："+error.message;notice.classList.add("error")}
+ }catch(error){notice.textContent=error.message;notice.classList.add("error")}
+ finally{deletingIds.delete(item.id);button.disabled=false;button.textContent="删除"}
 }
 function discard(){if(uploads||saving){message(uploads?"图片仍在上传，请稍候。":"正在保存，请稍候。",true);return false}return !dirty||confirm("当前修改尚未保存，建议先取消并保存草稿。确定放弃这些修改吗？")}
 async function openPost(id){if(!discard())return;message("正在读取文章…");try{const article=await api("/api/post?id="+encodeURIComponent(id));editorGeneration++;editorRevision++;current={id,version:article.version,status:article.status,has_draft:article.has_draft};for(const id of ["title","category","summary","body"])fields[id].value=article[id]||"";fields.slug.value=article.id||"";fields.slug.disabled=true;$("mode").textContent="编辑文章";$("file-path").textContent=id;$("delete").classList.remove("hidden");$("view").href="/articles/"+article.id+"/";$("view").classList.toggle("hidden",article.status==="draft");$("article-state").textContent=article.status==="draft"?"未发布草稿":article.has_draft?"已发布 · 正在编辑草稿":"已发布";$("save").textContent=article.status==="published"?"更新发布":"发布文章";dirty=false;preview();renderList();panel("editor");message("")}catch(e){message(e.message,true)}}
