@@ -2,6 +2,12 @@
 
 > 更新于 2026-10-03。当前开发采用 Cloudflare 全站架构，以下“最新交接”及文末迁移记录为当前依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
+## 2026-10-03 GitHub 构建授权已恢复（最新补充）
+
+用户通过 Cloudflare 控制台完成 GitHub 授权，截图显示 Continue with GitHub。随后 API 实际创建目标仓库连接成功：`itfetter/itfetter.github.io`，repo_connection_uuid 为 `6743b7b9-ce99-4223-94d1-a362c7d63529`。此前 8000008 / Git account disconnected 阻塞已解决。
+
+同次核对：Worker 列表仍为空；Access organizations/apps 仍返回 9999 / access.api.error.not_enabled。用户已表示开通 Access，但接口尚未证实；需要核对团队域名、账户和开通流程是否完成，不能把用户操作截图或口述当成 API 已连通。构建 token 列表查询遇到 MCP transport 错误，未取得结果；没有创建 token、构建触发器或部署 Worker。本节仅记录已确认的账户状态变化，不含凭据。D1/R2 延用上次创建资源，正式域名未变动。
+
 ## 2026-10-03 Cloudflare 账户资源初始化（最新部署进度）
 
 用户授权开始创建 Cloudflare 应用并部署。通过 Cloudflare 插件核对当前连接账户 `44bd0c60ac0075b4a4b9fea76032f0f9`；该账户起初没有 Worker、D1 或 R2，Workers 子域名为 `itfetterit.workers.dev`。它与历史规划中提到的 `itfetpro.workers.dev` 不同，不能混用历史账户资源。
