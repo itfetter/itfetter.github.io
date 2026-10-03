@@ -1,5 +1,11 @@
 # itfetter 的个人博客
 
+## 最新方向（2026-10-03，尚未迁移）
+
+用户已决定：源码保存在 GitHub，由 Cloudflare 连接仓库自动构建部署；前台与后台迁往 Workers Static Assets + Worker，文章存 D1，图片存 R2，管理员由 Access 保护。现有 GitHub Pages/Jekyll 和 GitHub API 代理是旧实现，迁移尚未实施。本轮确认 `admin/config.js` 的 API 地址仍为空。请先阅读 [PROJECT_HANDOFF.md 的最新交接](PROJECT_HANDOFF.md)，核实资源状态后继续；保留线上站点直到新架构验收，所有提交描述使用中文。
+
+
+
 使用 GitHub Pages 托管的个人静态博客：[https://itfetter.com/](https://itfetter.com/)。文章采用“一篇 Markdown 一个文件”，提交到 GitHub 后自动构建和发布。现有页面包含首页、文章列表、分类筛选、搜索、阅读视图和 CSDN 博客入口。
 
 ## 项目结构
