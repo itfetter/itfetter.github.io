@@ -2,6 +2,18 @@
 
 > 更新于 2026-10-03。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
+## 2026-10-03 Worker 应用创建与绑定（最新部署进度）
+
+用户要求继续创建应用、拉取 GitHub 并部署。通过 API 创建 Worker `itfetter-blog`，Worker tag 为 `8dda8f9ac9f24df8bc033d5c4e28580e`。已绑定 D1 `DB` 到 `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`，R2 `IMAGES` 到 `itfetter-blog-images`，开启 observability，compatibility_date=2026-10-03、nodejs_compat。
+
+当前仅上传创建应用用的最小占位模块，所有请求返回 503“博客构建尚未完成”。尚未上传仓库的实际 Worker 或 Static Assets，也未拉取构建仓库代码；不得称博客已部署。核对 settings 确认绑定准确；workers.dev enabled=false、previews_enabled=false，尚无公开临时入口。未改正式域名。
+
+GitHub repo_connection_uuid 延用 `6743b7b9-ce99-4223-94d1-a362c7d63529`。build tokens 和该 Worker triggers 列表均为空。账户 token permission_groups API 返回 9109 Unauthorized，当前插件没有创建部署凭据所需权限；因此不能创建完整 Builds trigger，不能拿插件会话凭据替代部署 token。浏览器备用：Chrome 扩展连接报错；in-app browser 仅有未登录控制台页，无法操作用户已登录的 Chrome。
+
+已为用户准备不含密码/令牌的完整构建配置，待在 Builds 环境变量 BLOG_WRANGLER_CONFIG 中设置。控制台操作入口为现有 Worker → Settings → Builds → Connect，选择目标仓库 main，root=worker；构建命令先从 BLOG_WRANGLER_CONFIG 写入 wrangler.jsonc，再 npm ci、npm test、npm run build；部署命令 npx wrangler deploy --config wrangler.jsonc。Cloudflare 的首次构建部署授权由控制台完成；不要在聊天发送 API token。账户配置不得提交公开仓库。
+
+认证表已初始化但管理员数仍为 0；文章导入、管理员初始化、实际构建部署、CPU/登录/CRUD/R2 验收和正式域名切换尚待执行。应用最小占位模块在首次仓库部署时会替换，后续维护只通过源码构建。自建登录不再要求 Access。此次交接记录单独中文提交，源码本轮未改。
+
 ## 2026-10-03 自建管理员登录（当前有效方案）
 
 用户明确改用自建账号密码登录，取消 Zero Trust / Access 作为部署前提。旧 Access 设计与下方 Access 阻塞记录仅作为历史依据。GitHub 保存源码、Workers + Static Assets、D1 文章、R2 图片、旧链接与版本冲突规则保持。
