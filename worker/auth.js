@@ -3,7 +3,7 @@ import { scrypt, timingSafeEqual, randomBytes, createHash } from 'node:crypto';
 const OPTIONS = {N:16384, r:8, p:5, maxmem:32*1024*1024};
 const derive = (password,salt) => new Promise((resolve,reject) => scrypt(password,salt,32,OPTIONS,(error,key)=>error?reject(error):resolve(key)));
 export async function hashPassword(password) {
-  if (typeof password !== 'string' || password.length < 14 || password.length > 128) throw Error('密码长度须为 14–128 个字符。');
+  if (typeof password !== 'string' || password.length < 6 || password.length > 128) throw Error('密码长度须为 6–128 个字符。');
   const salt=randomBytes(16).toString('hex');
   return 'scrypt$16384$8$5$'+salt+'$'+(await derive(password,salt)).toString('hex');
 }
@@ -75,10 +75,9 @@ export async function changePassword(request,env,data) {
   if(!session)return response({error:'请重新登录。'},401);
   const limited=await limitAttempts(request,env);if(limited)return limited;
   if(typeof data?.currentPassword!=='string'||data.currentPassword.length>128 ||
-     typeof data.newPassword!=='string'||data.newPassword.length<14||data.newPassword.length>128)
-    return response({error:'新密码须为 14–128 个字符。'},400);
+     typeof data.newPassword!=='string'||data.newPassword.length<6||data.newPassword.length>128)
+    return response({error:'新密码须为 6–128 个字符。'},400);
   if(data.newPassword!==data.confirmPassword)return response({error:'两次新密码不一致。'},400);
-  if(data.currentPassword===data.newPassword)return response({error:'新密码不能与当前密码相同。'},400);
   const user=await env.DB.prepare('SELECT id,username,password_hash,updated_at FROM admin_users WHERE id=1').first();
   if(!user||user.updated_at!==session.updated_at)return response({error:'会话已失效，请重新登录。'},401);
   if(!await verifyPassword(data.currentPassword,user.password_hash))return response({error:'当前密码错误。'},400);

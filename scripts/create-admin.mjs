@@ -10,7 +10,7 @@ const rl=createInterface({input:process.stdin,output,terminal:true});
 try {
  const username=(await rl.question('管理员账号（小写英文/数字/连字符，3–64 字符）：')).trim();
  if(!/^[a-z0-9][a-z0-9-]{2,63}$/.test(username))throw Error('账号格式无效。');
- process.stdout.write('密码（14–128 字符，输入不显示）：');hidden=true;
+ process.stdout.write('密码（6–128 字符，输入不显示）：');hidden=true;
  const password=await rl.question('');hidden=false;process.stdout.write('\n');
  process.stdout.write('再次输入密码：');hidden=true;
  const confirmation=await rl.question('');hidden=false;process.stdout.write('\n');

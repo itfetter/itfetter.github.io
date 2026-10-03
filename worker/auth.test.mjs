@@ -65,7 +65,6 @@ test('改密校验、旧密码拒绝与所有旧会话撤销',async()=>{
  assert.equal((await changePassword(s.request(c1),s.env,{...data,currentPassword:'wrong'})).status,400);
  assert.equal((await changePassword(s.request(c1),s.env,{...data,confirmPassword:'different'})).status,400);
  assert.equal((await changePassword(s.request(c1),s.env,{...data,newPassword:'short',confirmPassword:'short'})).status,400);
- assert.equal((await changePassword(s.request(c1),s.env,{currentPassword:password,newPassword:password,confirmPassword:password})).status,400);
  assert.ok(await identity(s.request(c1),s.env));
  const changed=await changePassword(s.request(c1),s.env,data);assert.equal(changed.status,200);
  assert.ok(changed.headers.get('set-cookie').includes('Max-Age=0'));
@@ -84,5 +83,18 @@ test('并发改密仅一次生效，改密沿用共享限速',async()=>{
  const r2=await login(s.request(),s.env,{username:'admin',password:data.newPassword});
  s.db.prepare('UPDATE login_limits SET attempts=10 WHERE key=?').run('ip:'+digest('192.0.2.1'));
  assert.equal((await changePassword(s.request(r2.headers.get('set-cookie').split(';')[0]),s.env,data)).status,429);
+ }finally{s.db.close()}
+});
+
+test('密码长度最低为六字符，接受纯数字且允许再次设置相同密码',async()=>{
+ const s=setup();try{
+ await assert.rejects(()=>hashPassword('12345'));
+ assert.ok(await verifyPassword('123456',await hashPassword('123456')));
+ const r=await login(s.request(),s.env,{username:'admin',password});
+ let cookie=r.headers.get('set-cookie').split(';')[0];
+ assert.equal((await changePassword(s.request(cookie),s.env,{currentPassword:password,newPassword:'123456',confirmPassword:'123456'})).status,200);
+ const next=await login(s.request(),s.env,{username:'admin',password:'123456'});assert.equal(next.status,200);
+ cookie=next.headers.get('set-cookie').split(';')[0];
+ assert.equal((await changePassword(s.request(cookie),s.env,{currentPassword:'123456',newPassword:'123456',confirmPassword:'123456'})).status,200);
  }finally{s.db.close()}
 });

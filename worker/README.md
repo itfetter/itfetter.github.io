@@ -23,7 +23,7 @@ npx wrangler r2 bucket create itfetter-blog-images
 npm --prefix worker run create:admin
 ```
 
-工具只依赖 Node 内置模块，不必为此安装 npm 依赖。输入账号及 14–128 字符密码，密码不回显，不要通过聊天或命令行参数发送密码。工具生成被忽略的 .migration/admin.sql，只包含随机盐 scrypt 哈希，不保存密码原文。该文件仍为私密认证数据，不上传 GitHub 或 Static Assets。
+工具只依赖 Node 内置模块，不必为此安装 npm 依赖。输入账号及 6–128 字符密码，密码不回显，不要通过聊天或命令行参数发送密码。工具生成被忽略的 .migration/admin.sql，只包含随机盐 scrypt 哈希，不保存密码原文。该文件仍为私密认证数据，不上传 GitHub 或 Static Assets。
 
 在可信部署环境执行生成 SQL（选择 local 或 remote，不要误用）：
 
