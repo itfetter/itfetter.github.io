@@ -4,7 +4,7 @@
   "scripts": {
     "build": "node ../scripts/build.mjs",
     "dev": "npm run build && wrangler dev --config wrangler.example.jsonc",
-    "test": "npm run import:posts && node --test test.mjs auth.test.mjs",
+    "test": "npm run import:posts && node --test test.mjs auth.test.mjs admin.test.mjs",
     "import:posts": "node ../scripts/import-posts.mjs",
     "test:auth": "node --test auth.test.mjs",
     "create:admin": "node ../scripts/create-admin.mjs"

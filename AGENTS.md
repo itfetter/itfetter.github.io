@@ -8,11 +8,11 @@
 - `worker/index.js` 提供 API，D1 `posts` 保存文章，R2 `IMAGES` 保存上传图片。
 - 用户于 2026-10-03 改为自建账号密码登录，不再依赖 Zero Trust / Access。D1 保存单管理员 scrypt 密码哈希和会话哈希；Worker 对后台页面和每个管理 API 检查会话及密码版本，不信任前端或 Access 请求头。
 - 文章发布不写 GitHub，不依赖 Pages/Jekyll 或代码重构建。
-- 迁移尚未线上执行。`_posts/`、旧 `posts.js`、Jekyll 配置、Issue 发文工作流暂时保留；必须完成备份、导入、链接与域名验收后才能清理。线上状态以实际验证为准。
+- Cloudflare 已部署，正式域名已接入，5 篇旧文章已导入并核对原文与稳定链接。`_posts/`、旧 `posts.js`、Jekyll 配置、Issue 发文工作流暂时保留；必须完成备份、导入、链接与域名验收后才能清理。线上状态以实际验证为准。
 
 ## 源码发布与维护流程
 
-代码变更通过 GitHub 提交作为版本依据。Cloudflare Workers Builds 连接仓库和指定分支后，由 Cloudflare 自动拉取提交、构建 Static Assets 并部署 Worker。当前连接尚未配置，必须验证实际构建和部署结果后才能宣称自动部署可用。
+代码变更通过 GitHub 提交作为版本依据。Cloudflare Workers Builds 连接仓库和指定分支后，由 Cloudflare 自动拉取提交、构建 Static Assets 并部署 Worker。当前已连接 main 并验证自动构建部署；每次修改仍需核对实际构建结果。
 
 AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；明确区分云端工作目录已修改、已提交、已推送、已构建和已上线，不能把其中一个状态当成另一个。按用户授权提交或推送，提交信息使用中文。
 
@@ -21,7 +21,8 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 ## 路径与约束
 
 `index.html` 保留首页布局、分类、搜索、CSDN 入口和旧 `#post/<id>`。
-`admin/index.html` 为后台编辑器，使用同源 HttpOnly、Secure、SameSite=Strict 的短期会话 Cookie，不在浏览器存 GitHub token、密码或 localStorage 会话。
+`assets/admin-utils.mjs` 提供文章库筛选、排序、分页与统计，回归测试位于 `worker/admin.test.mjs`。预览调用已登录同源 `/api/preview` 并复用正式 Markdown 清理，不能另写不安全的客户端渲染器。后台导出仅包含当前 Markdown，不等于数据库或图片备份；当前无草稿与自动保存。
+`admin/index.html` 为工作台、文章库、编辑器和账号设置，使用同源 HttpOnly、Secure、SameSite=Strict 的短期会话 Cookie，不在浏览器存 GitHub token、密码或 localStorage 会话。
 `worker/index.js` 使用参数绑定操作 D1，并以 id/version 保护更新和删除；不能关闭并发检查。
 `worker/content.js` 负责 Markdown 和 HTML 清理；标题、摘要等字段插入 HTML 必须转义，不能允许脚本、事件属性或危险协议。
 `worker/migrations/` 为数据库迁移，不改已发布迁移，新增迁移描述后续结构变化。

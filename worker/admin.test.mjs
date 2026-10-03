@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {selectPosts,postStats} from '../assets/admin-utils.mjs';
+const posts=Array.from({length:23},(_,i)=>({id:'post-'+i,title:'文章 '+i,summary:i===11?'特别摘要':'普通摘要',category:i%2?'随笔':'建站',published_at:new Date(Date.UTC(2026,0,i+1)).toISOString(),updated_at:new Date(Date.UTC(2026,1,23-i)).toISOString()}));
+test('文章库跨页无丢失、搜索包含摘要，筛选后页码回到有效范围',()=>{
+ const ids=[];for(let page=1;page<=3;page++)ids.push(...selectPosts(posts,{page}).items.map(p=>p.id));
+ assert.equal(ids.length,23);assert.equal(new Set(ids).size,23);
+ assert.deepEqual(selectPosts(posts,{query:'特别摘要',page:3}).items.map(p=>p.id),['post-11']);
+ const filtered=selectPosts(posts,{category:'随笔',page:99});assert.equal(filtered.page,2);assert.equal(filtered.total,11);
+ assert.equal(selectPosts(posts,{query:'不存在'}).total,0);
+ assert.equal(selectPosts(posts,{order:'updated'}).items[0].id,'post-0');
+ assert.equal(posts[0].id,'post-0');
+});
+test('统计区分未来发布日期，分类去重并处理空文章库',()=>{
+ assert.deepEqual(postStats(posts,'2026-01-10T00:00:00.000Z'),{total:23,visible:10,categories:2});
+ assert.deepEqual(postStats([]),{total:0,visible:0,categories:0});
+});

@@ -67,7 +67,13 @@ async function handle(request, env) {
       return changePassword(request,env,await readJson(request,2048));
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
-    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,published_at,version FROM posts ORDER BY published_at DESC,id').all()).results);
+    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,title,category,summary,published_at,updated_at,permalink,version FROM posts ORDER BY published_at DESC,id').all()).results);
+    if (path === '/api/preview' && method === 'POST') {
+      if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
+      const data=await readJson(request,400000);
+      if(typeof data?.body!=='string'||data.body.length>300000)return fail('正文无效或超过长度限制。');
+      return json({html:renderMarkdown(data.body)});
+    }
     if (path === '/api/post' && method === 'GET') {
       const id = url.searchParams.get('id');
       if (!slug(id)) return fail('无效文章标识。');

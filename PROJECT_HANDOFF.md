@@ -1,6 +1,21 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
-> 更新于 2026-10-03。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
+> 更新于 2026-10-04。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
+
+## 2026-10-04 后台升级与旧文章恢复（当前文件地图与状态）
+
+用户已完成 DNS 切换并确认 itfetter.com 可访问；Cloudflare API 确认正式域名绑定当前 Worker。后台空列表原因是 D1 posts 原为 0 条，并非隐藏或分页遗漏。已按 GitHub 原文参数化导入 5 篇文章，冲突时不覆盖；再次查询核对正文、日期与链接完全一致，保留 _posts 原文件。
+
+当前文件地图：
+- admin/index.html：工作台统计、最近更新、独立文章库（搜索、分类、排序、每页 10 篇）、编辑器三种视图、Markdown 导出、未保存离开提示和账号设置。
+- assets/admin-utils.mjs：纯函数筛选、排序、分页和统计；worker/admin.test.mjs：跨页完整性与筛选统计回归。
+- worker/index.js：目录返回摘要、更新时间及稳定链接；已登录同源 POST /api/preview 复用 worker/content.js 安全 Markdown 渲染。
+- worker/test.mjs：完整目录、预览鉴权、跨站拒绝和危险 HTML 清理；worker/package.json：将新测试纳入云端 npm test。
+- README.md、AGENTS.md 与本文：更新实际迁移和后台维护流程。静态输出仍由 scripts/build.mjs 白名单生成；D1 线上内容与 GitHub 源码独立。
+
+Cloudflare Builds 的私有 BLOG_WRANGLER_CONFIG 增加 itfetter.com 的 custom_domain route，防止后续部署遗漏域名；账户配置未提交公开仓库。未新增表或改动认证规则，密码最低 6 字符。当前仅直接发布，不含草稿、自动保存或修订历史；导出的是当前编辑内容，不包含上传图片文件。
+
+本机已有 Node 运行 2 项文章库测试通过，Worker 与后台模块语法检查通过，HTML ID 和引用一致；完整路由测试和构建交由云端，无本机依赖安装。源码提交及云端部署结果见后续追加记录。
 
 ## 2026-10-03 放宽密码长度规则（最新要求）
 

@@ -79,3 +79,17 @@ test('改密接口拒绝未登录、跨站及非 JSON 请求，并限制请求�
  assert.equal((await s.request('/api/password','POST',{currentPassword:'a'.repeat(2100)},cookie)).status,413);
  }finally{s.db.close()}
 });
+
+test('后台文章目录完整返回摘要和旧链接，预览使用正式清理规则',async()=>{
+ const s=setup(),cookie=await token();try{
+ s.db.exec(readFileSync(new URL('../.migration/posts.sql',import.meta.url),'utf8'));
+ const rows=await (await s.request('/api/posts','GET',undefined,cookie)).json();
+ assert.equal(rows.length,5);assert.ok(rows.every(p=>p.summary&&p.updated_at&&p.permalink==='/articles/'+p.id+'/'));
+ assert.equal((await s.request('/api/preview','POST',{body:'test'})).status,401);
+ const cross=new Request(origin+'/api/preview',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:'{"body":"test"}'});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ const preview=await (await s.request('/api/preview','POST',{body:'**正文**\n<script>alert(1)</script><img src=x onerror="alert(1)">'},cookie)).json();
+ assert.match(preview.html,/<strong>正文<\/strong>/);assert.doesNotMatch(preview.html,/<script>|onerror/);
+ assert.equal((await s.request('/api/preview','POST',{body:3},cookie)).status,400);
+ }finally{s.db.close()}
+});
