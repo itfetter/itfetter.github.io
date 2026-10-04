@@ -8,7 +8,7 @@
 
 用户确认：首页保留列表分类筛选，移除重复合集卡片及无独立页面的合集导航。index.html 删除 collections 区域，首页数量改为“个分类”；assets/front.js 删除卡片生成，旧 #collections 转到 #articles 保持入口可用；assets/front.css 清理合集专用样式。README/AGENTS 同步当前行为，先前合集卡片说明为历史。文章推荐仍按首次发布时间，未改为最近更新；后台分类/D1/R2/文章内容均不变。独立合集页留作后续明确需求，不提供无内容入口。
 
-验证：已有 Node 脚本语法与 DOM 引用检查；实际自动构建部署结果待核对。无本机依赖安装。
+验证：Node 脚本语法与 DOM 引用检查通过。功能提交 a4dbb6e37df57bb512da661da3ba324e73a6476b 已上线；Cloudflare 构建 44bf7e97-e038-499b-86f5-e1eb218c4fc6 成功，22 项测试通过、0 失败，Worker 版本 24ae64e8-2dd3-488b-a231-b8a595c9dcc0。线上首页 HTTP 200，collections 区域与导航已移除，月份归档保留，新脚本旧 hash 转向逻辑确认。无本机依赖安装。
 
 ## 2026-10-04 前台布局与阅读体验（最新变更）
 
