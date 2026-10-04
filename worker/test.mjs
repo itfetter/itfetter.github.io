@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {digest} from './auth.js';
 import worker from './index.js';
+import {editorBlocks,renderMarkdown} from './content.js';
 const origin='https://itfetter.com';
 const sessionToken='a'.repeat(64);
 const token=async()=> '__Host-blog_session='+sessionToken;
@@ -297,5 +298,27 @@ test('超出便捷备份容量时明确拒绝，而非返回不完整备份',asy
  s.db.prepare("UPDATE posts SET body=? WHERE id='hello'").run('x'.repeat(4000001));
  const response=await s.request('/api/backup','GET',undefined,cookie);
  assert.equal(response.status,400);assert.match((await response.json()).error,/超过便捷备份上限/);
+ }finally{s.db.close()}
+});
+
+test('可视化区块保持原始Markdown与引用定义，渲染安全且仅管理员可用',async()=>{
+ const bodies=[
+ '# 标题\r\n\r\n正文 **加粗** [官网][ref]\r\n\r\n[ref]: https://example.com\r\n',
+ '| 服务 | 用途 |\n| :--- | ---: |\n| D1 | 文章 |\n\n- 一级\n  - 二级\n',
+ '\x60\x60\x60js\nconst a = "<script>";\n\x60\x60\x60\n\n> 引用\n\n<div class="callout">提示</div>\n',
+ '[图片](javascript:alert(1))\n\n<script>alert(1)</script>\n'
+ ];
+ for(const body of bodies){
+  const blocks=editorBlocks(body);assert.equal(blocks.map(b=>b.raw).join(''),body);
+  assert.doesNotMatch(blocks.map(b=>b.html).join(''),/<script|href="javascript:|onerror=/i);
+ }
+ const ref=editorBlocks(bodies[0]);assert.match(ref.map(b=>b.html).join(''),/href="https:\/\/example.com"/);
+ assert.ok(editorBlocks(bodies[1]).some(b=>b.type==='table'&&b.editable));
+ assert.ok(editorBlocks(bodies[2]).some(b=>b.type==='html'&&!b.editable));
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/preview','POST',{body:bodies[0],visual:true})).status,401);
+ const data=await(await s.request('/api/preview','POST',{body:bodies[1],visual:true},cookie)).json();
+ assert.ok(Array.isArray(data.blocks));assert.equal(data.blocks.map(b=>b.raw).join(''),bodies[1]);
+ assert.match((await(await s.request('/api/preview','POST',{body:'**正文**'},cookie)).json()).html,/<strong>正文<\/strong>/);
  }finally{s.db.close()}
 });

@@ -3,7 +3,7 @@ import { identity, login, logout, secureTransport, changePassword } from './auth
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages} from './contact.js';
 import {exportBackup,restoreBackup} from './backup.js';
 import {recordRead} from './reads.js';
-import { escapeHtml, renderMarkdown } from './content.js';
+import { escapeHtml, renderMarkdown, editorBlocks } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
 const fail = (message, status = 400) => json({error: message}, status);
@@ -123,7 +123,7 @@ async function handle(request, env) {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       const data=await readJson(request,400000);
       if(typeof data?.body!=='string'||data.body.length>300000)return fail('正文无效或超过长度限制。');
-      return json({html:renderMarkdown(data.body)});
+      return json(data.visual===true?{blocks:editorBlocks(data.body)}:{html:renderMarkdown(data.body)});
     }
     if (path === '/api/post' && method === 'GET') {
       const id = url.searchParams.get('id');
