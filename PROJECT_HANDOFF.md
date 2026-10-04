@@ -16,7 +16,7 @@
 | 正式入口 / 后台 | https://itfetter.com / https://itfetter.com/admin/ |
 | 临时 Worker 入口 | https://itfetter-blog.itfetterit.workers.dev |
 | D1 数据库 | `itfetter-blog`；UUID `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`；绑定 `DB` |
-| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0004_contact.sql；访客留言另存 contact_messages |
+| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0005_reads.sql；访客留言另存 contact_messages |
 | R2 存储桶 | `itfetter-blog-images`；绑定 `IMAGES`；图片由 Worker /images/ 路由提供，未开启公开桶入口 |
 | 静态资源 | Worker Static Assets，绑定 `ASSETS`，构建输出 dist/ |
 | 域名注册 / DNS | 阿里云购买 itfetter.com；DNS 已切换 Cloudflare，Worker 自定义域已绑定 |
@@ -33,6 +33,16 @@
 
 本次仅整理三份维护文档：本文负责资源与最新状态；README 指向速查；AGENTS 要求保持资源速查一致。无业务代码、数据库或资源配置变更。
 
+
+## 2026-10-04 文章阅读量（最新变更）
+
+用户同意新增按文章阅读量及短期去重。公开已到发布日期的文章在可见页面停留三秒后，由 /api/read 同源 JSON POST 记录；首页 hash 文章与独立文章页共用 assets/read-count.js。前台文章信息显示阅读次数，后台文章库提供阅读量列及排序，工作台显示当前所有文章阅读总和和前五热门文章。上线前阅读无法补算，初始均 0；删除文章后其计数不计入工作台总和。不是精确独立人数。
+
+计数模型：posts.read_count + article_reads 的唯一 key 插入触发器，去重和累计在同一 SQLite 写入内完成；固定整点小时窗口内同文章/同 IP+User-Agent 一次，边界跨小时可再次计数，共享网络可能少计，改变浏览器/网络可能多计。只保存 SHA-256 短期摘要，不保存原始 IP/UA；到期摘要在后续记录时清理，无访问时不会主动清理（最长保留到下一次有效记录）。摘要不是永久访客画像。无需 Cookie。已登录管理员和明显 bot/crawler/spider/headless/preview UA 不计；非执行 JS 的爬虫不触发，UA 可伪装，非严格反作弊。每 IP 固定小时 60 次、全局 2000 次请求限速，重复请求也占额度。统计失败不影响阅读；三秒时页面不可见不计本次。
+
+文件地图：worker/reads.js 记录验证/去重/限速；worker/migrations/0005_reads.sql 新增 read_count、article_reads/read_limits 与触发器/索引；worker/index.js 公开记录接口与输出计数；assets/read-count.js 共享三秒记录；index.html 首页文章计数；_layouts/post.html 独立文章计数；scripts/build.mjs 新增 ID/READS 占位符；admin/index.html 工作台/列表；assets/admin-utils.mjs 阅读排序；worker/test.mjs 验证同源、并发去重、管理员/bot、私密/不存在文章、限速与数据输出；三维护文档。现有静态构建 assets 复制已包含脚本，不增加依赖。
+
+生产已应用 0005 并记录迁移名，文章 3、阅读 0；未更改正文/版本/留言，也未对生产写测试阅读。已有 Node 模块语法、真实 SQLite 并发去重、累计、版本保留、删除级联与排序检查通过。完整云端回归及部署待核对。
 
 ## 2026-10-04 前台页脚简化（最新变更）
 

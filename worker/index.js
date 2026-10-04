@@ -1,6 +1,7 @@
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages} from './contact.js';
+import {recordRead} from './reads.js';
 import { escapeHtml, renderMarkdown } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
@@ -29,7 +30,7 @@ function validate(data, draft = false) {
 function publicPost(post) {
   return {id: post.id, title: post.title, category: post.category, summary: post.summary,
     date: new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit'}).format(new Date(post.published_at)).replace('/', '.'),
-    permalink: post.permalink, html: renderMarkdown(post.body)};
+    permalink: post.permalink, read_count:post.read_count||0, html: renderMarkdown(post.body)};
 }
 function validImage(bytes, type) {
   const start = (...values) => values.every((v,i) => bytes[i] === v);
@@ -45,6 +46,12 @@ async function handle(request, env) {
     if(!secureTransport(request,env)||request.headers.get('origin')!==url.origin)return fail('来源未获允许。',403);
     if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
     return submitMessage(request,env,await readJson(request,16000));
+  }
+  if(path==='/api/read'){
+    if(method!=='POST')return fail('请使用 POST。',405);
+    if(!secureTransport(request,env)||request.headers.get('origin')!==url.origin)return fail('来源未获允许。',403);
+    if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+    return recordRead(request,env,await readJson(request,1024));
   }
   const authPath = path === '/api/login' || path === '/api/logout';
   if (authPath) {
@@ -84,7 +91,7 @@ async function handle(request, env) {
       return markMessage(env,await readJson(request,2048));
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
-    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
+    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,read_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
     if (path === '/api/preview' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       const data=await readJson(request,400000);
@@ -160,8 +167,8 @@ async function handle(request, env) {
     if (!article) return new Response('文章不存在。',{status:404,headers:{'content-type':'text/plain; charset=utf-8'}});
     const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
     if (!template.ok) throw new Error('缺少文章模板');
-    const replacements = {TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
-    const html = (await template.text()).replace(/@@(TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
+    const replacements = {ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
+    const html = (await template.text()).replace(/@@(ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
     return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   }
   if (path === '/write' || path === '/write/') return Response.redirect(url.origin+'/admin/',302);

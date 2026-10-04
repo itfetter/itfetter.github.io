@@ -12,6 +12,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0002_auth.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0003_drafts.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0004_contact.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0005_reads.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -177,4 +178,26 @@ test('未读数量与批量已读鉴权、范围保护、重复执行和新留�
  assert.equal((await (await s.request('/api/messages/read-all','POST',{through:stats.readThrough},cookie)).json()).changed,0);
  assert.equal((await s.request('/api/messages','PATCH',{id:ids[0],status:'unread'},cookie)).status,200);
  assert.equal((await (await s.request('/api/messages/count','GET',undefined,cookie)).json()).unread,2);
+});
+
+test('阅读量同源校验、短期去重、并发防重复及后台机器人排除',async()=>{
+ const s=setup(),cookie=await token();
+ await s.request('/api/post','PUT',article,cookie);
+ const read=(ip='1.2.3.4',ua='Browser',auth='')=>worker.fetch(new Request(origin+'/api/read',{method:'POST',headers:{origin,'content-type':'application/json','cf-connecting-ip':ip,'user-agent':ua,...(auth?{cookie:auth}:{})},body:JSON.stringify({id:'hello'})}),s.env);
+ await Promise.all(Array.from({length:5},()=>read()));
+ assert.equal(s.db.prepare('SELECT read_count FROM posts WHERE id=?').get('hello').read_count,1);
+ assert.equal((await (await read()).json()).counted,false);
+ assert.equal((await (await read('2.3.4.5')).json()).count,2);
+ assert.equal((await (await read('3.4.5.6','Googlebot')).json()).counted,false);
+ assert.equal((await (await read('3.4.5.6','Browser',cookie)).json()).counted,false);
+ assert.equal(s.db.prepare('SELECT version FROM posts WHERE id=?').get('hello').version,1);
+ const listing=await (await s.request('/api/posts','GET',undefined,cookie)).json();assert.equal(listing[0].read_count,2);
+ const publicScript=await (await s.request('/posts.js')).text();assert.match(publicScript,/"read_count":2/);assert.doesNotMatch(publicScript,/article_reads|expires_at|token_hash/);
+ const cross=new Request(origin+'/api/read',{method:'POST',headers:{origin:'https://evil.example','content-type':'application/json'},body:'{"id":"hello"}'});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ assert.equal((await s.request('/api/read','POST',{id:'missing'})).status,404);
+ await s.request('/api/post','PUT',{...article,slug:'private',status:'draft'},cookie);
+ assert.equal((await s.request('/api/read','POST',{id:'private'})).status,404);
+ for(let i=0;i<60;i++)await read();
+ assert.equal((await read()).status,429);
 });

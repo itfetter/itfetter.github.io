@@ -24,11 +24,12 @@
 <body>
   <header><a href="/">← 返回博客首页</a></header>
   <main>
-    <div class="meta">{{ page.category | escape }} · {{ page.date | date: "%Y.%m" }}</div>
+    <div class="meta">{{ page.category | escape }} · {{ page.date | date: "%Y.%m" }} · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
     <article>{{ content }}</article>
   </main>
   <footer>© {{ site.time | date: "%Y" }} itfetter</footer>
+<script src="/assets/read-count.js"></script>
 </body>
 </html>

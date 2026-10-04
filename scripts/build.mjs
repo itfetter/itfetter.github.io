@@ -7,7 +7,7 @@ for (const name of ['index.html','admin/index.html','assets']) {
   await cp(new URL(name,root),target,{recursive:true});
 }
 let template=await readFile(new URL('_layouts/post.html',root),'utf8');
-const tokens = {'{{ page.summary | escape }}':'@@SUMMARY@@','{{ page.title | escape }}':'@@TITLE@@','{{ page.url | absolute_url }}':'@@URL@@','{{ page.category | escape }}':'@@CATEGORY@@','{{ page.date | date: "%Y.%m" }}':'@@DATE@@','{{ content }}':'@@BODY@@','{{ site.time | date: "%Y" }}':'@@YEAR@@'};
+const tokens = {'{{ page.blog_id | escape }}':'@@ID@@','{{ page.read_count | default: 0 }}':'@@READS@@','{{ page.summary | escape }}':'@@SUMMARY@@','{{ page.title | escape }}':'@@TITLE@@','{{ page.url | absolute_url }}':'@@URL@@','{{ page.category | escape }}':'@@CATEGORY@@','{{ page.date | date: "%Y.%m" }}':'@@DATE@@','{{ content }}':'@@BODY@@','{{ site.time | date: "%Y" }}':'@@YEAR@@'};
 for(const [key,value] of Object.entries(tokens)) template=template.replaceAll(key,value);
 template=template.replace('GitHub Pages','Cloudflare');
 if (/\{[{%]/.test(template)) throw Error('文章模板存在未处理的 Liquid');
