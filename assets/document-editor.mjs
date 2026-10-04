@@ -5,7 +5,8 @@ function script(path,id){
  return new Promise((resolve,reject)=>{
   if(document.getElementById(id)){resolve();return}
   const el=document.createElement("script");el.src=path;el.id=id;
-  el.onload=()=>resolve();el.onerror=()=>{el.remove();reject(Error("编辑器资源加载失败，请重试或切换 Markdown。"))};
+  const timer=setTimeout(()=>{el.remove();reject(Error("编辑器资源加载超时，请重试或切换 Markdown。"))},20000);
+  el.onload=()=>{clearTimeout(timer);resolve()};el.onerror=()=>{clearTimeout(timer);el.remove();reject(Error("编辑器资源加载失败，请重试或切换 Markdown。"))};
   document.head.append(el);
  });
 }

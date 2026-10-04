@@ -3,8 +3,8 @@
 ## 文档式正文编辑（2026-10-04，当前方案）
 用 Vditor 4.0.0 的 wysiwyg 连续文档编辑替代逐段 contenteditable：标题、列表、任务列表、引用、表格、代码和链接可直接编辑，工具栏支持插入与撤销/重做，Markdown 快捷输入保留。图片粘贴/拖入/选择上传经原认证 /api/image 写 R2，上传完成在当前光标位置插入。并非飞书完整复刻，没有协同编辑、评论、自动保存。
 Markdown 仍为唯一保存字段；初始化、切换模式和未编辑时保留原文，真实文档编辑后 Markdown 格式可能被规范化。复杂自定义 HTML 请用源码模式。保存前 flush 捕获当前正文；保留保存草稿/发布、id/version、历史、未保存切换保护，加载旧回调不能覆盖新文章。缓存禁用，不把草稿写入 localStorage。文档模式使用引擎 sanitize=true；只读预览/公开文章仍由认证 /api/preview 与服务端清理规则生成，不直接发布引擎 HTML。
-当前文件地图：admin/index.html 为模式、正文同步、上传与保存流程；assets/document-editor.mjs 为引擎生命周期、光标插图、同步/锁与重试；assets/document-editor.css 为文档画布和手机工具栏；scripts/editor-assets.mjs 在云端构建取得固定版本必要资源并校验发布元数据 SHA-256，scripts/build.mjs 合入 dist/assets/vendor/vditor；vendor/manifest.json 记录版本/哈希/大小，LICENSE 随资源保留。运行时资源同源，不把正文送第三方 CDN。worker/document.test.mjs 为初始化原文、实时同步/flush、保存上传锁、旧回调隔离、资源失败重试五项回归。原 assets/visual-editor.mjs 与 visual.test.mjs、server editorBlocks 仅保留兼容/历史回归，已不是默认编辑器。
-本机仅使用已存在 Node：五项新适配器测试通过，后台模块及资源模块语法通过，没有本机安装依赖。尚未推送时云端构建与真实浏览器体验未验证；后续记录实际构建结果。无 D1 迁移，未写生产文章、图片或留言。
+当前文件地图：admin/index.html 为模式、正文同步、上传与保存流程；assets/document-editor.mjs 为引擎生命周期、光标插图、同步/锁与重试；assets/document-editor.css 为文档画布和手机工具栏；scripts/editor-assets.mjs 在云端构建取得固定版本必要资源并校验仓库固定 SHA-256，scripts/build.mjs 合入 dist/assets/vendor/vditor；vendor/manifest.json 记录版本/哈希/大小，LICENSE 随资源保留。运行时资源同源，不把正文送第三方 CDN。worker/document.test.mjs 为初始化原文、实时同步/flush、保存上传锁、旧回调隔离、资源失败重试五项回归。原 assets/visual-editor.mjs 与 visual.test.mjs、server editorBlocks 仅保留兼容/历史回归，已不是默认编辑器。
+验证补充：功能提交 058b5fbc5bd39e46e634cf19b25c242dceb5fae1 自动构建 fd5983b6-c83c-4454-a5e8-63a48b6e128a 成功，36项测试通过、0失败，Worker版本 a7bd9ebb-1bd7-44ab-a1d2-fdd9ad4f5783。正式域名新适配器、CSS、Vditor核心/中文/图标/主题与manifest均200，首页200。浏览器连接再次超时，未完成真实浏览器编辑验收；仅模拟适配器/云端回归/HTTP，不宣称实际输入体验全项验收。资源总约4.14MB（未压缩），首次编辑加载较轻量旧版增加；缓存与传输压缩由静态资产提供。最终维护补丁把七份资源SHA-256固定进仓库，变更需重新审查版本/许可证/哈希；资源加载超时可重试或切换源码，无生产数据写入。
 
 > 更新于 2026-10-04。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
