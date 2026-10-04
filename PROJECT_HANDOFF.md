@@ -15,7 +15,7 @@
 
 恢复先展示数量并确认，仅添加缺失记录和图片，已有内容不覆盖；跨D1/R2不提供原子事务，中断可重复提交。恢复已发布的缺失文章会重新公开它。下载备份时请暂停编辑以减少并发变化；不等同于自动定期全库灾备。RSS按用户要求延后。
 
-文件地图：worker/migrations/0007_history.sql 为加列/历史表/保留50份的触发器；worker/backup.js 为权限后的内容导出补回；worker/index.js 接入鉴权历史和备份路由、公开日期/文章导航；admin/index.html 为历史/备份确认界面；assets/front.js 为归档展开策略；assets/reading-tools.js 与 front.css 为复制/文章导航；_layouts/post.html 与 assets/share-card.png 为分享卡。已通过现有Node语法检查；生产D1已应用0007，迁移后仍4篇文章、version合计7，历史0份。功能提交2f9d683ad4bb09c0a790c6ada28170932e2aed19；构建c1fb9a0d-1eec-475c-b647-d68d4c2d4b26成功，25测试通过、0失败，Worker版本232900d9-7ce2-41da-b353-cee1bcd769f0。HTTP确认独立文章200、完整日期、前后篇、同类推荐、OG封面PNG200、无未替换模板标记；未登录history/backup均401，登录页200。无生产测试写入、无本机依赖安装；浏览器此前超时，未声称本轮浏览器视觉验收。后续容量保护在下载正文前聚合预检查，追加容量拒绝测试，其构建结果待记录。
+文件地图：worker/migrations/0007_history.sql 为加列/历史表/保留50份的触发器；worker/backup.js 为权限后的内容导出补回；worker/index.js 接入鉴权历史和备份路由、公开日期/文章导航；admin/index.html 为历史/备份确认界面；assets/front.js 为归档展开策略；assets/reading-tools.js 与 front.css 为复制/文章导航；_layouts/post.html 与 assets/share-card.png 为分享卡。已通过现有Node语法检查；生产D1已应用0007，迁移后仍4篇文章、version合计7，历史0份。功能提交2f9d683ad4bb09c0a790c6ada28170932e2aed19；构建c1fb9a0d-1eec-475c-b647-d68d4c2d4b26成功，25测试通过、0失败，Worker版本232900d9-7ce2-41da-b353-cee1bcd769f0。HTTP确认独立文章200、完整日期、前后篇、同类推荐、OG封面PNG200、无未替换模板标记；未登录history/backup均401，登录页200。无生产测试写入、无本机依赖安装；浏览器此前超时，未声称本轮浏览器视觉验收。容量保护提交1f38129d8a53529cc21d9834c8d8098609b701bc，在下载正文前聚合预检查；构建1d64bea0-ab4d-444c-9614-aaff599cfb05成功，26测试通过、0失败，Worker版本33836e3f-6136-4ccc-bad8-98a433acade9。现有Node另外通过后台模块语法与模拟DOM检查：初始化、历史未保存提示、备份选文件/确认框/取消/下载路径。未用真实浏览器登录测试。
 
 ## 2026-10-04 独立文章入口与摘要加载（历史变更）
 
