@@ -79,4 +79,4 @@ PROJECT_HANDOFF.md 顶部“当前项目速查”为接手入口。更换仓库/
 
 用户授权公开联系邮箱 Itfetterit@gmail.com，仅作前台联系方式；认证账号与邮箱凭据仍不可公开。/api/contact 是唯一新增公开 POST，必须保留 HTTPS/同源/JSON/大小/字段验证、蜜罐及 D1 原子限速。/api/messages GET/PATCH 必须登录并保留写入来源检查；留言和访客邮箱不可放进公开文章或接口。后台显示使用 textContent，禁止渲染访客 HTML。0004_contact.sql 管理 contact_messages/contact_limits；改数据结构新增迁移。邮件发送并未配置，勿描述为自动通知。生产测试不写访客留言，使用本地 SQLite/云端测试数据。
 
-新增后台面板时同步标题、说明和操作栏，避免显示不属于该面板的文章操作。
+修改导航时检查手机隐藏规则，优先按 href/语义选择，不让新增功能被旧 nth-child 规则误隐藏。
