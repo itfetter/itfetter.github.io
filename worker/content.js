@@ -23,7 +23,7 @@ export function editorBlocks(body) {
  for(let i=0;i<normal.length;i++){offsets.push(original);original+=body[original]==='\r'&&body[original+1]==='\n'?2:1}
  offsets.push(body.length);
  const tokens=marked.lexer(normal),blocks=[];let cursor=0;
- const hasHtml=t=>(t.type==='html'&&!/^<br\s*\/?\s*>$/i.test(t.raw.trim()))||t.task===true||(t.tokens||[]).some(hasHtml)||(t.items||[]).some(hasHtml)||(t.header||[]).some(hasHtml)||(t.rows||[]).flat().some(hasHtml);
+ const hasHtml=t=>(t.type==='html'&&!/^<br\s*\/?\s*>$/i.test(t.raw.trim()))||t.task===true||(t.tokens||[]).some(hasHtml)||(t.items||[]).some(hasHtml)||(Array.isArray(t.header)?t.header:[]).some(hasHtml)||(Array.isArray(t.rows)?t.rows:[]).flat().some(hasHtml);
  const gap=(start,end)=>{if(end>start)blocks.push({type:'source',raw:body.slice(offsets[start],offsets[end]),html:'',editable:false})};
  for(const token of tokens){
   const at=normal.indexOf(token.raw,cursor);
