@@ -220,3 +220,29 @@ test('分类仅管理员可管理，新建去重并保留空合集与历史草�
  assert.equal(s.db.prepare("SELECT category,version FROM posts WHERE id='hello'").get().category,'旧分类');
  }finally{s.db.close()}
 });
+
+test('公开摘要不含正文或草稿；独立正文与实时站点地图只包含已发布文章',async()=>{
+ const s=setup(),cookie=await token();try{
+ await s.request('/api/post','PUT',{...article,title:'公开标题',body:'公开正文标记 '+ 'x'.repeat(20000)},cookie);
+ await s.request('/api/post','PUT',{...article,slug:'private',status:'draft',title:'私密标题',body:'私密正文标记'},cookie);
+ await s.request('/api/post','PUT',{...article,slug:'future'},cookie);
+ s.db.exec("UPDATE posts SET published_at='2999-01-01T00:00:00.000Z' WHERE id='future'");
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,status:'draft',title:'未发布修改',body:'私密修订标记'},cookie);
+ const response=await s.request('/posts.json');assert.equal(response.status,200);
+ const raw=await response.text(),data=JSON.parse(raw);assert.equal(data.length,1);assert.equal(data[0].title,'公开标题');
+ assert.equal(data[0].permalink,'/articles/hello/');
+ for(const field of ['html','body','draft_body','draft_title','version','updated_at'])assert.equal(data[0][field],undefined);
+ assert.doesNotMatch(raw,/公开正文标记|私密正文标记|私密修订标记|未发布修改|future|private/);
+ assert.ok(raw.length<1000);
+ const html=await(await s.request('/articles/hello/')).text();assert.match(html,/公开正文标记/);assert.doesNotMatch(html,/私密修订标记/);
+ const sitemap=await s.request('/sitemap.xml');assert.equal(sitemap.headers.get('content-type'),'application/xml; charset=utf-8');
+ const xml=await sitemap.text();assert.match(xml,/<loc>https:\/\/itfetter.com\/articles\/hello\/<\/loc>/);
+ assert.doesNotMatch(xml,/private|future|未发布修改/);
+ const head=await s.request('/sitemap.xml','HEAD');assert.equal(head.status,200);assert.equal(await head.text(),'');
+ assert.equal((await s.request('/posts.json','POST',{})).status,405);
+ assert.match(await(await s.request('/robots.txt')).text(),/Sitemap: https:\/\/itfetter.com\/sitemap.xml/);
+ await s.request('/api/post','DELETE',{id:'hello',version:2},cookie);
+ assert.doesNotMatch(await(await s.request('/sitemap.xml')).text(),/articles\/hello/);
+ assert.deepEqual(await(await s.request('/posts.json')).json(),[]);
+ }finally{s.db.close()}
+});

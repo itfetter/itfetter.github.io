@@ -1,15 +1,15 @@
 "use strict";
-const articles=typeof posts==="undefined"?[]:posts;
+let articles=[],loaded=false;
 const escapeText=value=>String(value??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list=document.getElementById("article-list"),search=document.getElementById("search"),view=document.getElementById("article-view"),filters=document.querySelector(".filters");
 let filter="全部",page=1;
 const pageSize=5;
-const categories=[...new Set(articles.map(p=>p.category).filter(Boolean))];
-document.getElementById("public-posts").textContent=articles.length;
-document.getElementById("public-categories").textContent=categories.length;
-function postLink(p){return "#post/"+encodeURIComponent(p.id)}
+
+
+function postLink(p){return "/articles/"+encodeURIComponent(p.id)+"/"}
 function readMeta(p){return Number(p.read_count||0).toLocaleString("zh-CN")+" 次阅读"}
 function renderList(){
+ if(!loaded)return;
  const term=search.value.trim().toLocaleLowerCase();
  const found=articles.filter(p=>(filter==="全部"||p.category===filter)&&(p.title+p.summary+p.category).toLocaleLowerCase().includes(term));
  if(document.getElementById("public-sort").value==="reads")found.sort((a,b)=>(b.read_count||0)-(a.read_count||0));
@@ -23,30 +23,51 @@ function renderList(){
  document.getElementById("reset-search")?.addEventListener("click",()=>{search.value="";setFilter("全部")});
 }
 function setFilter(name){filter=name;page=1;for(const b of filters.querySelectorAll("button")){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
-filters.querySelector("button").setAttribute("aria-pressed","true");
-for(const category of categories){const b=document.createElement("button");b.className="filter";b.type="button";b.dataset.filter=category;b.textContent=category;b.setAttribute("aria-pressed","false");filters.append(b)}
 filters.addEventListener("click",e=>{const b=e.target.closest("button[data-filter]");if(b&&filters.contains(b))setFilter(b.dataset.filter)});
 function resetPage(){page=1;renderList()}
 search.addEventListener("input",resetPage);document.getElementById("public-sort").addEventListener("change",resetPage);
 function changePage(delta){page+=delta;renderList();document.querySelector(".article-controls").scrollIntoView({block:"start"})}
 document.getElementById("article-prev").addEventListener("click",()=>changePage(-1));document.getElementById("article-next").addEventListener("click",()=>changePage(1));
-const featured=articles[0];
+function renderArticles(){
+ const categories=[...new Set(articles.map(p=>p.category).filter(Boolean))];
+ document.getElementById("public-posts").textContent=articles.length;
+ document.getElementById("public-categories").textContent=categories.length;
+ filters.innerHTML='<button class="filter active" data-filter="全部" type="button" aria-pressed="true">全部</button>';
+ for(const category of categories){const b=document.createElement("button");b.className="filter";b.type="button";b.dataset.filter=category;b.textContent=category;b.setAttribute("aria-pressed","false");filters.append(b)}
+ const featured=articles[0];
+document.getElementById("featured-slot").innerHTML="";
 if(featured)document.getElementById("featured-slot").innerHTML=`<article class="featured"><div class="featured-visual" aria-hidden="true"><div><small>THE LATEST NOTE</small><span>Notes<br>& ideas.</span><b>ITFETTER / JOURNAL</b></div></div><div class="featured-text"><div class="meta">最新发布 · ${escapeText(featured.category)}</div><h3><a href="${postLink(featured)}">${escapeText(featured.title)}</a></h3><p>${escapeText(featured.summary)}</p><div class="row spread"><a class="read-link" href="${postLink(featured)}">开始阅读</a><small class="muted">${readMeta(featured)}</small></div></div></article>`;
 const months=[...new Set(articles.map(p=>p.date))];
 document.getElementById("archive-list").innerHTML=months.map(month=>`<details class="archive-month" open><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
+
+ setFilter("全部");
+}
+let loading=false;
+async function loadArticles(){
+ if(loading)return;loading=true;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ list.setAttribute("aria-busy","true");list.innerHTML='<div class="empty" role="status">正在加载文章…</div>';
+ document.getElementById("article-pagination").hidden=true;
+ search.disabled=true;document.getElementById("public-sort").disabled=true;
+ try{
+  const response=await fetch("/posts.json",{signal:controller.signal,credentials:"omit",cache:"no-store"});
+  if(!response.ok)throw Error("文章列表暂时无法读取");
+  const data=await response.json();
+  if(!Array.isArray(data)||!data.every(p=>p&&typeof p.id==="string"&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.id)&&["title","summary","category","date"].every(key=>typeof p[key]==="string")))throw Error("文章数据格式错误");
+  articles=data;loaded=true;renderArticles();
+ }catch{
+  document.getElementById("search-results").textContent="文章加载失败";
+  list.innerHTML='<div class="empty" role="alert"><strong>暂时无法加载文章</strong><p>请检查网络连接后重试。你仍可以通过联系区找到我。</p><button id="retry-articles" class="button secondary" type="button">重新加载</button></div>';
+  document.getElementById("retry-articles").addEventListener("click",loadArticles);
+ }finally{clearTimeout(timeout);loading=false;list.setAttribute("aria-busy","false");search.disabled=false;document.getElementById("public-sort").disabled=false}
+}
 function route(){
  if(location.hash==="#collections"){location.replace("#articles");return}
  const match=location.hash.match(/^#post\/([^/?#]+)/);let id;try{id=match&&decodeURIComponent(match[1])}catch{}
- const post=id&&articles.find(p=>p.id===id);
- document.body.classList.toggle("reading",!!match);view.classList.toggle("active",!!match);
- if(post){
- view.innerHTML=`<a class="back" href="#articles">← 返回文章列表</a><div class="meta" style="margin-top:32px">${escapeText(post.category)} · ${escapeText(post.date)} · 阅读 <span id="read-count">${Number(post.read_count||0).toLocaleString("zh-CN")}</span></div><h1>${escapeText(post.title)}</h1><p class="subtitle">${escapeText(post.summary)}</p><div class="article-body">${post.html}</div><div class="reading-end"><span>感谢读到这里。</span><a href="#contact">有想法？和我聊聊 ↗</a></div><a class="back" href="#articles">← 返回文章列表</a>`;
- document.title=post.title+" — itfetter";window.scrollTo(0,0);window.trackArticleRead?.(post.id,document.getElementById("read-count"));
- }else{
- window.trackArticleRead?.(null,null);view.innerHTML=match?'<h1>这篇文章暂时找不到</h1><p>它可能已移除，或链接不完整。</p><a class="button" href="#articles">返回文章列表</a>':"";document.title="itfetter — 个人博客";
- if(["#articles","#archive","#about","#contact"].includes(location.hash))setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView(),0);
- }
- window.dispatchEvent(new Event("article-ready"));
+ if(id&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)){location.replace("/articles/"+encodeURIComponent(id)+"/");return}
+ if(match){view.classList.add("active");document.body.classList.add("reading");view.innerHTML='<h1>文章链接无效</h1><a class="button" href="#articles">返回文章列表</a>'}
+ else{view.classList.remove("active");document.body.classList.remove("reading");view.innerHTML="";
+ if(["#articles","#archive","#about","#contact"].includes(location.hash))setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView(),0)}
 }
 const form=document.getElementById("contact-form");
 form.elements.message.addEventListener("input",()=>{document.getElementById("message-length").textContent=form.elements.message.value.length});
@@ -57,4 +78,6 @@ form.addEventListener("submit",async event=>{
  catch(error){notice.classList.add("error");notice.textContent=error.message}
  finally{button.disabled=false;button.textContent="发送留言 ↗"}
 });
-document.getElementById("year").textContent=new Date().getFullYear();renderList();window.addEventListener("hashchange",route);route();
+document.getElementById("year").textContent=new Date().getFullYear();window.addEventListener("hashchange",route);route();
+
+loadArticles();

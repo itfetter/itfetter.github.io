@@ -30,7 +30,7 @@ function validate(data, draft = false) {
 function publicPost(post) {
   return {id: post.id, title: post.title, category: post.category, summary: post.summary,
     date: new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit'}).format(new Date(post.published_at)).replace('/', '.'),
-    permalink: post.permalink, read_count:post.read_count||0, html: renderMarkdown(post.body)};
+    permalink: post.permalink, read_count:post.read_count||0};
 }
 function validImage(bytes, type) {
   const start = (...values) => values.every((v,i) => bytes[i] === v);
@@ -172,10 +172,19 @@ async function handle(request, env) {
     object.writeHttpMetadata(headers); headers.set('etag', object.httpEtag);
     return new Response(method==='HEAD'?null:object.body,{headers});
   }
-  if (path === '/posts.js' && method === 'GET') {
-    const {results} = await env.DB.prepare("SELECT * FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
-    // JSON 内的 < 转义，避免未来嵌入 HTML 时出现脚本边界。
-    return new Response('const posts = '+JSON.stringify(results.map(publicPost)).replace(/</g,'\\u003c')+';', {headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'}});
+  if (['/posts.json','/posts.js','/sitemap.xml','/robots.txt'].includes(path)) {
+    if (!['GET','HEAD'].includes(method)) return fail('请使用 GET。',405);
+    if(path==='/robots.txt')return new Response(method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://itfetter.com/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+    // 显式选择公开字段，不查询正文或草稿；日期、排序仍以首次发布为准。
+    const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,permalink,read_count FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
+    const entries=results.filter(post=>slug(post.id));
+    if(path==='/sitemap.xml'){
+      const locations=['https://itfetter.com/',...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
+      const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+locations.map(location=>'<url><loc>'+escapeHtml(location)+'</loc></url>').join('')+'</urlset>';
+      return new Response(method==='HEAD'?null:xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
+    }
+    const data=JSON.stringify(entries.map(publicPost)).replace(/</g,'\\u003c');
+    return new Response(method==='HEAD'?null:(path==='/posts.js'?'const posts = '+data+';':data),{headers:{'content-type':path==='/posts.js'?'text/javascript; charset=utf-8':'application/json; charset=utf-8','cache-control':'no-store'}});
   }
   if (path.startsWith('/articles/') && ['GET','HEAD'].includes(method)) {
     const article = await env.DB.prepare("SELECT * FROM posts WHERE status='published' AND permalink=? AND published_at<=?").bind(path,new Date().toISOString()).first();
