@@ -28,3 +28,10 @@
 #visual-body .blog-block-panel .vditor-tooltipped::before{top:auto;bottom:-5px;border-top-color:transparent;border-bottom-color:#3b3e43}
 
 #visual-body .vditor-toolbar [data-type="block-tools"]::after{right:0;left:auto;transform:none}
+
+/* 正文预留区块入口空间，六点按钮仅跟随当前光标区块，不覆盖文字。 */
+#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:max(54px,calc((100% - 860px)/2))!important}
+#visual-body .blog-block-handle{position:fixed;z-index:6;width:28px;height:28px;min-height:28px;padding:0;border:1px solid #dce4db;border-radius:6px;background:#fff;color:#758079;font-size:22px;line-height:1;cursor:pointer;box-shadow:none}
+#visual-body .blog-block-handle[hidden]{display:none}
+#visual-body .blog-block-handle:hover,#visual-body .blog-block-handle:focus-visible,#visual-body .blog-block-handle[aria-expanded="true"]{background:#eef3eb;color:#244c3a;border-color:#9eb79e;outline:2px solid #c5d8c3;outline-offset:1px}
+@media(max-width:700px){#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:48px!important}}

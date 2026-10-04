@@ -41,3 +41,27 @@ test("资源失败可重试，未保存正文不丢失",async()=>{
  const editor=createDocumentEditor({root:{replaceChildren(){}},getBody:()=>value,onChange:()=>assert.fail(),onState:()=>{},onImage:async()=>{},loadEngine:async()=>{if(!attempts++)throw Error("网络失败");return h.Fake}});
  await editor.load();await editor.load();assert.equal(attempts,2);assert.equal(value,"未保存原文");
 });
+
+test("侧边区块入口保留选择、夹紧菜单且保存锁隐藏入口",async()=>{
+ const previous=globalThis.window,previousDocument=globalThis.document;
+ const attributes={},handlers={},styles={};
+ const button={dataset:{},style:{},setAttribute:(k,v)=>attributes[k]=v,addEventListener:(k,v)=>handlers[k]=v,getBoundingClientRect:()=>({left:12,right:40,top:100,bottom:128})};
+ const canvas={contains:node=>node===block};
+ const block={parentElement:canvas,getBoundingClientRect:()=>({left:50,top:96,bottom:160})};
+ const panel={classList:{add(){}},children:[{}],style:{display:"block",setProperty:(k,v)=>styles[k]=v},getBoundingClientRect:()=>({width:300,height:220})};
+ const root={dataset:{},ownerDocument:{createElement:()=>button},append(){},replaceChildren(){},addEventListener(){},querySelector:selector=>selector===".blog-block-panel"?panel:selector===".vditor-toolbar"?{getBoundingClientRect:()=>({bottom:60})}:canvas};
+ globalThis.document={addEventListener(){}};
+ globalThis.window={VditorI18n:{},innerWidth:360,innerHeight:600,addEventListener(){},getSelection:()=>({anchorNode:block})};
+ class Fake{constructor(root,options){Fake.last=this;this.options=options;queueMicrotask(options.after)}setValue(){}getValue(){return ""}enable(){}disabled(){}destroy(){}}
+ try{
+  const editor=createDocumentEditor({root,getBody:()=>"",onChange(){},onState(){},onImage:async()=>{},loadEngine:async()=>Fake});await editor.load();
+  assert.equal(button.hidden,true); // 新光标位置等待引擎生成对应菜单，避免操作上一个区块。
+  Fake.last.options.customWysiwygToolbar("block",panel);await Promise.resolve();
+  assert.equal(button.hidden,false);assert.equal(button.style.left,"12px");
+  let prevented=false;handlers.pointerdown({preventDefault:()=>prevented=true});assert.equal(prevented,true);
+  handlers.click({});assert.equal(root.dataset.blockTools,"open");assert.equal(attributes["aria-expanded"],"true");
+  assert.equal(styles["--block-menu-left"],"48px");assert.equal(styles["--block-menu-top"],"100px");
+  editor.setBusy(true);assert.equal(button.hidden,true);assert.equal(root.dataset.blockTools,"closed");
+  editor.setBusy(false);assert.equal(button.hidden,false);editor.setActive(false);assert.equal(button.hidden,true);
+ }finally{globalThis.window=previous;globalThis.document=previousDocument}
+});
