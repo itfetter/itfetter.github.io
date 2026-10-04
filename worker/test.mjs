@@ -13,6 +13,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0003_drafts.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0004_contact.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0005_reads.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0006_categories.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -200,4 +201,22 @@ test('阅读量同源校验、短期去重、并发防重复及后台机器人�
  assert.equal((await s.request('/api/read','POST',{id:'private'})).status,404);
  for(let i=0;i<60;i++)await read();
  assert.equal((await read()).status,429);
+});
+
+test('分类仅管理员可管理，新建去重并保留空合集与历史草稿分类',async()=>{
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/categories')).status,401);
+ assert.equal((await s.request('/api/categories','POST',{name:'新分类'})).status,401);
+ const cross=new Request(origin+'/api/categories',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:'{"name":"新分类"}'});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ for(const name of ['', ' ', 'x'.repeat(81), '坏\n名称'])assert.equal((await s.request('/api/categories','POST',{name},cookie)).status,400);
+ assert.equal((await s.request('/api/categories','POST',{name:' 新合集 '},cookie)).status,201);
+ assert.equal((await s.request('/api/categories','POST',{name:'新合集'},cookie)).status,200);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM posts').get().n,0);
+ await s.request('/api/post','PUT',{...article,category:'旧分类'},cookie);
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,category:'草稿分类',status:'draft'},cookie);
+ const names=await(await s.request('/api/categories','GET',undefined,cookie)).json();
+ for(const name of ['随笔','新合集','旧分类','草稿分类'])assert.ok(names.includes(name));
+ assert.equal(s.db.prepare("SELECT category,version FROM posts WHERE id='hello'").get().category,'旧分类');
+ }finally{s.db.close()}
 });

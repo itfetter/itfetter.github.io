@@ -90,6 +90,21 @@ async function handle(request, env) {
       if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
       return markMessage(env,await readJson(request,2048));
     }
+    if(path==='/api/categories'){
+      if(method==='GET'){
+        const {results}=await env.DB.prepare("SELECT name FROM categories UNION SELECT trim(category) AS name FROM posts WHERE trim(category)<>'' UNION SELECT trim(draft_category) AS name FROM posts WHERE trim(draft_category)<>'' ORDER BY name").all();
+        return json(results.map(row=>row.name));
+      }
+      if(method==='POST'){
+        if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+        const data=await readJson(request,2048);
+        if(typeof data?.name!=='string'||!data.name.trim()||data.name.length>80||/[\u0000-\u001f\u007f]/.test(data.name))return fail('分类名称须为 1–80 个字符，不能包含控制字符。');
+        const name=data.name.trim();
+        const result=await env.DB.prepare('INSERT INTO categories (name) VALUES (?) ON CONFLICT DO NOTHING').bind(name).run();
+        return json({name,created:result.meta.changes>0},result.meta.changes?201:200);
+      }
+      return fail('请使用 GET 或 POST。',405);
+    }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
     if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,read_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
     if (path === '/api/preview' && method === 'POST') {
