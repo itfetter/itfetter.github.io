@@ -1,6 +1,7 @@
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages} from './contact.js';
+import {exportBackup,restoreBackup} from './backup.js';
 import {recordRead} from './reads.js';
 import { escapeHtml, renderMarkdown } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
@@ -30,7 +31,7 @@ function validate(data, draft = false) {
 function publicPost(post) {
   return {id: post.id, title: post.title, category: post.category, summary: post.summary,
     date: new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit'}).format(new Date(post.published_at)).replace('/', '.'),
-    permalink: post.permalink, read_count:post.read_count||0};
+    published_at:post.published_at,public_updated_at:post.public_updated_at||post.published_at,permalink: post.permalink, read_count:post.read_count||0};
 }
 function validImage(bytes, type) {
   const start = (...values) => values.every((v,i) => bytes[i] === v);
@@ -105,6 +106,17 @@ async function handle(request, env) {
       }
       return fail('请使用 GET 或 POST。',405);
     }
+    if(path==='/api/backup'&&method==='GET')return json(await exportBackup(env));
+    if(path==='/api/backup/restore'&&method==='POST'){
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return json(await restoreBackup(env,await readJson(request,24000000)));
+    }
+    if(path==='/api/history'&&method==='GET'){
+      const id=url.searchParams.get('id');if(!slug(id))return fail('文章标识无效。');
+      const v=url.searchParams.get('version');
+      if(v!==null){if(!/^[1-9][0-9]*$/.test(v))return fail('版本无效。');const row=await env.DB.prepare('SELECT title,category,summary,body,saved_at,version FROM post_versions WHERE post_id=? AND version=?').bind(id,Number(v)).first();return row?json(row):fail('历史版本不存在。',404)}
+      return json((await env.DB.prepare('SELECT version,title,saved_at FROM post_versions WHERE post_id=? ORDER BY version DESC LIMIT 50').bind(id).all()).results);
+    }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
     if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,read_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
     if (path === '/api/preview' && method === 'POST') {
@@ -131,8 +143,8 @@ async function handle(request, env) {
         if (!slug(data.id) || !Number.isSafeInteger(data.version) || data.version < 1) return fail('文章标识或版本无效。');
         const sql=draft
           ? 'UPDATE posts SET draft_title=?,draft_category=?,draft_summary=?,draft_body=?,version=version+1,updated_at=? WHERE id=? AND version=?'
-          : "UPDATE posts SET title=?,category=?,summary=?,body=?,status='published',published_at=CASE WHEN status='draft' THEN ? ELSE published_at END,draft_title=NULL,draft_category=NULL,draft_summary=NULL,draft_body=NULL,version=version+1,updated_at=? WHERE id=? AND version=?";
-        const values=[data.title.trim(),data.category.trim(),data.summary.trim(),data.body,...(draft?[]:[now]),now,data.id,data.version];
+          : "UPDATE posts SET title=?,category=?,summary=?,body=?,status='published',published_at=CASE WHEN status='draft' THEN ? ELSE published_at END,draft_title=NULL,draft_category=NULL,draft_summary=NULL,draft_body=NULL,version=version+1,updated_at=?,public_updated_at=? WHERE id=? AND version=?";
+        const values=[data.title.trim(),data.category.trim(),data.summary.trim(),data.body,...(draft?[]:[now]),now,...(draft?[]:[now]),data.id,data.version];
         const result=await env.DB.prepare(sql).bind(...values).run();
         if (!result.meta.changes) return fail('文章已被修改或删除，请刷新后重试。',409);
         return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/',savedAs:draft?'draft':'published'});
@@ -176,7 +188,7 @@ async function handle(request, env) {
     if (!['GET','HEAD'].includes(method)) return fail('请使用 GET。',405);
     if(path==='/robots.txt')return new Response(method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://itfetter.com/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
     // 显式选择公开字段，不查询正文或草稿；日期、排序仍以首次发布为准。
-    const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,permalink,read_count FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
+    const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,public_updated_at,permalink,read_count FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
     const entries=results.filter(post=>slug(post.id));
     if(path==='/sitemap.xml'){
       const locations=['https://itfetter.com/',...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
@@ -191,8 +203,14 @@ async function handle(request, env) {
     if (!article) return new Response('文章不存在。',{status:404,headers:{'content-type':'text/plain; charset=utf-8'}});
     const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
     if (!template.ok) throw new Error('缺少文章模板');
-    const replacements = {ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
-    const html = (await template.text()).replace(/@@(ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
+    const peers=(await env.DB.prepare("SELECT id,title,category,published_at FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all()).results;
+    const at=peers.findIndex(p=>p.id===article.id),link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
+    const related=peers.filter(p=>p.id!==article.id&&p.category===article.category).slice(0,3);
+    const navigation='<nav class="post-neighbors" aria-label="继续阅读">'+(peers[at+1]?'<div><small>上一篇</small>'+link(peers[at+1])+'</div>':'')+(peers[at-1]?'<div><small>下一篇</small>'+link(peers[at-1])+'</div>':'')+'</nav>'+(related.length?'<section class="post-related"><h2>同分类，继续读</h2>'+related.map(link).join('')+'</section>':'');
+    const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+    const dates='<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
+    const replacements = {NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
+    const html = (await template.text()).replace(/@@(NAVIGATION|DATES|ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
     return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   }
   if (path === '/write' || path === '/write/') return Response.redirect(url.origin+'/admin/',302);

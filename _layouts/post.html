@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{{ page.summary | escape }}">
+  <meta property="og:type" content="article"><meta property="og:site_name" content="itfetter"><meta property="og:title" content="{{ page.title | escape }}"><meta property="og:description" content="{{ page.summary | escape }}"><meta property="og:url" content="{{ page.url | absolute_url }}"><meta property="og:image" content="https://itfetter.com/assets/share-card.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{{ page.title | escape }}"><meta name="twitter:description" content="{{ page.summary | escape }}"><meta name="twitter:image" content="https://itfetter.com/assets/share-card.png">
   <title>{{ page.title | escape }} — itfetter</title>
   <link rel="canonical" href="{{ page.url | absolute_url }}">
   <style>
@@ -25,10 +26,10 @@
 <body><div id="reading-progress" aria-hidden="true"></div>
   <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/#articles">文章</a><a href="/#contact">联系 ↗</a></header>
   <main>
-    <div class="meta">{{ page.category | escape }} · {{ page.date | date: "%Y.%m" }} · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
+    <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
-    <article>{{ content }}</article><div class="reading-end"><span>感谢读到这里。</span><a href="/#contact">有想法？和我聊聊 ↗</a></div>
+    <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/#contact">有想法？和我聊聊 ↗</a></div>
   </main>
   <button id="back-top" type="button" aria-label="回到顶部" hidden>↑</button><footer>© {{ site.time | date: "%Y" }} itfetter</footer>
 <script src="/assets/read-count.js"></script>

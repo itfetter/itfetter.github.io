@@ -38,7 +38,7 @@ function renderArticles(){
 document.getElementById("featured-slot").innerHTML="";
 if(featured)document.getElementById("featured-slot").innerHTML=`<article class="featured"><div class="featured-visual" aria-hidden="true"><div><small>THE LATEST NOTE</small><span>Notes<br>& ideas.</span><b>ITFETTER / JOURNAL</b></div></div><div class="featured-text"><div class="meta">最新发布 · ${escapeText(featured.category)}</div><h3><a href="${postLink(featured)}">${escapeText(featured.title)}</a></h3><p>${escapeText(featured.summary)}</p><div class="row spread"><a class="read-link" href="${postLink(featured)}">开始阅读</a><small class="muted">${readMeta(featured)}</small></div></div></article>`;
 const months=[...new Set(articles.map(p=>p.date))];
-document.getElementById("archive-list").innerHTML=months.map(month=>`<details class="archive-month" open><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
+document.getElementById("archive-list").innerHTML=months.map((month,index)=>`<details class="archive-month" ${index===0?"open":""}><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
 
  setFilter("全部");
 }

@@ -14,13 +14,15 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0004_contact.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0005_reads.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0006_categories.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0007_history.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
  const env={
  DB:{prepare(sql){let values=[];return {bind(...args){values=args;return this},async first(){return db.prepare(sql).get(...values)||null},async all(){return {results:db.prepare(sql).all(...values)}},async run(){return {meta:{changes:db.prepare(sql).run(...values).changes}}}}}},
- IMAGES:{async put(key,bytes,options){images.set(key,{bytes,type:options.httpMetadata.contentType})},async get(key){const item=images.get(key);return item&&{body:item.bytes,httpEtag:'"test"',writeHttpMetadata(headers){headers.set('content-type',item.type)}}}},
- ASSETS:{async fetch(request){const path=new URL(request.url).pathname;return new Response(path==='/article-template.html'?'<title>@@TITLE@@</title><article>@@BODY@@</article>':path==='/admin/'?'admin':'home')}}};
+ IMAGES:{async list(){return {objects:[...images].map(([key,item])=>({key,size:item.bytes.length})),truncated:false}},async put(key,bytes,options){if(options.onlyIf&&images.has(key))return null;images.set(key,{bytes,type:options.httpMetadata.contentType});return {key}},async get(key){const item=images.get(key);return item&&{arrayBuffer:async()=>item.bytes.buffer.slice(item.bytes.byteOffset,item.bytes.byteOffset+item.bytes.byteLength),httpMetadata:{contentType:item.type},body:item.bytes,httpEtag:'"test"',writeHttpMetadata(headers){headers.set('content-type',item.type)}}}},
+ ASSETS:{async fetch(request){const path=new URL(request.url).pathname;return new Response(path==='/article-template.html'?'<title>@@TITLE@@</title>@@DATES@@<article>@@BODY@@</article>@@NAVIGATION@@':path==='/admin/'?'admin':'home')}}};
+ env.DB.batch=async statements=>{db.exec("BEGIN");try{const results=[];for(const statement of statements)results.push(await statement.run());db.exec("COMMIT");return results}catch(e){db.exec("ROLLBACK");throw e}};
  return {env,db,images,async request(path,method='GET',data,auth){return worker.fetch(new Request(origin+path,{method,headers:{...(auth?{cookie:auth}:{}),...(method!=='GET'?{origin,'content-type':'application/json'}:{})},...(data===undefined?{}:{body:JSON.stringify(data)})}),env)}};
 }
 const article={slug:'hello',title:'欢迎<script>alert(1)</script>',category:'随笔',summary:'测试摘要',body:'# 标题\n\n**正文**\n\n<script>alert(1)</script>\n<img src=x onerror="alert(1)">'};
@@ -234,7 +236,7 @@ test('公开摘要不含正文或草稿；独立正文与实时站点地图只�
  for(const field of ['html','body','draft_body','draft_title','version','updated_at'])assert.equal(data[0][field],undefined);
  assert.doesNotMatch(raw,/公开正文标记|私密正文标记|私密修订标记|未发布修改|future|private/);
  assert.ok(raw.length<1000);
- const html=await(await s.request('/articles/hello/')).text();assert.match(html,/公开正文标记/);assert.doesNotMatch(html,/私密修订标记/);
+ const html=await(await s.request('/articles/hello/')).text();assert.match(html,/公开正文标记/);assert.doesNotMatch(html,/私密修订标记/);assert.match(html,/发布于/);assert.doesNotMatch(html,/@@DATES@@|@@NAVIGATION@@|私密标题/);
  const sitemap=await s.request('/sitemap.xml');assert.equal(sitemap.headers.get('content-type'),'application/xml; charset=utf-8');
  const xml=await sitemap.text();assert.match(xml,/<loc>https:\/\/itfetter.com\/articles\/hello\/<\/loc>/);
  assert.doesNotMatch(xml,/private|future|未发布修改/);
@@ -244,5 +246,47 @@ test('公开摘要不含正文或草稿；独立正文与实时站点地图只�
  await s.request('/api/post','DELETE',{id:'hello',version:2},cookie);
  assert.doesNotMatch(await(await s.request('/sitemap.xml')).text(),/articles\/hello/);
  assert.deepEqual(await(await s.request('/posts.json')).json(),[]);
+ }finally{s.db.close()}
+});
+
+test('历史快照和公开更新时间分离；备份鉴权、验证与缺失数据恢复',async()=>{
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/backup')).status,401);assert.equal((await s.request('/api/history?id=hello')).status,401);
+ await s.request('/api/post','PUT',{...article,title:'最初',body:'最初正文'},cookie);
+ const first=s.db.prepare("SELECT published_at FROM posts WHERE id='hello'").get().published_at;
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,status:'draft',title:'草稿标题',body:'草稿正文'},cookie);
+ let rows=await(await s.request('/api/history?id=hello','GET',undefined,cookie)).json();assert.equal(rows.length,1);
+ assert.equal((await(await s.request('/api/history?id=hello&version=1','GET',undefined,cookie)).json()).body,'最初正文');
+ assert.equal(s.db.prepare("SELECT public_updated_at FROM posts WHERE id='hello'").get().public_updated_at,null);
+ await s.request('/api/post','PUT',{...article,id:'hello',version:2,title:'发布新版',body:'发布正文'},cookie);
+ const row=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();assert.equal(row.published_at,first);assert.ok(row.public_updated_at);
+ const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5p8AAAAASUVORK5CYII=';
+ await s.request('/api/image','POST',{type:'image/png',base64:png},cookie);
+ const backup=await(await s.request('/api/backup','GET',undefined,cookie)).json();
+ assert.equal(backup.images.length,1);assert.equal(backup.history.length,2);assert.equal(backup.posts.length,1);
+ assert.doesNotMatch(JSON.stringify(backup),/token_hash|test-version|admin_users|password_hash/);
+ assert.equal((await s.request('/api/backup/restore','POST',backup,cookie)).status,400);
+ assert.equal((await s.request('/api/backup/restore','POST',{...backup,confirm:true,posts:[{...backup.posts[0],id:'../bad'}]},cookie)).status,400);
+ const cross=new Request(origin+'/api/backup/restore',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify({...backup,confirm:true})});assert.equal((await worker.fetch(cross,s.env)).status,403);
+ const unchanged=await(await s.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).json();assert.equal(unchanged.changed,0);assert.equal(unchanged.images,0);
+ await s.request('/api/post','DELETE',{id:'hello',version:3},cookie);s.images.clear();
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM post_versions').get().n,0);
+ const restore=await s.request('/api/backup/restore','POST',{...backup,confirm:true},cookie);assert.equal(restore.status,200);
+ assert.equal(s.db.prepare("SELECT body FROM posts WHERE id='hello'").get().body,'发布正文');assert.equal(s.images.size,1);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM post_versions').get().n,2);
+ assert.equal((await s.request('/api/me','GET',undefined,cookie)).status,200);
+ }finally{s.db.close()}
+});
+
+test('历史保留50份，阅读计数不会创建版本，草稿不改变公开日期',async()=>{
+ const s=setup(),cookie=await token();try{
+ await s.request('/api/post','PUT',article,cookie);
+ s.db.exec("UPDATE posts SET public_updated_at='2026-01-01T00:00:00.000Z' WHERE id='hello'");
+ for(let version=1;version<=55;version++)assert.equal((await s.request('/api/post','PUT',{...article,id:'hello',version,status:'draft',body:'draft '+version},cookie)).status,200);
+ const history=s.db.prepare("SELECT version FROM post_versions WHERE post_id='hello' ORDER BY version").all();
+ assert.equal(history.length,50);assert.equal(history[0].version,6);assert.equal(history[49].version,55);
+ s.db.exec("UPDATE posts SET read_count=read_count+1 WHERE id='hello'");
+ assert.equal(s.db.prepare('SELECT count(*) AS n FROM post_versions').get().n,50);
+ assert.equal((await(await s.request('/posts.json')).json())[0].public_updated_at,'2026-01-01T00:00:00.000Z');
  }finally{s.db.close()}
 });
