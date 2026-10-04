@@ -1,5 +1,6 @@
 // 只复制公开前端文件，不把文章源文件、凭据或 Worker 源码发布为静态资源。
 import { mkdir, rm, readFile, writeFile, cp } from 'node:fs/promises';
+import {buildDocumentEditor} from "./editor-assets.mjs";
 const root = new URL('../', import.meta.url), dist = new URL('dist/', root);
 await rm(dist,{recursive:true,force:true}); await mkdir(dist,{recursive:true});
 for (const name of ['index.html','admin/index.html','assets']) {
@@ -13,3 +14,5 @@ template=template.replace('GitHub Pages','Cloudflare');
 if (/\{[{%]/.test(template)) throw Error('文章模板存在未处理的 Liquid');
 await writeFile(new URL('article-template.html',dist),template);
 console.log('Cloudflare 静态资源已构建到 dist/（不包含文章数据）');
+
+await buildDocumentEditor(dist);

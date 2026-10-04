@@ -96,8 +96,15 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 
 恢复先展示数量并确认，仅添加缺失记录和图片，已有内容不覆盖；跨D1/R2不提供原子事务，中断可重复提交。恢复已发布的缺失文章会重新公开它。下载备份时请暂停编辑以减少并发变化；不等同于自动定期全库灾备。RSS按用户要求延后。
 
-## 可视化正文编辑（2026-10-04）
+## 逐段可视化正文编辑（2026-10-04，历史方案，已被文档编辑替代）
 
 后台默认进入可视化编辑，直接点击标题、文字、表格单元格、列表、引用和代码修改；支持加粗/斜体、原生撤销重做、新增段落及图片上传/粘贴。图片插在当前区块之后。Markdown双栏、源码和只读预览仍可切换，沿用草稿/发布/version校验/历史版本；并非自动保存。
 
 assets/visual-editor.mjs 负责逐区块编辑与Markdown序列化；未改动区块（包括引用定义、空白和CRLF）保留原文。自定义HTML、任务列表及无法精确映射的特殊语法只读保留，切换Markdown修改；不宣称覆盖所有富文本/表格结构编辑。粘贴文字仅接受纯文本，不插入外部HTML；视觉HTML只来自认证POST /api/preview的服务端清理，公开Markdown渲染继续安全清理。保存/上传时锁定可视化输入，异步结果检查当前正文防止覆盖新内容；中文输入不触发重新渲染。模块不引入新依赖；格式工具使用浏览器原生编辑命令（支持能力依浏览器，源码模式始终可用）。RSS仍延后。
+
+
+## 文档式正文编辑（2026-10-04，当前方案）
+用 Vditor 4.0.0 的 wysiwyg 连续文档编辑替代逐段 contenteditable：标题、列表、任务列表、引用、表格、代码和链接可直接编辑，工具栏支持插入与撤销/重做，Markdown 快捷输入保留。图片粘贴/拖入/选择上传经原认证 /api/image 写 R2，上传完成在当前光标位置插入。并非飞书完整复刻，没有协同编辑、评论、自动保存。
+Markdown 仍为唯一保存字段；初始化、切换模式和未编辑时保留原文，真实文档编辑后 Markdown 格式可能被规范化。复杂自定义 HTML 请用源码模式。保存前 flush 捕获当前正文；保留保存草稿/发布、id/version、历史、未保存切换保护，加载旧回调不能覆盖新文章。缓存禁用，不把草稿写入 localStorage。文档模式使用引擎 sanitize=true；只读预览/公开文章仍由认证 /api/preview 与服务端清理规则生成，不直接发布引擎 HTML。
+当前文件地图：admin/index.html 为模式、正文同步、上传与保存流程；assets/document-editor.mjs 为引擎生命周期、光标插图、同步/锁与重试；assets/document-editor.css 为文档画布和手机工具栏；scripts/editor-assets.mjs 在云端构建取得固定版本必要资源并校验发布元数据 SHA-256，scripts/build.mjs 合入 dist/assets/vendor/vditor；vendor/manifest.json 记录版本/哈希/大小，LICENSE 随资源保留。运行时资源同源，不把正文送第三方 CDN。worker/document.test.mjs 为初始化原文、实时同步/flush、保存上传锁、旧回调隔离、资源失败重试五项回归。原 assets/visual-editor.mjs 与 visual.test.mjs、server editorBlocks 仅保留兼容/历史回归，已不是默认编辑器。
+本机仅使用已存在 Node：五项新适配器测试通过，后台模块及资源模块语法通过，没有本机安装依赖。尚未推送时云端构建与真实浏览器体验未验证；后续记录实际构建结果。无 D1 迁移，未写生产文章、图片或留言。

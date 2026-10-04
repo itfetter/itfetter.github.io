@@ -1,0 +1,14 @@
+/* 文档画布与主题：不影响前台 */
+#visual-body.vditor{--border-color:#e2e8e1;--toolbar-background:#f8faf7;--textarea-background-color:#fff;--textarea-text-color:#25332c;--panel-background-color:#fff;border-radius:12px;overflow:visible;max-width:1080px;margin:auto}
+#visual-body .vditor-toolbar{position:sticky;top:0;z-index:5;border-radius:12px 12px 0 0;padding:10px!important;flex-wrap:wrap}
+#visual-body .vditor-toolbar button{min-height:30px;padding:4px;border:0;background:transparent;border-radius:5px}
+#visual-body .vditor-toolbar .vditor-menu{padding:0 4px}
+#visual-body .vditor-reset{font:16px/1.85 system-ui,"Noto Sans SC",sans-serif;color:#25332c}
+#visual-body .vditor-reset h1,#visual-body .vditor-reset h2,#visual-body .vditor-reset h3{letter-spacing:0;line-height:1.4}
+#visual-body .vditor-reset h1{font-size:2em}#visual-body .vditor-reset h2{font-size:1.5em}
+#visual-body .vditor-reset table{min-width:0;display:table;width:100%}#visual-body .vditor-reset th,#visual-body .vditor-reset td{min-width:60px;padding:10px;border:1px solid #e2e8e1}
+#visual-body .vditor-reset blockquote{border-left:3px solid #c67848;color:#758079}
+#visual-body .vditor-reset pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 ui-monospace,Consolas,monospace;tab-size:4}
+#visual-body .vditor-content{min-height:520px}
+#visual-body .vditor-wysiwyg>.vditor-reset{padding:32px max(20px,calc((100% - 860px)/2))!important;min-height:520px}
+@media(max-width:700px){#visual-body .vditor-reset{font-size:15px}#visual-body .vditor-wysiwyg>.vditor-reset{padding:18px 14px!important}#visual-body .vditor-toolbar{top:0}#visual-body .vditor-panel{max-width:calc(100vw - 32px)}}
