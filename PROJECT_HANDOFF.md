@@ -6,7 +6,7 @@
 
 ## 2026-10-04 独立文章入口与摘要加载（当前变更）
 
-用户授权优先四项升级。文件地图：assets/front.js 改为异步 /posts.json 摘要读取、加载/失败/超时重试、独立文章链接与旧 hash 自动转向；index.html 移除阻塞 posts.js、加入初始加载提示与无脚本指引；worker/index.js 公开摘要 GET/HEAD、兼容 posts.js、实时 sitemap.xml/robots.txt；worker/test.mjs 检查正文/草稿隔离、未来排除、HEAD/方法、删除后实时地图。README/AGENTS 同步长期约束。后台、数据表、文章内容和 R2 无变化，未迁移数据。列表仍客户端每页 5 篇，下载全部摘要但不含正文；服务端分页、RSS、版本备份及其他阅读升级未在本轮实现。站点地图不使用 draft 更新日期作为 lastmod。验证部署待核对，无本机安装。
+用户授权优先四项升级。文件地图：assets/front.js 改为异步 /posts.json 摘要读取、加载/失败/超时重试、独立文章链接与旧 hash 自动转向；index.html 移除阻塞 posts.js、加入初始加载提示与无脚本指引；worker/index.js 公开摘要 GET/HEAD、兼容 posts.js、实时 sitemap.xml/robots.txt；worker/test.mjs 检查正文/草稿隔离、未来排除、HEAD/方法、删除后实时地图。README/AGENTS 同步长期约束。后台、数据表、文章内容和 R2 无变化，未迁移数据。列表仍客户端每页 5 篇，下载全部摘要但不含正文；服务端分页、RSS、版本备份及其他阅读升级未在本轮实现。站点地图不使用 draft 更新日期作为 lastmod。验证：已有 Node 检查 Worker/测试/前端语法通过；模拟 DOM 验证网络失败→重试、独立链接、每页5篇、分类重置与旧hash转向通过。功能提交 8c6bd36502a43cdf71b94174e735a6f929a2755c；Cloudflare 构建 0b228710-df9b-467c-b3a7-bbe036256317 成功，23项测试通过、0失败，Worker版本 23371dd9-2b4b-468e-bf8e-55e7db147672。线上 /posts.json 200，4篇共1098字节，无正文/草稿字段；sitemap.xml XML可解析，首页+4篇共5地址；robots含地图入口；首页200移除posts.js阻塞脚本；hello独立正文200。未写生产测试数据，无本机安装。线上浏览器在前一轮审查连续超时，本轮为模拟交互+HTTP验证，未声称实际浏览器验收。
 
 ## 2026-10-04 首页文章每页五篇（历史变更）
 
