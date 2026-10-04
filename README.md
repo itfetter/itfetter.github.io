@@ -77,3 +77,7 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 
 ### 分类与合集选择
 编辑器分类改为下拉选择，并提供自定义新建分类弹窗。`/api/categories` GET/POST 仅管理员可用，同源 JSON 写入；名称 1–80 字符、去除首尾空格、拒绝控制字符、同名创建幂等。分类由 D1 `categories` 独立保存，空合集也保留；目录合并历史文章与草稿分类。新增 `0006_categories.sql`，只建表与导入分类，不修改文章或版本。创建分类后自动选中，需保存草稿或发布文章才关联文章；暂不提供分类重命名/删除。
+
+
+## 前台阅读与浏览
+首页提供动态最新文章、分类合集、按月份归档、搜索和阅读量排序；公开合集只包含已有公开文章的分类。联系表单显示字数并继续保存私密留言。首页 hash 文章与独立文章共用目录、复制链接、阅读进度和回到顶部工具。视觉资源位于 assets/front.css，首页行为 assets/front.js，阅读工具 assets/reading-tools.js；手机导航保留文章/合集/关于/联系，归档可向下浏览。无新增框架、数据库或依赖，代码仍由 Cloudflare 自动部署。

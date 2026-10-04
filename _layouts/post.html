@@ -20,16 +20,18 @@
     .article-body th,.article-body td,article th,article td{padding:12px 15px;border-bottom:1px solid #deded6;text-align:left;min-width:105px}.article-body th,article th{background:#e8ece3;color:#1f332d}.article-body hr,article hr{border:0;border-top:1px solid #deded6;margin:38px 0}
     @media(max-width:620px){.article-body pre,article pre{font-size:12px}.article-body th,.article-body td,article th,article td{padding:10px 12px}}
   </style>
+<link rel="stylesheet" href="/assets/front.css">
 </head>
-<body>
-  <header><a href="/">← 返回博客首页</a></header>
+<body><div id="reading-progress" aria-hidden="true"></div>
+  <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/#articles">文章</a><a href="/#contact">联系 ↗</a></header>
   <main>
     <div class="meta">{{ page.category | escape }} · {{ page.date | date: "%Y.%m" }} · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
-    <article>{{ content }}</article>
+    <article>{{ content }}</article><div class="reading-end"><span>感谢读到这里。</span><a href="/#contact">有想法？和我聊聊 ↗</a></div>
   </main>
-  <footer>© {{ site.time | date: "%Y" }} itfetter</footer>
+  <button id="back-top" type="button" aria-label="回到顶部" hidden>↑</button><footer>© {{ site.time | date: "%Y" }} itfetter</footer>
 <script src="/assets/read-count.js"></script>
+<script src="/assets/reading-tools.js"></script>
 </body>
 </html>

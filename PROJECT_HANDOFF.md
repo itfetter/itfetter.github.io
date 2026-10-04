@@ -3,6 +3,14 @@
 > 更新于 2026-10-04。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
 
+## 2026-10-04 前台布局与阅读体验（最新变更）
+
+沿用米白/森林绿/陶土色，优化导航、首屏、动态最新文章、文章列表、分类合集、月份归档、关于与私密联系表单。参考 AstroPaper 首页推荐/最近文章分区（https://github.com/satnaing/astro-paper/blob/main/src/pages/index.astro）和 PaperMod 简洁博客结构（https://github.com/adityatelange/hugo-PaperMod）；只借鉴结构，未复制主题代码或增加框架依赖。推荐从公开 posts 动态生成，删除后无硬编码失效推荐。合集只显示有公开文章的分类，不公开空合集/草稿。文章增加目录、复制链接、阅读进度、回到顶部；保留 #post/<id> 与 /articles/<id>/。
+
+文件地图：index.html 首页语义布局；assets/front.js 公开文章推荐/搜索/排序/合集/归档/hash 路由及原联系提交流程；assets/front.css 首页与独立文章共享视觉/响应式/焦点/减少动画；assets/reading-tools.js 两种文章入口共用目录/进度/复制；_layouts/post.html 独立文章导航与工具。scripts/build.mjs 原 assets 白名单自动复制新资源，无 Worker/D1/R2 数据结构变更。
+
+验证：已有 Node 两脚本语法检查、HTML ID 与脚本引用检查通过；本地只读预览使用公开 posts.js，阅读统计禁用、POST 禁用。桌面首页/联系区视觉检查，搜索无结果与清空、随笔合集筛选、#post/hello 目录、390px 手机无横向溢出、留言字数6、浏览器错误日志为空。没有生产写测试留言/阅读/文章。线上浏览器导航超时，后续用 HTTP 只读与云端构建核对。部署状态待自动构建，实际结果追加记录。
+
 ## 当前项目速查（新窗口先读此节）
 
 以下为当前方案；后文中 GitHub Pages、Access、未部署、空数据库等说明属于历史记录，不能用作当前状态。
@@ -16,7 +24,7 @@
 | 正式入口 / 后台 | https://itfetter.com / https://itfetter.com/admin/ |
 | 临时 Worker 入口 | https://itfetter-blog.itfetterit.workers.dev |
 | D1 数据库 | `itfetter-blog`；UUID `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`；绑定 `DB` |
-| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0005_reads.sql；访客留言另存 contact_messages |
+| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0006_categories.sql；访客留言另存 contact_messages |
 | R2 存储桶 | `itfetter-blog-images`；绑定 `IMAGES`；图片由 Worker /images/ 路由提供，未开启公开桶入口 |
 | 静态资源 | Worker Static Assets，绑定 `ASSETS`，构建输出 dist/ |
 | 域名注册 / DNS | 阿里云购买 itfetter.com；DNS 已切换 Cloudflare，Worker 自定义域已绑定 |
