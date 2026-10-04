@@ -1,6 +1,6 @@
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
-import {submitMessage,listMessages,markMessage} from './contact.js';
+import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages} from './contact.js';
 import { escapeHtml, renderMarkdown } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
@@ -72,6 +72,11 @@ async function handle(request, env) {
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));
+    }
+    if(path==='/api/messages/count'&&method==='GET')return json(await unreadMessages(env));
+    if(path==='/api/messages/read-all'&&method==='POST'){
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return readAllMessages(env,await readJson(request,2048));
     }
     if(path==='/api/messages'&&method==='GET')return listMessages(env,url);
     if(path==='/api/messages'&&method==='PATCH'){

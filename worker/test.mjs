@@ -158,3 +158,23 @@ test('留言目录分页及跨站状态修改保护',async()=>{
  const request=new Request(origin+'/api/messages',{method:'PATCH',headers:{origin:'https://evil.example',cookie:await token(),'content-type':'application/json'},body:JSON.stringify({id:second.items[0].id,status:'read'})});
  assert.equal((await worker.fetch(request,s.env)).status,403);
 });
+
+test('未读数量与批量已读鉴权、范围保护、重复执行和新留言保留',async()=>{
+ const s=setup(),cookie=await token();
+ assert.equal((await s.request('/api/messages/count')).status,401);
+ assert.equal((await s.request('/api/messages/read-all','POST',{through:100})).status,401);
+ const ids=[crypto.randomUUID(),crypto.randomUUID()];
+ for(const id of ids)s.db.prepare('INSERT INTO contact_messages (id,name,message,created_at) VALUES (?,?,?,?)').run(id,'访客','私密留言',new Date().toISOString());
+ const stats=await (await s.request('/api/messages/count','GET',undefined,cookie)).json();
+ assert.equal(stats.unread,2);assert.equal(stats.readThrough,2);assert.equal(stats.items,undefined);
+ const newId=crypto.randomUUID();s.db.prepare('INSERT INTO contact_messages (id,name,message,created_at) VALUES (?,?,?,?)').run(newId,'新访客','刚到的留言',new Date().toISOString());
+ assert.equal((await s.request('/api/messages/read-all','POST',{through:-1},cookie)).status,400);
+ const cross=new Request(origin+'/api/messages/read-all',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify({through:stats.readThrough})});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ const result=await (await s.request('/api/messages/read-all','POST',{through:stats.readThrough},cookie)).json();
+ assert.equal(result.changed,2);assert.equal(result.unread,1);
+ assert.equal(s.db.prepare('SELECT status FROM contact_messages WHERE id=?').get(newId).status,'unread');
+ assert.equal((await (await s.request('/api/messages/read-all','POST',{through:stats.readThrough},cookie)).json()).changed,0);
+ assert.equal((await s.request('/api/messages','PATCH',{id:ids[0],status:'unread'},cookie)).status,200);
+ assert.equal((await (await s.request('/api/messages/count','GET',undefined,cookie)).json()).unread,2);
+});

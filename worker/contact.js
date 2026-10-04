@@ -21,12 +21,22 @@ export async function listMessages(env,url){
  if(!Number.isSafeInteger(page)||page<1||page>100000||!['','unread','read'].includes(status))return response({error:'筛选参数无效。'},400);
  const condition=status?' WHERE status=?':'',values=status?[status]:[];
  const count=await env.DB.prepare('SELECT COUNT(*) AS total FROM contact_messages'+condition).bind(...values).first();
- const unread=await env.DB.prepare("SELECT COUNT(*) AS total FROM contact_messages WHERE status='unread'").first();
+ const stats=await unreadMessages(env);
  const rows=await env.DB.prepare('SELECT id,name,email,message,status,created_at FROM contact_messages'+condition+' ORDER BY created_at DESC,id LIMIT 20 OFFSET ?').bind(...values,(page-1)*20).all();
- return response({items:rows.results,total:count.total,unread:unread.total,page,pageSize:20});
+ return response({items:rows.results,total:count.total,unread:stats.unread,readThrough:stats.readThrough,page,pageSize:20});
 }
 export async function markMessage(env,data){
  if(typeof data?.id!=='string'||! /^[a-f0-9-]{36}$/.test(data.id)||!['read','unread'].includes(data.status))return response({error:'留言参数无效。'},400);
  const result=await env.DB.prepare('UPDATE contact_messages SET status=? WHERE id=?').bind(data.status,data.id).run();
  return result.meta.changes?response({ok:true}):response({error:'留言不存在。'},404);
+}
+
+export async function unreadMessages(env){
+ const result=await env.DB.prepare("SELECT COUNT(CASE WHEN status='unread' THEN 1 END) AS unread,COALESCE(MAX(rowid),0) AS readThrough FROM contact_messages").first();
+ return {unread:result.unread,readThrough:result.readThrough};
+}
+export async function readAllMessages(env,data){
+ if(!Number.isSafeInteger(data?.through)||data.through<0)return response({error:'留言范围无效，请刷新后重试。'},400);
+ const result=await env.DB.prepare("UPDATE contact_messages SET status='read' WHERE status='unread' AND rowid<=?").bind(data.through).run();
+ return response({ok:true,changed:result.meta.changes,...await unreadMessages(env)});
 }
