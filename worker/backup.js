@@ -4,6 +4,16 @@ const fields=['id','title','category','summary','body','published_at','permalink
 const imageKey=/^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/;
 const iso=v=>typeof v==='string'&&Number.isFinite(Date.parse(v));
 export async function exportBackup(env){
+ // 聚合检查在取正文前执行，避免大数据库将整库内容载入 Worker 内存。
+ const size=await env.DB.prepare(`SELECT
+ (SELECT COUNT(*) FROM posts) AS posts,
+ (SELECT COUNT(*) FROM post_versions) AS history,
+ (SELECT COUNT(*) FROM contact_messages) AS messages,
+ (SELECT COUNT(*) FROM categories) AS categories,
+ (SELECT COALESCE(SUM(length(body)+COALESCE(length(draft_body),0)),0) FROM posts)+
+ (SELECT COALESCE(SUM(length(body)),0) FROM post_versions)+
+ (SELECT COALESCE(SUM(length(message)),0) FROM contact_messages) AS chars`).first();
+ if(size.posts>1000||size.history>5000||size.messages>1000||size.categories>1000||size.chars>4000000)error('内容超过便捷备份上限，请使用 Cloudflare D1 导出。');
  const posts=(await env.DB.prepare('SELECT '+fields.join(',')+' FROM posts').all()).results;
  const categories=(await env.DB.prepare('SELECT name FROM categories').all()).results;
  const history=(await env.DB.prepare('SELECT * FROM post_versions').all()).results;

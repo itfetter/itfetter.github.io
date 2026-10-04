@@ -290,3 +290,12 @@ test('历史保留50份，阅读计数不会创建版本，草稿不改变公开
  assert.equal((await(await s.request('/posts.json')).json())[0].public_updated_at,'2026-01-01T00:00:00.000Z');
  }finally{s.db.close()}
 });
+
+test('超出便捷备份容量时明确拒绝，而非返回不完整备份',async()=>{
+ const s=setup(),cookie=await token();try{
+ await s.request('/api/post','PUT',article,cookie);
+ s.db.prepare("UPDATE posts SET body=? WHERE id='hello'").run('x'.repeat(4000001));
+ const response=await s.request('/api/backup','GET',undefined,cookie);
+ assert.equal(response.status,400);assert.match((await response.json()).error,/超过便捷备份上限/);
+ }finally{s.db.close()}
+});
