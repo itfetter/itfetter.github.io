@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createDocumentEditor} from "../assets/document-editor.mjs";
+import {createDocumentEditor,contextMenuPosition} from "../assets/document-editor.mjs";
 globalThis.window={VditorI18n:{},getSelection:()=>null};
 function setup(body="原文\r\n"){
  let value=body,changes=[],state=[],instance;
@@ -42,26 +42,55 @@ test("资源失败可重试，未保存正文不丢失",async()=>{
  await editor.load();await editor.load();assert.equal(attempts,2);assert.equal(value,"未保存原文");
 });
 
-test("侧边区块入口保留选择、夹紧菜单且保存锁隐藏入口",async()=>{
- const previous=globalThis.window,previousDocument=globalThis.document;
- const attributes={},handlers={},styles={};
- const button={dataset:{},style:{},setAttribute:(k,v)=>attributes[k]=v,addEventListener:(k,v)=>handlers[k]=v,getBoundingClientRect:()=>({left:12,right:40,top:100,bottom:128})};
- const canvas={contains:node=>node===block};
- const block={parentElement:canvas,getBoundingClientRect:()=>({left:50,top:96,bottom:160})};
- const panel={classList:{add(){}},children:[{}],style:{display:"block",setProperty:(k,v)=>styles[k]=v},getBoundingClientRect:()=>({width:300,height:220})};
- const root={dataset:{},ownerDocument:{createElement:()=>button},append(){},replaceChildren(){},addEventListener(){},querySelector:selector=>selector===".blog-block-panel"?panel:selector===".vditor-toolbar"?{getBoundingClientRect:()=>({bottom:60})}:canvas};
- globalThis.document={addEventListener(){}};
- globalThis.window={VditorI18n:{},innerWidth:360,innerHeight:600,addEventListener(){},getSelection:()=>({anchorNode:block})};
+
+test("菜单定位保持在手机视口内，顶部选区菜单自动向下",()=>{
+ assert.deepEqual(contextMenuPosition({left:330,right:350,top:590,bottom:600},{width:320,height:220},{width:360,height:600}),{left:28,top:368});
+ assert.deepEqual(contextMenuPosition({left:10,right:90,top:4,bottom:25,width:80},{width:240,height:70},{width:360,height:600},true),{left:12,top:33});
+});
+test("悬停不移动选区，点击后生成目标区块菜单，选字显示文字菜单",async()=>{
+ const priorWindow=globalThis.window,priorDocument=globalThis.document,priorMouse=globalThis.MouseEvent;
+ const events={},made=[];let selectionChanges=0;
+ function node(tag){
+  const item={tagName:tag,dataset:{},style:{},handlers:{},children:[],hidden:false,isConnected:true,classList:{add(){}},
+   setAttribute(k,v){this[k]=v},addEventListener(k,v){this.handlers[k]=v},
+   append(child){child.parentElement=this;this.children.push(child)},
+   querySelector(){return null},querySelectorAll(){return []},
+   closest(selector){return this.className==="blog-document-menu"&&selector.includes(".blog-document-menu")?this:null},
+   getBoundingClientRect(){return {left:Number.parseFloat(this.style.left)||12,right:(Number.parseFloat(this.style.left)||12)+46,top:Number.parseFloat(this.style.top)||100,bottom:128,width:320,height:220}}
+  };return item;
+ }
+ const doc={addEventListener:(k,v)=>events[k]=v,createElement:tag=>{const n=node(tag.toUpperCase());made.push(n);return n},
+  createRange:()=>({selectNodeContents(block){this.block=block},collapse(){},getBoundingClientRect:()=>({left:70,right:150,top:100,bottom:125,width:80})})};
+ const body=node("PRE");body.focus=()=>{};body.contains=b=>b===one||b===two;
+ const one=node("H2"),two=node("P");one.parentElement=body;two.parentElement=body;
+ one.getBoundingClientRect=()=>({left:70,top:96,bottom:150});two.getBoundingClientRect=()=>({left:70,top:200,bottom:260});
+ const selection={anchorNode:one,focusNode:one,rangeCount:1,isCollapsed:true,
+  getRangeAt:()=>({getBoundingClientRect:()=>({left:70,right:150,top:100,bottom:125,width:80})}),
+  removeAllRanges(){selectionChanges++},addRange(range){selectionChanges++;this.anchorNode=this.focusNode=range.block}};
+ const toolbar=node("DIV"),panel=node("DIV");
+ const root=node("DIV");root.ownerDocument=doc;root.replaceChildren=()=>{};root.contains=b=>body.contains(b);
+ root.querySelector=selector=>selector===".vditor-toolbar"?toolbar:selector===".blog-block-panel"?panel:body;
+ globalThis.document=doc;globalThis.MouseEvent=class{constructor(type,options){this.type=type;Object.assign(this,options)}};
+ globalThis.window={VditorI18n:{},innerWidth:360,innerHeight:600,addEventListener(){},getSelection:()=>selection};
  class Fake{constructor(root,options){Fake.last=this;this.options=options;queueMicrotask(options.after)}setValue(){}getValue(){return ""}enable(){}disabled(){}destroy(){}}
+ two.dispatchEvent=()=>Fake.last.options.customWysiwygToolbar("block",panel);
  try{
   const editor=createDocumentEditor({root,getBody:()=>"",onChange(){},onState(){},onImage:async()=>{},loadEngine:async()=>Fake});await editor.load();
-  assert.equal(button.hidden,true); // 新光标位置等待引擎生成对应菜单，避免操作上一个区块。
-  Fake.last.options.customWysiwygToolbar("block",panel);await Promise.resolve();
-  assert.equal(button.hidden,false);assert.equal(button.style.left,"12px");
-  let prevented=false;handlers.pointerdown({preventDefault:()=>prevented=true});assert.equal(prevented,true);
-  handlers.click({});assert.equal(root.dataset.blockTools,"open");assert.equal(attributes["aria-expanded"],"true");
-  assert.equal(styles["--block-menu-left"],"48px");assert.equal(styles["--block-menu-top"],"100px");
-  editor.setBusy(true);assert.equal(button.hidden,true);assert.equal(root.dataset.blockTools,"closed");
-  editor.setBusy(false);assert.equal(button.hidden,false);editor.setActive(false);assert.equal(button.hidden,true);
- }finally{globalThis.window=previous;globalThis.document=previousDocument}
+  const menu=made.find(n=>n.className==="blog-document-menu"),button=made.find(n=>n.className==="blog-block-handle");
+  assert.equal(menu.hidden,true);assert.equal(toolbar.parentElement,menu); // 没有常驻顶栏，仍保留原按钮事件。
+  root.handlers.pointermove({target:two,pointerType:"mouse"});
+  assert.equal(button.textContent,"T ⠿");assert.equal(selection.anchorNode,one);assert.equal(selectionChanges,0);
+  let prevented=false;button.handlers.pointerdown({preventDefault:()=>prevented=true});assert.equal(prevented,true);
+  button.handlers.click();await Promise.resolve();
+  assert.equal(selection.anchorNode,two);assert.equal(selectionChanges,2);
+  assert.equal(menu.hidden,false);assert.equal(menu.dataset.mode,"block");assert.equal(menu.dataset.native,"true");
+  assert.equal(panel.parentElement,menu);
+  root.handlers.keydown({key:"Escape",target:body});assert.equal(menu.hidden,true);
+  selection.isCollapsed=false;events.selectionchange();await Promise.resolve();
+  assert.equal(menu.dataset.mode,"inline");assert.equal(menu.dataset.native,"false");
+  root.handlers.compositionstart();assert.equal(menu.hidden,true);assert.equal(button.hidden,true);
+  events.selectionchange();await Promise.resolve();assert.equal(menu.hidden,true);
+  root.handlers.compositionend();editor.setBusy(true);assert.equal(button.hidden,true);
+  editor.setBusy(false);editor.setActive(false);assert.equal(button.hidden,true);
+ }finally{globalThis.window=priorWindow;globalThis.document=priorDocument;globalThis.MouseEvent=priorMouse}
 });

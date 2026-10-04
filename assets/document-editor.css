@@ -1,6 +1,6 @@
 /* 文档画布与主题：不影响前台 */
 #visual-body.vditor{--border-color:#e2e8e1;--toolbar-background:#f8faf7;--textarea-background-color:#fff;--textarea-text-color:#25332c;--panel-background-color:#fff;border-radius:12px;overflow:visible;max-width:1080px;margin:auto}
-#visual-body .vditor-toolbar{position:sticky;top:0;z-index:5;border-radius:12px 12px 0 0;padding:10px!important;flex-wrap:wrap}
+#visual-body>.vditor-toolbar{display:none!important}
 #visual-body .vditor-toolbar button{min-height:30px;padding:4px;border:0;background:transparent;border-radius:5px}
 #visual-body .vditor-toolbar .vditor-menu{padding:0 4px}
 #visual-body .vditor-reset{font:16px/1.85 system-ui,"Noto Sans SC",sans-serif;color:#25332c}
@@ -13,25 +13,38 @@
 #visual-body .vditor-wysiwyg>.vditor-reset{padding:32px max(20px,calc((100% - 860px)/2))!important;min-height:520px}
 @media(max-width:700px){#visual-body .vditor-reset{font-size:15px}#visual-body .vditor-wysiwyg>.vditor-reset{padding:18px 14px!important}#visual-body .vditor-toolbar{top:0}#visual-body .vditor-panel{max-width:calc(100vw - 32px)}}
 
-/* 吸顶工具栏的提示始终向下，不越过视口顶部。 */
-#visual-body .vditor-toolbar .vditor-tooltipped::after{top:100%;bottom:auto;right:50%;left:auto;margin:8px 0 0;transform:translateX(50%);z-index:20}
-#visual-body .vditor-toolbar .vditor-tooltipped::before{top:auto;bottom:-8px;right:50%;left:auto;margin:0 -5px 0 0;border-top-color:transparent;border-bottom-color:#3b3e43}
-#visual-body .vditor-toolbar [data-type="headings"]::after{left:0;right:auto;transform:none}
-#visual-body .vditor-toolbar [data-type="block-tools"]{width:auto;min-width:64px;font-size:12px;font-weight:600}
-/* 自动区块浮层默认隐藏；点击区块按钮才打开独立、不透明的操作面板。 */
-#visual-body .vditor-wysiwyg>.vditor-panel--none{display:none!important}
-#visual-body[data-block-tools="open"] .vditor-wysiwyg>.blog-block-panel{display:flex!important;flex-wrap:wrap;gap:4px;position:fixed!important;left:var(--block-menu-left,12px)!important;top:var(--block-menu-top,60px)!important;max-width:calc(100vw - 24px);max-height:50vh;overflow:auto;padding:10px;white-space:normal;opacity:1;background:#fff;border:1px solid #d6dfd3;border-radius:10px;box-shadow:0 8px 28px #25332c24;z-index:10}
-#visual-body .blog-block-panel .vditor-icon{width:30px;height:30px;padding:7px;min-height:30px}
-#visual-body .blog-block-panel input{width:auto;max-width:100%;min-height:30px}
-/* 面板内提示同样向下，避免紧贴吸顶工具栏时被裁切。 */
-#visual-body .blog-block-panel .vditor-tooltipped::after{top:100%;bottom:auto;margin-top:5px;margin-bottom:0}
-#visual-body .blog-block-panel .vditor-tooltipped::before{top:auto;bottom:-5px;border-top-color:transparent;border-bottom-color:#3b3e43}
 
-#visual-body .vditor-toolbar [data-type="block-tools"]::after{right:0;left:auto;transform:none}
-
-/* 正文预留区块入口空间，六点按钮仅跟随当前光标区块，不覆盖文字。 */
-#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:max(54px,calc((100% - 860px)/2))!important}
-#visual-body .blog-block-handle{position:fixed;z-index:6;width:28px;height:28px;min-height:28px;padding:0;border:1px solid #dce4db;border-radius:6px;background:#fff;color:#758079;font-size:22px;line-height:1;cursor:pointer;box-shadow:none}
-#visual-body .blog-block-handle[hidden]{display:none}
+/* 无常驻顶部工具栏：原引擎工具移入按需浮出的菜单，事件和选区沿用原实现。 */
+#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:max(64px,calc((100% - 860px)/2))!important}
+#visual-body .vditor-panel--none{display:none!important}
+#visual-body .blog-block-handle{position:fixed;z-index:6;width:46px;height:28px;min-height:28px;padding:0 3px;border:1px solid #dce4db;border-radius:6px;background:#fff;color:#758079;font-size:12px;line-height:1;cursor:pointer;box-shadow:0 2px 5px #25332c08}
+#visual-body .blog-block-handle[hidden],#visual-body .blog-document-menu[hidden]{display:none!important}
 #visual-body .blog-block-handle:hover,#visual-body .blog-block-handle:focus-visible,#visual-body .blog-block-handle[aria-expanded="true"]{background:#eef3eb;color:#244c3a;border-color:#9eb79e;outline:2px solid #c5d8c3;outline-offset:1px}
-@media(max-width:700px){#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:48px!important}}
+#visual-body .blog-document-menu{position:fixed;z-index:30;width:320px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:8px;border:1px solid #dce4db;border-radius:12px;background:#fff;color:#25332c;box-shadow:0 12px 40px #25332c26}
+#visual-body .blog-document-menu .vditor-toolbar{display:flex!important;position:static!important;flex-wrap:wrap;width:100%;min-height:0;padding:8px!important;border:0;border-radius:0;background:#fff;box-sizing:border-box;gap:2px}
+#visual-body .blog-document-menu .vditor-toolbar::before{content:"区块格式与插入";flex-basis:100%;font-size:12px;font-weight:600;color:#7b857e;padding:0 0 8px}
+#visual-body .blog-document-menu .vditor-toolbar__item{padding:0 2px}
+#visual-body .blog-document-menu .vditor-toolbar__item>[data-type]{width:30px;min-height:30px;line-height:1;color:#586960;border-radius:5px}
+#visual-body .blog-document-menu .vditor-toolbar__item>[data-type]:hover{background:#eef3eb}
+#visual-body .blog-document-menu .vditor-hint{max-width:100%;max-height:260px;overflow:auto}
+#visual-body .blog-document-menu[data-mode="inline"]{width:240px}
+#visual-body .blog-document-menu[data-mode="inline"] .vditor-toolbar::before{content:"文字格式";padding-bottom:5px}
+#visual-body .blog-document-menu[data-mode="inline"] .vditor-toolbar__item:not(:has([data-type="bold"],[data-type="italic"],[data-type="strike"],[data-type="link"],[data-type="inline-code"])),#visual-body .blog-document-menu[data-mode="inline"] .vditor-toolbar__divider{display:none}
+#visual-body .blog-document-menu[data-mode="block"][data-native="true"]>.blog-block-panel{display:flex!important;flex-wrap:wrap;gap:5px;position:static!important;inset:auto!important;width:100%;max-width:100%;padding:12px 8px 8px;border:0;border-top:1px solid #e5ebe2;border-radius:0;opacity:1;white-space:normal;box-shadow:none;background:#fff;box-sizing:border-box}
+#visual-body .blog-block-panel::before{content:"区块操作与属性";flex-basis:100%;font-size:12px;font-weight:600;color:#7b857e;padding-bottom:3px}
+#visual-body .blog-block-panel .vditor-icon{width:auto;min-width:30px;height:30px;min-height:30px;padding:7px;border-radius:5px;display:inline-flex;align-items:center;gap:6px}
+#visual-body .blog-block-panel .blog-operation-label{font-size:12px;line-height:1.2}
+#visual-body .blog-block-panel input{max-width:100%;min-height:30px;box-sizing:border-box}
+#visual-body .blog-document-menu .vditor-tooltipped::after,#visual-body .blog-document-menu .vditor-tooltipped::before{display:none!important}
+@media(max-width:700px){#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:60px!important}}
+
+/* H1–H6 就地选择，沿用引擎的标题转换与撤销事件，不再打开第二层菜单。 */
+#visual-body .blog-document-menu[data-mode="block"] .vditor-toolbar__item:has([data-type="headings"]){flex-basis:100%;display:flex;align-items:center;gap:6px;margin-bottom:7px}
+#visual-body .blog-document-menu[data-mode="block"] [data-type="headings"]{width:40px;font-size:12px}
+#visual-body .blog-document-menu[data-mode="block"] .vditor-toolbar__item:has([data-type="headings"]) .vditor-hint{display:grid!important;position:static!important;grid-template-columns:repeat(6,minmax(0,1fr));flex:1;width:auto;padding:0;gap:2px;border:0;box-shadow:none;background:#fff}
+#visual-body .blog-document-menu .vditor-hint::before,#visual-body .blog-document-menu .vditor-hint::after{display:none}
+#visual-body .blog-document-menu .vditor-hint button[data-tag]{font:600 12px/1.2 system-ui;min-width:0;min-height:30px;padding:4px;text-align:center;border-radius:5px}
+#visual-body .blog-document-menu .vditor-hint button[data-tag][aria-pressed="true"]{background:#eef3eb;color:#244c3a}
+#visual-body .blog-document-menu button:disabled{opacity:.35;cursor:not-allowed}
+#visual-body .blog-operation-label{pointer-events:none}
+#visual-body .blog-block-panel [data-type="remove"]{color:#bd5347}
