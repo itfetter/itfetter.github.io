@@ -42,7 +42,7 @@
 
 文件地图：worker/reads.js 记录验证/去重/限速；worker/migrations/0005_reads.sql 新增 read_count、article_reads/read_limits 与触发器/索引；worker/index.js 公开记录接口与输出计数；assets/read-count.js 共享三秒记录；index.html 首页文章计数；_layouts/post.html 独立文章计数；scripts/build.mjs 新增 ID/READS 占位符；admin/index.html 工作台/列表；assets/admin-utils.mjs 阅读排序；worker/test.mjs 验证同源、并发去重、管理员/bot、私密/不存在文章、限速与数据输出；三维护文档。现有静态构建 assets 复制已包含脚本，不增加依赖。
 
-生产已应用 0005 并记录迁移名，文章 3、阅读 0；未更改正文/版本/留言，也未对生产写测试阅读。已有 Node 模块语法、真实 SQLite 并发去重、累计、版本保留、删除级联与排序检查通过。完整云端回归及部署待核对。
+生产已应用 0005 并记录迁移名，文章 3、阅读 0；未更改正文/版本/留言，也未对生产写测试阅读。已有 Node 模块语法、真实 SQLite 并发去重、累计、版本保留、删除级联与排序检查通过。源码 d9df48ef1c8de11ea63384e08b462ad01bbd1e3e 已自动部署，构建 c8cee74e-c664-40bc-a5c2-6b3efb2bcaa1 成功，21 项测试通过、0 失败，版本 236e4428-d62e-4b77-a7bb-27db5b4705a6。浏览器本地模拟验证工作台 164 次总量与热门文章、文章库列/排序、前台从 128 到 129 的三秒反馈；未写线上测试计数，本地服务器已停止。独立文章页 ID/READS 占位符通过云端构建校验；未用真实访客生产会话人工计数验收。
 
 ## 2026-10-04 前台页脚简化（最新变更）
 
