@@ -40,7 +40,7 @@
 
 worker/contact.js 新增 unreadMessages/readAllMessages；worker/index.js 接入需会话的 GET /api/messages/count 与同源 JSON POST /api/messages/read-all。列表提供 readThrough 最大 rowid 快照；批量更新只覆盖此范围内未读留言，刚收到的更晚留言保留未读。按钮作用于当前获取到的全库范围，独立于筛选和分页。修改仅已读状态，不删除留言。无数据库迁移或依赖变更。
 
-文件地图：上述后台/两 Worker 文件、worker/test.mjs（鉴权、跨站、计数、批量、范围无效、幂等、新留言保护、恢复未读），README/AGENTS/本文。已用已有 Node 检查模块语法；完整测试及部署交给 Cloudflare。未操作生产留言的已读状态。待核对云端结果。
+文件地图：上述后台/两 Worker 文件、worker/test.mjs（鉴权、跨站、计数、批量、范围无效、幂等、新留言保护、恢复未读），README/AGENTS/本文。已用已有 Node 检查模块语法；完整测试及部署交给 Cloudflare。未操作生产留言的已读状态。源码 2d878fb8a13b355db87aab8f242dc371019b5f8e 已自动部署成功，构建 6a006e76-209f-4c3b-9d3f-871e510f6c73。云端 20 项测试通过、0 失败，版本 1223dc13-9703-4ce7-a368-6303fb3b1402；本地浏览器验证登录自动显示 2 条未读、一键后列表已读、角标隐藏且按钮禁用，使用模拟数据未修改生产；服务器已停止。
 
 ## 2026-10-04 联系邮箱与私密留言（最新变更）
 
