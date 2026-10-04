@@ -12,3 +12,5 @@ html{scroll-padding-top:100px}body{font-family:system-ui,-apple-system,"Noto San
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}.button:hover{transform:none}}
 
 .post-topbar{display:flex;align-items:center;gap:24px;border-bottom:1px solid #deded6;padding-top:24px;padding-bottom:20px;font-size:13px}.post-topbar>a:first-child{font-size:23px;font-weight:750;margin-right:auto}.post-topbar~main{padding-top:46px}
+
+.article-pagination{display:flex;justify-content:center;align-items:center;gap:20px;padding:28px 0}.article-pagination[hidden]{display:none}.article-pagination button:disabled{opacity:.4;cursor:default}.article-pagination span{color:var(--muted);font-size:14px}@media(max-width:480px){.article-pagination{gap:12px}.article-pagination .button{padding:12px 14px}}

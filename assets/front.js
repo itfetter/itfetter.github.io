@@ -2,7 +2,8 @@
 const articles=typeof posts==="undefined"?[]:posts;
 const escapeText=value=>String(value??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list=document.getElementById("article-list"),search=document.getElementById("search"),view=document.getElementById("article-view"),filters=document.querySelector(".filters");
-let filter="全部";
+let filter="全部",page=1;
+const pageSize=5;
 const categories=[...new Set(articles.map(p=>p.category).filter(Boolean))];
 document.getElementById("public-posts").textContent=articles.length;
 document.getElementById("public-categories").textContent=categories.length;
@@ -13,14 +14,22 @@ function renderList(){
  const found=articles.filter(p=>(filter==="全部"||p.category===filter)&&(p.title+p.summary+p.category).toLocaleLowerCase().includes(term));
  if(document.getElementById("public-sort").value==="reads")found.sort((a,b)=>(b.read_count||0)-(a.read_count||0));
  document.getElementById("search-results").textContent=(filter==="全部"?"全部文章":filter)+" · "+found.length+" 篇"+(term?"匹配结果":"");
- list.innerHTML=found.length?found.map((p,i)=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(p.category)}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p><small class="row-reads">${readMeta(p)}</small></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join(""):'<div class="empty"><strong>暂时没有匹配的文章</strong><p>试试其他关键词，或返回全部文章。</p><button class="button secondary" id="reset-search">清除筛选</button></div>';
+ const pageCount=Math.max(1,Math.ceil(found.length/pageSize));page=Math.min(page,pageCount);
+ const visible=found.slice((page-1)*pageSize,page*pageSize);
+ const pager=document.getElementById("article-pagination");pager.hidden=found.length<=pageSize;
+ document.getElementById("article-page-label").textContent=`第 ${page} / ${pageCount} 页`;
+ document.getElementById("article-prev").disabled=page===1;document.getElementById("article-next").disabled=page===pageCount;
+ list.innerHTML=found.length?visible.map((p,i)=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(p.category)}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p><small class="row-reads">${readMeta(p)}</small></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join(""):'<div class="empty"><strong>暂时没有匹配的文章</strong><p>试试其他关键词，或返回全部文章。</p><button class="button secondary" id="reset-search">清除筛选</button></div>';
  document.getElementById("reset-search")?.addEventListener("click",()=>{search.value="";setFilter("全部")});
 }
-function setFilter(name){filter=name;for(const b of filters.querySelectorAll("button")){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
+function setFilter(name){filter=name;page=1;for(const b of filters.querySelectorAll("button")){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
 filters.querySelector("button").setAttribute("aria-pressed","true");
 for(const category of categories){const b=document.createElement("button");b.className="filter";b.type="button";b.dataset.filter=category;b.textContent=category;b.setAttribute("aria-pressed","false");filters.append(b)}
 filters.addEventListener("click",e=>{const b=e.target.closest("button[data-filter]");if(b&&filters.contains(b))setFilter(b.dataset.filter)});
-search.addEventListener("input",renderList);document.getElementById("public-sort").addEventListener("change",renderList);
+function resetPage(){page=1;renderList()}
+search.addEventListener("input",resetPage);document.getElementById("public-sort").addEventListener("change",resetPage);
+function changePage(delta){page+=delta;renderList();document.querySelector(".article-controls").scrollIntoView({block:"start"})}
+document.getElementById("article-prev").addEventListener("click",()=>changePage(-1));document.getElementById("article-next").addEventListener("click",()=>changePage(1));
 const featured=articles[0];
 if(featured)document.getElementById("featured-slot").innerHTML=`<article class="featured"><div class="featured-visual" aria-hidden="true"><div><small>THE LATEST NOTE</small><span>Notes<br>& ideas.</span><b>ITFETTER / JOURNAL</b></div></div><div class="featured-text"><div class="meta">最新发布 · ${escapeText(featured.category)}</div><h3><a href="${postLink(featured)}">${escapeText(featured.title)}</a></h3><p>${escapeText(featured.summary)}</p><div class="row spread"><a class="read-link" href="${postLink(featured)}">开始阅读</a><small class="muted">${readMeta(featured)}</small></div></div></article>`;
 const months=[...new Set(articles.map(p=>p.date))];
