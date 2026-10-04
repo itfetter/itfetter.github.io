@@ -1,5 +1,6 @@
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
+import {submitMessage,listMessages,markMessage} from './contact.js';
 import { escapeHtml, renderMarkdown } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store'}});
@@ -39,6 +40,12 @@ function validImage(bytes, type) {
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  if(path==='/api/contact'){
+    if(method!=='POST')return fail('请使用 POST。',405);
+    if(!secureTransport(request,env)||request.headers.get('origin')!==url.origin)return fail('来源未获允许。',403);
+    if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+    return submitMessage(request,env,await readJson(request,16000));
+  }
   const authPath = path === '/api/login' || path === '/api/logout';
   if (authPath) {
     if (method !== 'POST') return fail('请使用 POST。',405);
@@ -65,6 +72,11 @@ async function handle(request, env) {
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));
+    }
+    if(path==='/api/messages'&&method==='GET')return listMessages(env,url);
+    if(path==='/api/messages'&&method==='PATCH'){
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return markMessage(env,await readJson(request,2048));
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
     if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);

@@ -16,7 +16,7 @@
 | 正式入口 / 后台 | https://itfetter.com / https://itfetter.com/admin/ |
 | 临时 Worker 入口 | https://itfetter-blog.itfetterit.workers.dev |
 | D1 数据库 | `itfetter-blog`；UUID `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`；绑定 `DB` |
-| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0003_drafts.sql |
+| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0004_contact.sql；访客留言另存 contact_messages |
 | R2 存储桶 | `itfetter-blog-images`；绑定 `IMAGES`；图片由 Worker /images/ 路由提供，未开启公开桶入口 |
 | 静态资源 | Worker Static Assets，绑定 `ASSETS`，构建输出 dist/ |
 | 域名注册 / DNS | 阿里云购买 itfetter.com；DNS 已切换 Cloudflare，Worker 自定义域已绑定 |
@@ -29,9 +29,20 @@
 
 **接手顺序：** 读 AGENTS.md → 本节及最新变更 → README.md → 实际涉及源码；操作前核对 main、Cloudflare 账户 ID、构建状态及生产数据。不要在线修改 Cloudflare 的打包 JS 来替代 GitHub 源码。不要安装本机依赖；依赖较重的测试交给现有云端构建。不要用真实文章试删。
 
-账号密码、API token、会话、密码哈希与真实配置 JSON 不写入公开仓库。新窗口仍需已连接相应插件/账户，文档本身不授予访问权限。
+账号密码、API token、会话、密码哈希与真实配置 JSON 不写入公开仓库。用户已明确授权公开的联系邮箱除外，不是认证凭据。新窗口仍需已连接相应插件/账户，文档本身不授予访问权限。
 
 本次仅整理三份维护文档：本文负责资源与最新状态；README 指向速查；AGENTS 要求保持资源速查一致。无业务代码、数据库或资源配置变更。
+
+
+## 2026-10-04 联系邮箱与私密留言（最新变更）
+
+用户明确要求前台公开联系邮箱 Itfetterit@gmail.com，不接入邮件发送服务；访客可 mailto 自己发邮件，或通过留言框提交称呼、选填邮箱和正文。留言不会公开，也不发送自动邮件；作者在后台“留言管理”查看并标记已读/未读，每页 20 条，支持状态筛选。
+
+文件地图：index.html 新增联系区、隐私提示、表单与反馈；admin/index.html 新增留言卡片、安全 textContent、分页/状态操作；worker/contact.js 新增参数化存储、查询和状态更新；worker/index.js 接入公开同源 POST /api/contact 与需会话的 GET/PATCH /api/messages；worker/migrations/0004_contact.sql 新增 contact_messages、contact_limits 及索引；worker/test.mjs 新增私密访问、跨站/类型/内容验证、限速与分页测试。README、AGENTS、本文同步。现有构建白名单已包含两个页面，无额外静态入口或依赖。
+
+保护：JSON 上限 16000 字节，称呼 1–80、邮箱选填最多 254、正文 1–3000；隐藏 website 蜜罐；每 IP 固定小时窗口 3 次、全站 100 次的 D1 原子计数，IP 仅保留哈希。基础防垃圾不等于机器人验证码，可被分布式攻击滥用；当前没有 Turnstile。管理接口复用登录/同源保护。后台留言不作为 HTML 渲染，无公开列表。记录删除/自动邮件/站内回复不在本次范围。
+
+生产通过 D1 API 应用 0004 并记录迁移名；仅新增表/索引，迁移前后 posts 数均 3（用户期间已有删除），不写测试留言。已有 Node 的前端/Worker/测试模块语法检查与真实 SQLite 保存、状态筛选、已读变更、内容验证和限速检查通过；无本机依赖安装。完整路由与部署由 Cloudflare 自动构建验证，结果待核对。
 
 ## 2026-10-04 自定义删除确认弹窗（最新变更）
 

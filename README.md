@@ -59,3 +59,7 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 删除确认采用后台统一风格的卡片弹窗，显示文章标题、影响和取消/确认删除按钮；支持 Esc/关闭取消，不显示浏览器原生确认框的域名抬头。
 
 新窗口接手请先读 [PROJECT_HANDOFF.md 当前项目速查](PROJECT_HANDOFF.md#当前项目速查新窗口先读此节)：统一记录 GitHub、Cloudflare 账户 ID、Worker、D1、R2、绑定与部署流程。历史章节不能替代当前状态。
+
+## 联系与访客留言
+
+首页联系区公开 Itfetterit@gmail.com，mailto 使用访客自己的邮箱发送。访客也可填称呼、选填邮箱与最多 3000 字留言，保存至 D1 contact_messages，仅管理员可见；后台“留言管理”分页查看、筛选并标记已读/未读。留言不触发邮件发送。新增 0004_contact.sql 须在发布前应用，图片仍存 R2。API 采用同源校验、参数化查询、隐藏蜜罐与 IP/全站提交限速；当前不含验证码、自动邮件、站内回复。

@@ -11,6 +11,7 @@ function setup(){
  const db=new DatabaseSync(':memory:'); db.exec(readFileSync(new URL('migrations/0001_posts.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0002_auth.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0003_drafts.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0004_contact.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -124,4 +125,36 @@ test('不完整草稿不可公开；已发布文章草稿保留公开版本，�
  assert.equal((await s.request('/api/post','DELETE',{id:'remove-draft',version:1},cookie)).status,200);
  assert.equal((await s.request('/api/post?id=remove-draft','GET',undefined,cookie)).status,404);
  }finally{s.db.close()}
+});
+
+test('访客留言私密保存、校验、防跨站及管理员已读管理',async()=>{
+ const s=setup(),data={name:'访客<script>',email:'visitor@example.com',message:'建议\n<script>alert(1)</script>',website:''};
+ assert.equal((await s.request('/api/contact','GET')).status,405);
+ assert.equal((await s.request('/api/messages')).status,401);
+ assert.equal((await s.request('/api/messages','PATCH',{id:'x',status:'read'})).status,401);
+ assert.equal((await s.request('/api/contact','POST',{...data,website:'spam'})).status,400);
+ assert.equal((await s.request('/api/contact','POST',{...data,email:'bad'})).status,400);
+ assert.equal((await s.request('/api/contact','POST',{...data,message:'x'.repeat(3001)})).status,400);
+ const cross=new Request(origin+'/api/contact',{method:'POST',headers:{origin:'https://evil.example','content-type':'application/json'},body:JSON.stringify(data)});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ const wrongType=new Request(origin+'/api/contact',{method:'POST',headers:{origin,'content-type':'text/plain'},body:JSON.stringify(data)});
+ assert.equal((await worker.fetch(wrongType,s.env)).status,415);
+ assert.equal((await s.request('/api/contact','POST',data)).status,201);
+ const catalog=await (await s.request('/api/messages','GET',undefined,await token())).json();
+ assert.equal(catalog.total,1);assert.equal(catalog.unread,1);assert.equal(catalog.items[0].message,data.message);
+ const item=catalog.items[0];
+ assert.equal((await s.request('/api/messages','PATCH',{id:item.id,status:'read'},await token())).status,200);
+ assert.equal((await (await s.request('/api/messages?status=unread','GET',undefined,await token())).json()).total,0);
+ assert.equal((await s.request('/api/messages?page=-1','GET',undefined,await token())).status,400);
+ assert.equal((await s.request('/api/messages','PATCH',{id:item.id,status:'public'},await token())).status,400);
+ assert.equal((await s.request('/api/contact','POST',{...data,email:''})).status,201);
+ assert.equal((await s.request('/api/contact','POST',data)).status,201);
+ const limited=await s.request('/api/contact','POST',data);assert.equal(limited.status,429);assert.ok(limited.headers.get('retry-after'));
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM contact_messages').get().n,3);
+});
+test('留言目录分页及跨站状态修改保护',async()=>{
+ const s=setup();for(let i=0;i<21;i++)s.db.prepare('INSERT INTO contact_messages (id,name,message,created_at) VALUES (?,?,?,?)').run(crypto.randomUUID(),'访客','留言',new Date().toISOString());
+ const second=await (await s.request('/api/messages?page=2','GET',undefined,await token())).json();assert.equal(second.items.length,1);assert.equal(second.total,21);
+ const request=new Request(origin+'/api/messages',{method:'PATCH',headers:{origin:'https://evil.example',cookie:await token(),'content-type':'application/json'},body:JSON.stringify({id:second.items[0].id,status:'read'})});
+ assert.equal((await worker.fetch(request,s.env)).status,403);
 });
