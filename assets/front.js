@@ -1,9 +1,12 @@
+import {readListState,listStateUrl,sendContact} from "./public-utils.mjs";
 "use strict";
 let articles=[],loaded=false;
 const escapeText=value=>String(value??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list=document.getElementById("article-list"),search=document.getElementById("search"),view=document.getElementById("article-view"),filters=document.querySelector(".filters");
 let filter="全部",page=1;
 const pageSize=5;
+function syncState(){const href=listStateUrl(location.href,{category:filter,query:search.value.trim(),sort:document.getElementById("public-sort").value,page});history.replaceState(null,"",href);try{sessionStorage.setItem("blog-list-return",href.split("#")[0]+"#articles")}catch{}}
+function restoreState(){const state=readListState(location.href);filter=articles.some(p=>p.category===state.category)?state.category:"全部";page=state.page;search.value=state.query;document.getElementById("public-sort").value=state.sort;for(const b of filters.querySelectorAll("button")){const active=b.dataset.filter===filter;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}}
 
 
 function postLink(p){return "/articles/"+encodeURIComponent(p.id)+"/"}
@@ -14,7 +17,7 @@ function renderList(){
  const found=articles.filter(p=>(filter==="全部"||p.category===filter)&&(p.title+p.summary+p.category).toLocaleLowerCase().includes(term));
  if(document.getElementById("public-sort").value==="reads")found.sort((a,b)=>(b.read_count||0)-(a.read_count||0));
  document.getElementById("search-results").textContent=(filter==="全部"?"全部文章":filter)+" · "+found.length+" 篇"+(term?"匹配结果":"");
- const pageCount=Math.max(1,Math.ceil(found.length/pageSize));page=Math.min(page,pageCount);
+ const pageCount=Math.max(1,Math.ceil(found.length/pageSize));page=Math.max(1,Math.min(page,pageCount));syncState();
  const visible=found.slice((page-1)*pageSize,page*pageSize);
  const pager=document.getElementById("article-pagination");pager.hidden=found.length<=pageSize;
  document.getElementById("article-page-label").textContent=`第 ${page} / ${pageCount} 页`;
@@ -40,7 +43,7 @@ if(featured)document.getElementById("featured-slot").innerHTML=`<article class="
 const months=[...new Set(articles.map(p=>p.date))];
 document.getElementById("archive-list").innerHTML=months.map((month,index)=>`<details class="archive-month" ${index===0?"open":""}><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
 
- setFilter("全部");
+ restoreState();renderList();
 }
 let loading=false;
 async function loadArticles(){
@@ -50,7 +53,7 @@ async function loadArticles(){
  document.getElementById("article-pagination").hidden=true;
  search.disabled=true;document.getElementById("public-sort").disabled=true;
  try{
-  const response=await fetch("/posts.json",{signal:controller.signal,credentials:"omit",cache:"no-store"});
+  const response=await fetch("/posts.json",{signal:controller.signal,credentials:"omit"});
   if(!response.ok)throw Error("文章列表暂时无法读取");
   const data=await response.json();
   if(!Array.isArray(data)||!data.every(p=>p&&typeof p.id==="string"&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.id)&&["title","summary","category","date"].every(key=>typeof p[key]==="string")))throw Error("文章数据格式错误");
@@ -74,10 +77,10 @@ form.elements.message.addEventListener("input",()=>{document.getElementById("mes
 form.addEventListener("submit",async event=>{
  event.preventDefault();const button=document.getElementById("contact-submit"),notice=document.getElementById("contact-notice");
  if(button.disabled)return;button.disabled=true;button.textContent="正在提交…";notice.textContent="";
- try{const response=await fetch("/api/contact",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(form)))});const result=await response.json();if(!response.ok)throw Error(result.error||"提交失败，请稍后再试。");form.reset();document.getElementById("message-length").textContent="0";notice.classList.remove("error");notice.textContent="留言已收到，谢谢你的分享！"}
+ try{await sendContact(Object.fromEntries(new FormData(form)));form.reset();document.getElementById("message-length").textContent="0";notice.classList.remove("error");notice.textContent="留言已收到，谢谢你的分享！"}
  catch(error){notice.classList.add("error");notice.textContent=error.message}
  finally{button.disabled=false;button.textContent="发送留言 ↗"}
 });
-document.getElementById("year").textContent=new Date().getFullYear();window.addEventListener("hashchange",route);route();
+document.getElementById("year").textContent=new Date().getFullYear();window.addEventListener("hashchange",route);window.addEventListener("popstate",()=>{if(loaded){restoreState();renderList()}route()});route();
 
 loadArticles();

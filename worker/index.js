@@ -1,3 +1,4 @@
+import {publicResponse,notFound} from './public-response.mjs';
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages} from './contact.js';
@@ -200,7 +201,7 @@ async function handle(request, env) {
   }
   if (path.startsWith('/articles/') && ['GET','HEAD'].includes(method)) {
     const article = await env.DB.prepare("SELECT * FROM posts WHERE status='published' AND permalink=? AND published_at<=?").bind(path,new Date().toISOString()).first();
-    if (!article) return new Response('文章不存在。',{status:404,headers:{'content-type':'text/plain; charset=utf-8'}});
+    if (!article) return notFound(request);
     const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
     if (!template.ok) throw new Error('缺少文章模板');
     const peers=(await env.DB.prepare("SELECT id,title,category,published_at FROM posts WHERE status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all()).results;
@@ -215,12 +216,14 @@ async function handle(request, env) {
   }
   if (path === '/write' || path === '/write/') return Response.redirect(url.origin+'/admin/',302);
   if (path === '/article-template.html') return new Response('Not found',{status:404});
-  return env.ASSETS.fetch(request);
+  const asset=await env.ASSETS.fetch(request);
+  if(asset.status===404&&['GET','HEAD'].includes(method)&&(request.headers.get('accept')||'').includes('text/html'))return notFound(request);
+  return asset;
 }
 export default {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     try {
-      const original = await handle(request,env);
+      const original = await publicResponse(request,ctx,r=>handle(r,env));
       const response = new Response(original.body, original);
       response.headers.set('x-content-type-options','nosniff');
       response.headers.set('referrer-policy','strict-origin-when-cross-origin');

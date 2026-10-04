@@ -1,4 +1,6 @@
 (()=>{"use strict";
+// 恢复本标签页最后一次公开列表筛选；只接受本站首页地址。
+try{const saved=sessionStorage.getItem("blog-list-return");if(saved&&saved.length<2000){const target=new URL(saved,location.origin);if(target.origin===location.origin&&target.pathname==="/"&&target.hash==="#articles")document.querySelectorAll('.post-topbar a[href="/#articles"]').forEach(a=>a.href=target.pathname+target.search+target.hash)}}catch{}
 function init(){
  document.querySelectorAll(".reading-tools").forEach(el=>el.remove());
  const body=document.querySelector(".article-view.active .article-body")||document.querySelector("main > article");
