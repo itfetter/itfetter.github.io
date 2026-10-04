@@ -280,7 +280,7 @@ async function savePost(status){
  finally{saving=false;visual.setBusy(Boolean(uploads));$("save").disabled=false;$("save-draft").disabled=false}
 }
 $("save").onclick=()=>savePost("published");$("save-draft").onclick=()=>savePost("draft");
-$("delete").onclick=async()=>{if(!current||uploads||saving)return;const target={...current},title=fields.title.value||"未命名草稿";if(!await confirmDeletion(title,dirty?"当前编辑器还有未保存的修改，也会一并放弃。":""))return;message("正在删除…");saving=true;$("delete").disabled=true;try{await api("/api/post",{method:"DELETE",body:JSON.stringify(target)});listing=listing.filter(post=>post.id!==target.id);if(current?.id===target.id)clear();else renderList();message("文章已删除。");try{await refresh()}catch(e){message("文章已删除，但刷新列表失败："+e.message,true)}}catch(e){message(e.message,true)}finally{saving=false;$("delete").disabled=false}};
+$("delete").onclick=async()=>{if(!current||uploads||saving)return;const target={...current},title=fields.title.value||"未命名草稿";if(!await confirmDeletion(title,dirty?"当前编辑器还有未保存的修改，也会一并放弃。":""))return;message("正在删除…");saving=true;$("delete").disabled=true;try{await api("/api/post",{method:"DELETE",body:JSON.stringify(target)});listing=listing.filter(post=>post.id!==target.id);if(current?.id===target.id)clear();else renderList();message("文章已删除。");try{await refresh()}catch(e){message("文章已删除，但刷新列表失败："+e.message,true)}}catch(e){message(e.message,true)}finally{saving=false;visual.setBusy(Boolean(uploads));$("delete").disabled=false}};
 function imageFile(file){return file&&["image/png","image/jpeg","image/webp","image/gif"].includes(file.type)&&file.size>0&&file.size<=5*1024*1024}
 function markChanged(){dirty=true;editorRevision++;preview()}
 async function uploadImages(files){

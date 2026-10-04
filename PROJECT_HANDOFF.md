@@ -12,7 +12,7 @@
 
 assets/visual-editor.mjs 负责逐区块编辑与Markdown序列化；未改动区块（包括引用定义、空白和CRLF）保留原文。自定义HTML、任务列表及无法精确映射的特殊语法只读保留，切换Markdown修改；不宣称覆盖所有富文本/表格结构编辑。粘贴文字仅接受纯文本，不插入外部HTML；视觉HTML只来自认证POST /api/preview的服务端清理，公开Markdown渲染继续安全清理。保存/上传时锁定可视化输入，异步结果检查当前正文防止覆盖新内容；中文输入不触发重新渲染。模块不引入新依赖；格式工具使用浏览器原生编辑命令（支持能力依浏览器，源码模式始终可用）。RSS仍延后。
 
-文件地图：admin/index.html 为默认可视化模式、工具栏、模式切换及保存/上传锁；assets/visual-editor.mjs 为DOM区块编辑与局部序列化；worker/content.js 提供带原文映射的安全editorBlocks；worker/index.js 认证preview按visual参数返回区块；worker/visual.test.mjs 与worker/test.mjs 为局部编辑、协议、表格/代码、原文保持及鉴权回归。D1/R2数据结构、现有文章和凭据不变，无数据迁移。当前源码语法和3项独立序列化测试通过；云端构建与上线结果待补。
+文件地图：admin/index.html 为默认可视化模式、工具栏、模式切换及保存/上传锁；assets/visual-editor.mjs 为DOM区块编辑与局部序列化；worker/content.js 提供带原文映射的安全editorBlocks；worker/index.js 认证preview按visual参数返回区块；worker/visual.test.mjs 与worker/test.mjs 为局部编辑、协议、表格/代码、原文保持及鉴权回归。D1/R2数据结构、现有文章和凭据不变，无数据迁移。源码语法检查通过；4项独立序列化/控制器测试通过，覆盖表格对齐/竖线、代码换行、原文保持、异步竞态与保存锁。模拟后台DOM确认可视化修改→Markdown→草稿请求、模式切换保留正文、图片插入与解锁。首次构建f0098362-b53c-4a7f-87b5-69f7da2ea6ce因表格header布尔类型检查失败，未部署；修复提交1d10f4950c01c049f0a6b24fe7fc6d2c65914cbf构建5d291b6a-6c55-4383-8ec9-835595e61b12成功，30测试通过、0失败，Worker版本ddb50796-69c0-4685-8860-2943a508a8cc。正式域名模块200且包含createVisualEditor/combineBlocks、首页200；未登录visual preview返回401，未写生产文章/图片。浏览器库存查询报nodeRepl.fetch失败，未能做真实浏览器编辑验收；无本机安装。控制器回归已加入后续CI，最终构建需核对。
 
 ## 2026-10-04 阅读与内容恢复升级（历史变更）
 

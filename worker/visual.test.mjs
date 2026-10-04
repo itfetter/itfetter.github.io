@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {blockMarkdown,combineBlocks} from '../assets/visual-editor.mjs';
+import {blockMarkdown,combineBlocks,createVisualEditor} from '../assets/visual-editor.mjs';
 const text=value=>({nodeType:3,nodeValue:value});
 function el(name,items=[],attrs={}){
  const node={nodeType:1,tagName:name.toUpperCase(),childNodes:items.map(x=>typeof x==='string'?text(x):x),getAttribute:key=>attrs[key]||null};
@@ -21,6 +21,7 @@ test('表格编辑保留列和对齐、竖线转义；列表与代码保留结�
  assert.equal(blockMarkdown(el('div',[list])),'- 一级\n  - 二级');
  const bt=String.fromCharCode(96),code=el('pre',[el('code',['const a = '+bt.repeat(3)+';\n'],{class:'language-js'})]);
  assert.ok(blockMarkdown(el('div',[code])).startsWith(bt.repeat(4)+'js\n'));
+ assert.match(blockMarkdown(el('div',[el('pre',[el('code',['line1',el('div',['line2'])])])])),/line1\nline2/);
 });
 test('未修改区块逐字保留；修改局部不会重写其他Markdown',()=>{
  const original=el('div',[el('p',['旧正文'])]);original.innerHTML='same';
@@ -28,4 +29,24 @@ test('未修改区块逐字保留；修改局部不会重写其他Markdown',()=>
  const records=[{raw:'# 标题\r\n\r\n',initial:'same',element:original},{raw:'旧正文\n\n',initial:'before',element:edited},{raw:'[ref]: https://example.com\n',element:null}];
  assert.equal(combineBlocks(records),'# 标题\r\n\r\n新正文\n\n[ref]: https://example.com\n');
  edited.innerHTML='before';assert.equal(combineBlocks(records),'# 标题\r\n\r\n旧正文\n\n[ref]: https://example.com\n');
+});
+
+test('可视化异步结果不覆盖新正文；输入同步与保存锁保持稳定DOM',async()=>{
+ const previous=globalThis.document,requests=[],states=[];let body='one';
+ const make=()=>({childNodes:[],children:[],dataset:{},innerHTML:'',classList:{add(){}},setAttribute(){},focus(){},append(node){this.children.push(node)},replaceChildren(){this.children=[]},contains(node){return this.children.includes(node)}});
+ const root=make(),listeners={};root.addEventListener=(name,fn)=>{listeners[name]=fn};
+ globalThis.document={createElement:make,getSelection:()=>null};
+ try{
+ const editor=createVisualEditor({root,getBody:()=>body,request:source=>new Promise(resolve=>requests.push({source,resolve})),onChange:value=>{body=value},onState:value=>states.push(value),onImage(){}});
+ const first=editor.load();body='two';const second=editor.load();
+ requests[1].resolve({blocks:[{type:'paragraph',raw:'two',html:'<p>two</p>',editable:true}]});await second;
+ const element=root.children[0];
+ requests[0].resolve({blocks:[{type:'paragraph',raw:'one',html:'<p>one</p>',editable:true}]});await first;
+ assert.equal(root.children[0],element);assert.equal(element.contentEditable,'true');
+ element.innerHTML='<p>中文修改</p>';element.childNodes=[el('p',['中文修改'])];
+ listeners.input({target:{closest:()=>element}});assert.equal(body,'中文修改\n\n');
+ await editor.load();assert.equal(root.children[0],element);
+ editor.setBusy(true);assert.equal(element.contentEditable,'false');
+ editor.setBusy(false);assert.equal(element.contentEditable,'true');
+ }finally{globalThis.document=previous}
 });
