@@ -4,7 +4,7 @@
 用户确认修复四项：留言请求15秒超时，失败保留输入并提示可能已收到、不自动重发；分类/搜索/排序/页码保存到首页URL，刷新和浏览器返回恢复；本站同标签页文章导航恢复最后列表地址（sessionStorage仅存公开URL、不存留言）；文章不存在及HTML导航404提供返回首页/文章/联系入口并保持404/noindex。
 公开文章、posts.json/posts.js、sitemap、robots使用Workers Cache API 30秒副本；浏览器max-age=0/must-revalidate避免二次延长，缓存命中不查D1。查询参数归一化且文章canonical不含查询；仅200且无Set-Cookie的公开响应入缓存。后台/管理API/写请求/失败/404不缓存，缓存读写失败回退源站。Cache API仅本数据中心有效，依赖TTL而非全域清除；发布、删除、撤下与阅读数最多约30秒反映，不声称立即更新或缓存能免除Worker调用。新源码部署缓存key版本须更新以免复用旧模板。
 文件地图：assets/public-utils.mjs为列表URL解析/序列化和留言超时请求；assets/front.js为状态恢复/同步和表单反馈；index.html将front.js改ES module以加载同源工具；assets/reading-tools.js恢复文章页返回列表地址；worker/public-response.mjs为公开缓存白名单、HEAD/错误隔离及404 HTML；worker/index.js接入公共响应包装与HTML404；worker/public.test.mjs新增5项缓存/隔离/404/状态/超时回归，worker/package.json纳入云端测试。assets白名单沿用构建自动复制，无新依赖/数据表/配置/迁移。
-本地已有Node5项回归与前端/Worker语法通过，未安装依赖。源码与维护文档同次提交；推送与云构建待实际核对。浏览器连接超时，真实鼠标/手机视觉尚未验收；不向生产写测试留言、文章、统计。目录更多级别、章节分享及预计阅读时间属于建议，本次仅做优先四项，RSS仍延后。
+本地已有Node5项回归与前端/Worker语法通过，未安装依赖。功能源码与维护文档已同次提交并推送 main：0946c6024f6f2fc6f238a05c3c940a5c28ee2f57。Cloudflare构建84e0baa5-2d6b-4a84-b528-ef05f0f753a7成功，43项测试通过、0失败，Worker版本556af688-dd21-428c-a7bf-302929b616eb。线上只读HTTP确认首页module与新工具200、posts.json MISS→HIT（4篇摘要）、hello文章200、缺失文章与普通HTML路径404且完整页面/no-store，未登录api/posts 401/no-store。实际线上静态资产层规范化Cache-Control为public,must-revalidate,max-age=0；边缘命中通过X-Blog-Cache确认。没有生产数据写入，未安装依赖。浏览器连接超时，真实鼠标/手机视觉尚未验收；不向生产写测试留言、文章、统计。目录更多级别、章节分享及预计阅读时间属于建议，本次仅做优先四项，RSS仍延后。
 
 
 
