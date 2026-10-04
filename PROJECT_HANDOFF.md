@@ -2,6 +2,37 @@
 
 > 更新于 2026-10-04。当前采用 Cloudflare 全站架构与自建账号密码登录，以顶部“自建管理员登录”及最新部署进度为依据；2026-09-27 及之前的内容为历史记录。后续提交信息和修改记录使用中文。
 
+
+## 当前项目速查（新窗口先读此节）
+
+以下为当前方案；后文中 GitHub Pages、Access、未部署、空数据库等说明属于历史记录，不能用作当前状态。
+
+| 项目 | 当前资源 |
+| --- | --- |
+| GitHub 所有者 / 仓库 | `itfetter` / `itfetter/itfetter.github.io` |
+| 源码分支 | `main`；Cloudflare 自动拉取 |
+| Cloudflare 账户 | ID `44bd0c60ac0075b4a4b9fea76032f0f9`；核对账户 ID，勿混用历史 itfetpro 账户。登录邮箱留在私有账户配置中 |
+| Worker 应用名称 | `itfetter-blog`；tag `8dda8f9ac9f24df8bc033d5c4e28580e` |
+| 正式入口 / 后台 | https://itfetter.com / https://itfetter.com/admin/ |
+| 临时 Worker 入口 | https://itfetter-blog.itfetterit.workers.dev |
+| D1 数据库 | `itfetter-blog`；UUID `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`；绑定 `DB` |
+| D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0003_drafts.sql |
+| R2 存储桶 | `itfetter-blog-images`；绑定 `IMAGES`；图片由 Worker /images/ 路由提供，未开启公开桶入口 |
+| 静态资源 | Worker Static Assets，绑定 `ASSETS`，构建输出 dist/ |
+| 域名注册 / DNS | 阿里云购买 itfetter.com；DNS 已切换 Cloudflare，Worker 自定义域已绑定 |
+| 自动构建 | trigger `d46e6bfd-80eb-467d-b8ce-2f735a375caa`；main，工作目录 /worker |
+| 构建与部署 | 从 Builds 私有配置 `BLOG_WRANGLER_CONFIG` 写入 wrangler.jsonc，npm ci → npm test → npm run build；npx wrangler deploy --config wrangler.jsonc |
+| 管理员认证 | 自建账号密码 + D1 会话，不依赖 Zero Trust / Access；密码最低 6 字符 |
+| 最近功能部署 | 删除确认弹窗源码 cb8faaff2f663c3abeb8bb6a55a9b8988e904506；云端 17 项测试通过，版本 262d3f88-61df-47d4-8d68-e3182b2e2d1a；后续文档提交不代表功能变更 |
+
+**两条独立流程：** 改程序 → 提交 GitHub main → Cloudflare 构建部署；写文章/存草稿/上传图片 → 后台 API → D1/R2，即时更新，不产生 GitHub 提交。GitHub 源码不是线上文章与图片的备份。
+
+**接手顺序：** 读 AGENTS.md → 本节及最新变更 → README.md → 实际涉及源码；操作前核对 main、Cloudflare 账户 ID、构建状态及生产数据。不要在线修改 Cloudflare 的打包 JS 来替代 GitHub 源码。不要安装本机依赖；依赖较重的测试交给现有云端构建。不要用真实文章试删。
+
+账号密码、API token、会话、密码哈希与真实配置 JSON 不写入公开仓库。新窗口仍需已连接相应插件/账户，文档本身不授予访问权限。
+
+本次仅整理三份维护文档：本文负责资源与最新状态；README 指向速查；AGENTS 要求保持资源速查一致。无业务代码、数据库或资源配置变更。
+
 ## 2026-10-04 自定义删除确认弹窗（最新变更）
 
 admin/index.html 新增统一 HTML dialog 与卡片样式，文章库/编辑页共用：危险图标、文章标题、删除范围、未保存提醒、取消与红色确认按钮。默认聚焦取消，Esc/关闭取消；标题 textContent 安全插入，重复打开受保护。替代原生删除 confirm，因此不再出现浏览器网站来源抬头。编辑页在确认前捕获 id/version，成功删除与刷新失败分开提示。README/AGENTS 同步；文件地图仅上述四个既有文件，无数据库或 Worker API 修改。

@@ -57,3 +57,5 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 文章库每行提供“编辑、查看、删除”（未发布草稿不显示查看）。删除前弹出标题确认框；确认后删除文章与其草稿，并刷新列表及统计。删除不可撤销，上传图片不会随文章删除。
 
 删除确认采用后台统一风格的卡片弹窗，显示文章标题、影响和取消/确认删除按钮；支持 Esc/关闭取消，不显示浏览器原生确认框的域名抬头。
+
+新窗口接手请先读 [PROJECT_HANDOFF.md 当前项目速查](PROJECT_HANDOFF.md#当前项目速查新窗口先读此节)：统一记录 GitHub、Cloudflare 账户 ID、Worker、D1、R2、绑定与部署流程。历史章节不能替代当前状态。
