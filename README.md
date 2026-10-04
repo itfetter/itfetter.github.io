@@ -80,4 +80,4 @@ npx wrangler d1 execute itfetter-blog --local --config wrangler.example.jsonc --
 
 
 ## 前台阅读与浏览
-首页提供动态最新文章、分类合集、按月份归档、搜索和阅读量排序；公开合集只包含已有公开文章的分类。联系表单显示字数并继续保存私密留言。首页 hash 文章与独立文章共用目录、复制链接、阅读进度和回到顶部工具。视觉资源位于 assets/front.css，首页行为 assets/front.js，阅读工具 assets/reading-tools.js；手机导航保留文章/合集/关于/联系，归档可向下浏览。无新增框架、数据库或依赖，代码仍由 Cloudflare 自动部署。
+首页提供动态最新文章、列表分类筛选、按月份归档、搜索和阅读量排序；分类筛选只包含已有公开文章的分类；首页不再重复展示合集卡片。联系表单显示字数并继续保存私密留言。首页 hash 文章与独立文章共用目录、复制链接、阅读进度和回到顶部工具。视觉资源位于 assets/front.css，首页行为 assets/front.js，阅读工具 assets/reading-tools.js；手机导航保留文章/关于/联系，归档可向下浏览。无新增框架、数据库或依赖，代码仍由 Cloudflare 自动部署。

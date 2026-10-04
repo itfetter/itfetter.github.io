@@ -23,17 +23,10 @@ filters.addEventListener("click",e=>{const b=e.target.closest("button[data-filte
 search.addEventListener("input",renderList);document.getElementById("public-sort").addEventListener("change",renderList);
 const featured=articles[0];
 if(featured)document.getElementById("featured-slot").innerHTML=`<article class="featured"><div class="featured-visual" aria-hidden="true"><div><small>THE LATEST NOTE</small><span>Notes<br>& ideas.</span><b>ITFETTER / JOURNAL</b></div></div><div class="featured-text"><div class="meta">最新发布 · ${escapeText(featured.category)}</div><h3><a href="${postLink(featured)}">${escapeText(featured.title)}</a></h3><p>${escapeText(featured.summary)}</p><div class="row spread"><a class="read-link" href="${postLink(featured)}">开始阅读</a><small class="muted">${readMeta(featured)}</small></div></div></article>`;
-const collections=document.getElementById("collection-list");
-for(const [i,category] of categories.entries()){
- const items=articles.filter(p=>p.category===category),button=document.createElement("button");
- button.className="collection-card";button.type="button";
- button.innerHTML=`<span class="collection-index">COLLECTION / ${String(i+1).padStart(2,"0")}</span><h3>${escapeText(category)}</h3><p>${escapeText(items[0].title)}</p><div><span>${items.length} 篇文章</span><span aria-hidden="true">→</span></div>`;
- button.onclick=()=>{setFilter(category);location.hash="articles";document.getElementById("articles").scrollIntoView();search.focus({preventScroll:true})};collections.append(button);
-}
-if(!categories.length)collections.textContent="第一篇文章发布后，这里会展示主题合集。";
 const months=[...new Set(articles.map(p=>p.date))];
 document.getElementById("archive-list").innerHTML=months.map(month=>`<details class="archive-month" open><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
 function route(){
+ if(location.hash==="#collections"){location.replace("#articles");return}
  const match=location.hash.match(/^#post\/([^/?#]+)/);let id;try{id=match&&decodeURIComponent(match[1])}catch{}
  const post=id&&articles.find(p=>p.id===id);
  document.body.classList.toggle("reading",!!match);view.classList.toggle("active",!!match);
@@ -42,7 +35,7 @@ function route(){
  document.title=post.title+" — itfetter";window.scrollTo(0,0);window.trackArticleRead?.(post.id,document.getElementById("read-count"));
  }else{
  window.trackArticleRead?.(null,null);view.innerHTML=match?'<h1>这篇文章暂时找不到</h1><p>它可能已移除，或链接不完整。</p><a class="button" href="#articles">返回文章列表</a>':"";document.title="itfetter — 个人博客";
- if(["#articles","#collections","#archive","#about","#contact"].includes(location.hash))setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView(),0);
+ if(["#articles","#archive","#about","#contact"].includes(location.hash))setTimeout(()=>document.querySelector(location.hash)?.scrollIntoView(),0);
  }
  window.dispatchEvent(new Event("article-ready"));
 }
