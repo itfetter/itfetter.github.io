@@ -9,7 +9,7 @@
 
 文件地图：index.html 首页语义布局；assets/front.js 公开文章推荐/搜索/排序/合集/归档/hash 路由及原联系提交流程；assets/front.css 首页与独立文章共享视觉/响应式/焦点/减少动画；assets/reading-tools.js 两种文章入口共用目录/进度/复制；_layouts/post.html 独立文章导航与工具。scripts/build.mjs 原 assets 白名单自动复制新资源，无 Worker/D1/R2 数据结构变更。
 
-验证：已有 Node 两脚本语法检查、HTML ID 与脚本引用检查通过；本地只读预览使用公开 posts.js，阅读统计禁用、POST 禁用。桌面首页/联系区视觉检查，搜索无结果与清空、随笔合集筛选、#post/hello 目录、390px 手机无横向溢出、留言字数6、浏览器错误日志为空。没有生产写测试留言/阅读/文章。线上浏览器导航超时，后续用 HTTP 只读与云端构建核对。部署状态待自动构建，实际结果追加记录。
+验证：已有 Node 两脚本语法检查、HTML ID 与脚本引用检查通过；本地只读预览使用公开 posts.js，阅读统计禁用、POST 禁用。桌面首页/联系区视觉检查，搜索无结果与清空、随笔合集筛选、#post/hello 目录、390px 手机无横向溢出、留言字数6、浏览器错误日志为空。没有生产写测试留言/阅读/文章。线上浏览器导航超时，后续用 HTTP 只读与云端构建核对。功能提交 5857456d0faea92039dd502a846ea318867dd1ae 已上线；Cloudflare 构建 59689645-4dd2-45fe-9353-db3c99d02f48 成功，22 项测试通过、0 失败，Worker 版本 2a0b5a25-fb36-483e-b01a-1abc7e916839。线上首页 HTTP 200 且有新 CSS/合集；独立 /articles/hello/ HTTP 200 含 reading-tools.js，两新 CSS/JS HTTP 200。临时预览关闭，无本机依赖安装。
 
 ## 当前项目速查（新窗口先读此节）
 
