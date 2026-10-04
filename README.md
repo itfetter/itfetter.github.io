@@ -108,3 +108,6 @@ assets/visual-editor.mjs 负责逐区块编辑与Markdown序列化；未改动�
 Markdown 仍为唯一保存字段；初始化、切换模式和未编辑时保留原文，真实文档编辑后 Markdown 格式可能被规范化。复杂自定义 HTML 请用源码模式。保存前 flush 捕获当前正文；保留保存草稿/发布、id/version、历史、未保存切换保护，加载旧回调不能覆盖新文章。缓存禁用，不把草稿写入 localStorage。文档模式使用引擎 sanitize=true；只读预览/公开文章仍由认证 /api/preview 与服务端清理规则生成，不直接发布引擎 HTML。
 当前文件地图：admin/index.html 为模式、正文同步、上传与保存流程；assets/document-editor.mjs 为引擎生命周期、光标插图、同步/锁与重试；assets/document-editor.css 为文档画布和手机工具栏；scripts/editor-assets.mjs 在云端构建取得固定版本必要资源并校验仓库固定 SHA-256，scripts/build.mjs 合入 dist/assets/vendor/vditor；vendor/manifest.json 记录版本/哈希/大小，LICENSE 随资源保留。运行时资源同源，不把正文送第三方 CDN。worker/document.test.mjs 为初始化原文、实时同步/flush、保存上传锁、旧回调隔离、资源失败重试五项回归。原 assets/visual-editor.mjs 与 visual.test.mjs、server editorBlocks 仅保留兼容/历史回归，已不是默认编辑器。
 云端36项回归通过并部署；真实浏览器连接超时，尚未完成实际编辑体验验收。没有本机安装依赖或生产数据验收写入。具体部署记录见 PROJECT_HANDOFF。
+
+
+工具栏提示向下显示；正文区块操作默认隐藏，先把光标放在目标中，再点工具栏“区块操作”打开移动、删除或属性操作。点击正文、Esc 或滚动关闭面板。

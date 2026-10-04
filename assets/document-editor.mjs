@@ -23,13 +23,30 @@ async function engine(){
 export function createDocumentEditor({root,getBody,onChange,onState,onImage,loadEngine=engine}){
  let editor=null,ready=false,busy=false,active=true,epoch=0,pending=null,display="",baseline="",syncing=false;
  const alive=(n)=>n===epoch;
- function lock(){if(ready)busy?editor.disabled():editor.enable()}
+ function closeBlockTools(){root.dataset&&(root.dataset.blockTools="closed")}
+ function toggleBlockTools(event){
+  if(!ready||busy||!active)return;
+  if(root.dataset.blockTools==="open"){closeBlockTools();return}
+  const panel=root.querySelector(".blog-block-panel");
+  if(!panel||!panel.children.length||panel.style.display==="none"){onState("请先将光标放在要操作的标题、列表、表格或图片中。");return}
+  const button=event.target.closest("[data-type='block-tools']"),rect=(button||root.querySelector(".vditor-toolbar")).getBoundingClientRect();
+  root.dataset.blockTools="open";
+  const width=Math.min(panel.getBoundingClientRect().width,window.innerWidth-24);
+  panel.style.setProperty("--block-menu-left",Math.max(12,Math.min(rect.left,window.innerWidth-width-12))+"px");
+  panel.style.setProperty("--block-menu-top",Math.max(12,rect.bottom+8)+"px");
+ }
+ (globalThis.document||root).addEventListener?.("pointerdown",event=>{if(!event.target.closest(".blog-block-panel,[data-type='block-tools']"))closeBlockTools()});
+ root.addEventListener?.("keydown",event=>{if(event.key==="Escape"||!event.target.closest(".blog-block-panel,[data-type='block-tools']"))closeBlockTools()});
+ window.addEventListener?.("scroll",event=>{if(!event.target.closest?.(".blog-block-panel"))closeBlockTools()},true);
+ window.addEventListener?.("resize",closeBlockTools);
+
+ function lock(){if(busy)closeBlockTools();if(ready)busy?editor.disabled():editor.enable()}
  function flush(){
   if(!ready||!active||busy||syncing)return;
   const value=editor.getValue();
   if(value!==baseline){baseline=value;display=value;onChange(value)}
  }
- function destroy(){ready=false;editor?.destroy();editor=null;pending=null;root.replaceChildren()}
+ function destroy(){closeBlockTools();ready=false;editor?.destroy();editor=null;pending=null;root.replaceChildren()}
  async function load(){
   if(!active)return;
   const body=getBody();
@@ -49,11 +66,12 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
       cdn:CDN,lang:"zh_CN",i18n:window.VditorI18n,mode:"wysiwyg",
       cache:{enable:false},value:getBody(),height:"auto",minHeight:520,
       placeholder:"从这里开始写作… 输入 # 加空格创建标题，- 加空格创建列表。",
-      toolbar:["headings","bold","italic","strike","link","|","list","ordered-list","check","outdent","indent","|","quote","code","inline-code","table","upload","|","undo","redo","insert-after"],
+      toolbar:["headings","bold","italic","strike","link","|","list","ordered-list","check","outdent","indent","|","quote","code","inline-code","table","upload","|","undo","redo","insert-after",{name:"block-tools",icon:"区块操作",tip:"区块操作：移动、删除及属性",tipPosition:"s",click:toggleBlockTools}].map(item=>typeof item==="string"&&item!=="|"?{name:item,tipPosition:"s"}:item),
       toolbarConfig:{pin:true},outline:{enable:false},link:{isOpen:false},image:{isPreview:false},
       preview:{maxWidth:860,hljs:{enable:false},markdown:{sanitize:true,codeBlockPreview:false,mathBlockPreview:false},theme:{current:"light",path:CDN+"/dist/css/content-theme"}},
       upload:{accept:"image/png,image/jpeg,image/webp,image/gif",max:5*1024*1024,handler:async files=>{if(ready&&!busy&&active)await onImage(files);return null}},
-      input:()=>{if(alive(n)&&ready)flush()},
+      customWysiwygToolbar:(_type,panel)=>{panel.classList.add("blog-block-panel")},
+      input:()=>{if(!globalThis.document?.activeElement?.closest(".blog-block-panel"))closeBlockTools();if(alive(n)&&ready)flush()},
       after:()=>{clearTimeout(timeout);if(!alive(n)){resolve();return}
        ready=true;display=getBody();syncing=true;try{editor.setValue(display,true);baseline=editor.getValue()}finally{syncing=false}lock();onState("文档编辑 · 修改后请保存草稿");resolve();
       }
@@ -68,7 +86,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
   load,flush,
   invalidate(){epoch++;destroy()},
   setBusy(value){if(value&&!busy)flush();busy=Boolean(value);lock()},
-  setActive(value){if(!value)flush();active=Boolean(value)},
+  setActive(value){closeBlockTools();if(!value)flush();active=Boolean(value)},
   rememberSelection(){const selection=window.getSelection();return selection?.rangeCount&&root.contains(selection.anchorNode)?selection.getRangeAt(0).cloneRange():null},
   insertMarkdown(markdown,range){
    if(!ready||!active)throw Error("请等待文档编辑器加载完成。");
