@@ -149,3 +149,5 @@ assets/document-editor.mjs识别Vditor代码块容器，在侧边菜单提供“
 worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；worker/document.test.mjs新增转换转义与换行回归。无依赖安装/数据库迁移；本次提交与云端构建、浏览器验收结果待实际确认。
 
 浏览器发现HTML转Markdown会重新解释代码内的#和列表符号，转换改为临时占位替换、逐行Markdown转义，避免代码文字自动变标题/列表。真实数据未保存验收。
+
+最终验证：Cloudflare构建2471b686-063e-43f9-a011-a80c8c036bc4成功，51项测试全部通过；Worker版本38faf42e-7b19-434d-9c0e-d69fe97b84e6。实际Chrome未保存测试验证选填与自定义URL预览、代码转正文、中文/HTML字面字符/空行/#和列表符号保留、前后正文不变、Ctrl+Z恢复代码及Ctrl+Y重做。测试未发布/保存文章、未上传私密内容；代码转换会使用引擎规范化全文Markdown格式，复杂自定义HTML继续建议源码模式。
