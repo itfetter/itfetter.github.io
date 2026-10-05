@@ -58,6 +58,25 @@ export async function restoreBackup(env,data){
   if(typeof c.id!=='string'||!(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/).test(c.id)||commentIds.has(c.id)||!ids.has(c.post_id)||typeof c.name!=='string'||!c.name.trim()||c.name.length>80||/[\u0000-\u001f\u007f]/.test(c.name)||typeof c.content!=='string'||!c.content.trim()||c.content.length>3000||typeof c.reply!=='string'||c.reply.length>3000||!['pending','approved','hidden'].includes(c.status)||!iso(c.created_at)||(c.replied_at!==null&&!iso(c.replied_at))||(c.deleted_at!==null&&!iso(c.deleted_at))||!Number.isSafeInteger(c.version)||c.version<1)error('评论备份字段无效。');
   commentIds.add(c.id);
  }
+ const byId=new Map(comments.map(c=>[c.id,c])),ordered=[],visited=new Set(),visiting=new Set();
+ function visit(c){
+  if(visited.has(c.id))return;
+  if(visiting.has(c.id))error('评论回复存在循环。');
+  visiting.add(c.id);
+  for(const field of ['root_id','target_id']){
+   const ref=c[field]??null;if(ref===null)continue;
+   const parent=byId.get(ref);
+   if(!parent||parent.id===c.id||parent.post_id!==c.post_id||(field==='root_id'&&parent.root_id!=null)||(field==='target_id'&&(parent.root_id??parent.id)!==c.root_id))error('评论回复关系无效。');
+   visit(parent);
+  }
+  if(c.root_id==null&&c.target_id!=null)error('评论回复关系无效。');
+  visiting.delete(c.id);visited.add(c.id);ordered.push(c);
+ }
+ for(const c of comments)visit(c);
+ for(const c of comments){
+  const existing=await env.DB.prepare('SELECT post_id,root_id,target_id FROM article_comments WHERE id=?').bind(c.id).first();
+  if(existing&&(existing.post_id!==c.post_id||existing.root_id!==(c.root_id??null)||existing.target_id!==(c.target_id??null)))error('现有评论回复关系与备份冲突。');
+ }
  let total=0;const images=[];
  for(const i of data.images){
   if(!imageKey.test(i.key)||!['image/png','image/jpeg','image/webp','image/gif'].includes(i.type)||typeof i.base64!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(i.base64))error('图片备份无效。');
@@ -77,7 +96,7 @@ export async function restoreBackup(env,data){
  ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name) VALUES(?) ON CONFLICT DO NOTHING').bind(c.name)),
  ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at)),
  ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at,m.deleted_at??null,m.version??1)),
- ...comments.map(c=>env.DB.prepare('INSERT INTO article_comments(id,post_id,name,content,status,reply,created_at,replied_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.id,c.post_id,c.name,c.content,c.status,c.reply,c.created_at,c.replied_at,c.deleted_at,c.version))
+ ...ordered.map(c=>env.DB.prepare('INSERT INTO article_comments(id,post_id,name,content,status,reply,created_at,replied_at,deleted_at,version,root_id,target_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.id,c.post_id,c.name,c.content,c.status,c.reply,c.created_at,c.replied_at,c.deleted_at,c.version,c.root_id??null,c.target_id??null))
  ];
  // 分批仅追加；现有记录永不覆盖。中途失败可重新提交同一备份。
  let changed=0;for(let i=0;i<statements.length;i+=50){const result=await env.DB.batch(statements.slice(i,i+50));changed+=result.reduce((sum,r)=>sum+(r.meta.changes||0),0)}

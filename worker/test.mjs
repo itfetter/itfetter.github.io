@@ -18,6 +18,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0007_history.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0008_message_trash.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0009_comments.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0010_comment_threads.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -435,4 +436,44 @@ test('评论分页、备份恢复、旧备份兼容及删除文章级联清理',
  assert.equal((await dest.request('/api/backup/restore','POST',{...backup,comments:[{...backup.comments[0],post_id:'missing'}],confirm:true},jwt)).status,400);
  s.db.exec('PRAGMA foreign_keys=ON');s.db.exec("DELETE FROM posts WHERE id='hello'");assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM article_comments').get().n,0);
  s.db.close();dest.db.close();
+});
+
+test('访客回复归属原评论，支持回复回复，隐藏关系保护和分页',async()=>{
+ const s=setup(),jwt=await token();await s.request('/api/post','PUT',article,jwt);
+ const root=commentData();await s.request('/api/comments','POST',root);
+ const approve=id=>s.request('/api/admin/comments','PATCH',{id,version:1,action:'approve'},jwt);
+ await approve(root.id);
+ const first={...commentData(),name:'回复者甲',target_id:root.id};
+ assert.equal((await s.request('/api/comments','POST',first)).status,201);
+ assert.equal((await s.request('/api/comments','POST',{...commentData(),target_id:first.id})).status,404);
+ await approve(first.id);
+ const second={...commentData(),target_id:first.id};
+ assert.equal((await s.request('/api/comments','POST',second)).status,201);await approve(second.id);
+ assert.equal(s.db.prepare('SELECT root_id FROM article_comments WHERE id=?').get(second.id).root_id,root.id);
+ assert.equal((await s.request('/api/comments','POST',{...second,target_id:root.id})).status,409);
+ let data=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(data.total,1);assert.equal(data.items[0].reply_count,2);
+ data=await(await s.request('/api/comments?post_id=hello&root_id='+root.id)).json();assert.equal(data.total,2);assert.equal(data.items.find(item=>item.id===second.id).target_name,'回复者甲');
+ s.db.prepare("UPDATE article_comments SET status='hidden' WHERE id=?").run(first.id);
+ data=await(await s.request('/api/comments?post_id=hello&root_id='+root.id)).json();assert.equal(data.total,1);assert.equal(data.items[0].target_name,null);
+ for(let i=0;i<11;i++)s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,status,created_at,root_id,target_id) VALUES(?,'hello','测试','回复','approved',?,?,?)").run(crypto.randomUUID(),new Date().toISOString(),root.id,root.id);
+ data=await(await s.request('/api/comments?post_id=hello&root_id='+root.id)).json();assert.equal(data.items.length,10);assert.equal(data.total,12);
+ data=await(await s.request('/api/comments?post_id=hello&root_id='+root.id+'&page=2')).json();assert.equal(data.items.length,2);
+ s.db.prepare("UPDATE article_comments SET status='hidden' WHERE id=?").run(root.id);
+ assert.equal((await s.request('/api/comments?post_id=hello&root_id='+root.id)).status,404);
+ assert.equal((await s.request('/api/comments','POST',{...commentData(),target_id:second.id})).status,404);
+ assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,0);
+ s.db.close();
+});
+test('回复备份逆序可恢复，拒绝跨文章及循环回复，旧字段兼容',async()=>{
+ const s=setup(),jwt=await token();await s.request('/api/post','PUT',article,jwt);
+ const ids=[crypto.randomUUID(),crypto.randomUUID(),crypto.randomUUID()];
+ for(let i=0;i<3;i++)s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,status,created_at,root_id,target_id) VALUES(?,'hello','访客','内容','approved',?,?,?)").run(ids[i],new Date().toISOString(),i?ids[0]:null,i?ids[i-1]:null);
+ const backup=await(await s.request('/api/backup','GET',undefined,jwt)).json();backup.comments.reverse();
+ const d=setup();assert.equal((await d.request('/api/backup/restore','POST',{...backup,confirm:true},jwt)).status,200);
+ assert.equal(d.db.prepare('SELECT target_id FROM article_comments WHERE id=?').get(ids[2]).target_id,ids[1]);
+ const bad=structuredClone(backup);bad.comments[0].target_id=bad.comments[0].id;
+ assert.equal((await d.request('/api/backup/restore','POST',{...bad,confirm:true},jwt)).status,400);
+ const badRoot=structuredClone(backup);badRoot.comments[0].root_id=ids[1];
+ assert.equal((await d.request('/api/backup/restore','POST',{...badRoot,confirm:true},jwt)).status,400);
+ s.db.close();d.db.close();
 });

@@ -30,3 +30,13 @@ html{scroll-padding-top:100px}body{font-family:system-ui,-apple-system,"Noto San
 .comments-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:20px 0;font-size:13px}
 .comment-form{display:grid;gap:14px;position:relative}.comment-form label{display:grid;gap:6px;font-size:14px}.comment-form input,.comment-form textarea{font:inherit;width:100%;min-width:0;box-sizing:border-box;background:#fff;color:#242722;border:1px solid #d0d9cf;border-radius:9px;padding:12px}.comment-form textarea{resize:vertical}.comment-form button[type=submit]{justify-self:start;background:#234737;color:#fff}.comment-form [role=status]{margin:0;overflow-wrap:anywhere}.comment-form .comment-trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 @media(max-width:620px){.comments-heading{gap:8px}.comments-heading h2{font-size:23px}.comments-pagination{justify-content:center;flex-wrap:wrap}}
+
+/* 讨论串采用固定缩进，回复再多也不会压窄正文。 */
+.comment-actions{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:.85rem}
+.comment-actions button,.comment-thread>button,.comment-item>button{padding:.35rem .65rem;background:transparent;border:0;color:var(--green);cursor:pointer}
+.comment-thread{margin:1rem 0 0 1.25rem;border-left:2px solid #e8ede7;padding-left:1rem}
+.comment-thread-item{padding:1rem 0;border-bottom:1px solid #eef0ed}
+.comment-reply-context{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.comment-reply-context:empty{display:none}
+.comment-item .comment-form{margin-top:1rem}
+@media(max-width:600px){.comment-thread{margin-left:.3rem;padding-left:.7rem}.comment-meta{flex-wrap:wrap}}

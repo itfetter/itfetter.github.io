@@ -5,23 +5,31 @@ const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}
 const visible="status='published' AND published_at<=?";
 export async function submitComment(request,env,data){
  if(!data||!slug(data.post_id)||!uuid(data.id)||typeof data.name!=='string'||!data.name.trim()||data.name.length>80||/[\u0000-\u001f\u007f]/.test(data.name)||typeof data.content!=='string'||!data.content.trim()||data.content.length>3000||typeof data.website!=='string'||data.website)return json({error:'请填写有效昵称和评论（最多3000字）。'},400);
+ const target=data.target_id??null;
+ if(target!==null&&!uuid(target))return json({error:'回复对象无效。'},400);
  const now=new Date().toISOString();
  const post=await env.DB.prepare('SELECT id FROM posts WHERE id=? AND '+visible).bind(data.post_id,now).first();
  if(!post)return json({error:'文章不存在或尚未发布。'},404);
  // 提交ID支持人工重试；相同提交不重复写入或重复消耗额度。
- const previous=await env.DB.prepare('SELECT post_id,name,content FROM article_comments WHERE id=?').bind(data.id).first();
- if(previous)return previous.post_id===data.post_id&&previous.name===data.name.trim()&&previous.content===data.content.trim()?json({ok:true,pending:true},201):json({error:'提交标识已使用，请重新编辑评论后提交。'},409);
+ const previous=await env.DB.prepare('SELECT post_id,name,content,target_id FROM article_comments WHERE id=?').bind(data.id).first();
+ if(previous)return previous.post_id===data.post_id&&previous.name===data.name.trim()&&previous.content===data.content.trim()&&previous.target_id===target?json({ok:true,pending:true},201):json({error:'提交标识已使用，请重新编辑评论后提交。'},409);
+ let rootId=null;
+ if(target){
+  const parent=await env.DB.prepare("SELECT c.id,c.root_id FROM article_comments c JOIN article_comments r ON r.id=COALESCE(c.root_id,c.id) WHERE c.id=? AND c.post_id=? AND c.status='approved' AND c.deleted_at IS NULL AND r.post_id=c.post_id AND r.root_id IS NULL AND r.status='approved' AND r.deleted_at IS NULL").bind(target,data.post_id).first();
+  if(!parent)return json({error:'回复对象已隐藏或不存在，请刷新评论。'},404);
+  rootId=parent.root_id||parent.id;
+ }
  const seconds=Math.floor(Date.now()/1000),window=Math.floor(seconds/3600),ip=request.headers.get('cf-connecting-ip')||'unknown';
  for(const [key,max] of [['ip:'+digest(ip),5],['global',100]]){
   const row=await env.DB.prepare('INSERT INTO comment_limits (key,window,attempts) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET attempts=CASE WHEN window=excluded.window THEN attempts+1 ELSE 1 END,window=excluded.window RETURNING attempts').bind(key,window).first();
   if(row.attempts>max)return json({error:'评论提交过于频繁，请稍后再试。'},429,{'retry-after':String(3600-seconds%3600)});
  }
  await env.DB.prepare('DELETE FROM comment_limits WHERE window<?').bind(window-1).run();
- const result=await env.DB.prepare("INSERT INTO article_comments(id,post_id,name,content,created_at) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM posts WHERE id=? AND "+visible+") ON CONFLICT DO NOTHING").bind(data.id,data.post_id,data.name.trim(),data.content.trim(),now,data.post_id,now).run();
+ const result=await env.DB.prepare("INSERT INTO article_comments(id,post_id,name,content,created_at,root_id,target_id) SELECT ?,?,?,?,?,?,? WHERE (? IS NULL OR EXISTS (SELECT 1 FROM article_comments c JOIN article_comments r ON r.id=COALESCE(c.root_id,c.id) WHERE c.id=? AND c.post_id=? AND c.status='approved' AND c.deleted_at IS NULL AND r.id=? AND r.status='approved' AND r.deleted_at IS NULL)) AND EXISTS (SELECT 1 FROM posts WHERE id=? AND "+visible+") ON CONFLICT DO NOTHING").bind(data.id,data.post_id,data.name.trim(),data.content.trim(),now,rootId,target,target,target,data.post_id,rootId,data.post_id,now).run();
  if(!result.meta.changes){
-  const duplicate=await env.DB.prepare('SELECT post_id,name,content FROM article_comments WHERE id=?').bind(data.id).first();
+  const duplicate=await env.DB.prepare('SELECT post_id,name,content,target_id FROM article_comments WHERE id=?').bind(data.id).first();
   if(!duplicate)return json({error:'文章已移除，请刷新。'},404);
-  if(duplicate.post_id!==data.post_id||duplicate.name!==data.name.trim()||duplicate.content!==data.content.trim())return json({error:'提交冲突，请重新编辑评论后提交。'},409);
+  if(duplicate.post_id!==data.post_id||duplicate.name!==data.name.trim()||duplicate.content!==data.content.trim()||duplicate.target_id!==target)return json({error:'提交冲突，请重新编辑评论后提交。'},409);
  }
  return json({ok:true,pending:true},201);
 }
@@ -30,10 +38,14 @@ export async function publicComments(env,url){
  if(!slug(id)||!Number.isSafeInteger(page)||page<1||page>100000)return json({error:'评论参数无效。'},400);
  const post=await env.DB.prepare('SELECT id FROM posts WHERE id=? AND '+visible).bind(id,new Date().toISOString()).first();
  if(!post)return json({error:'文章不存在。'},404);
- const condition="post_id=? AND status='approved' AND deleted_at IS NULL";
- const count=await env.DB.prepare('SELECT COUNT(*) AS total FROM article_comments WHERE '+condition).bind(id).first();
- const rows=await env.DB.prepare('SELECT id,name,content,reply,created_at,replied_at FROM article_comments WHERE '+condition+' ORDER BY created_at DESC,id LIMIT 20 OFFSET ?').bind(id,(page-1)*20).all();
- return json({items:rows.results,total:count.total,page,pageSize:20});
+ const rootId=url.searchParams.get('root_id');
+ if(rootId&&!uuid(rootId))return json({error:'回复参数无效。'},400);
+ if(rootId&&!await env.DB.prepare("SELECT id FROM article_comments WHERE id=? AND post_id=? AND root_id IS NULL AND status='approved' AND deleted_at IS NULL").bind(rootId,id).first())return json({error:'原评论不存在或已隐藏。'},404);
+ const condition="c.post_id=? AND c.status='approved' AND c.deleted_at IS NULL AND "+(rootId?'c.root_id=?':'c.root_id IS NULL'),args=rootId?[id,rootId]:[id],pageSize=rootId?10:20;
+ const count=await env.DB.prepare('SELECT COUNT(*) AS total FROM article_comments c WHERE '+condition).bind(...args).first();
+ const fields=rootId?"t.name AS target_name":"(SELECT COUNT(*) FROM article_comments r WHERE r.root_id=c.id AND r.status='approved' AND r.deleted_at IS NULL) AS reply_count";
+ const rows=await env.DB.prepare('SELECT c.id,c.name,c.content,c.reply,c.created_at,c.replied_at,'+fields+' FROM article_comments c LEFT JOIN article_comments t ON t.id=c.target_id AND t.status=\'approved\' AND t.deleted_at IS NULL WHERE '+condition+' ORDER BY c.created_at '+(rootId?'ASC':'DESC')+',c.id LIMIT ? OFFSET ?').bind(...args,pageSize,(page-1)*pageSize).all();
+ return json({items:rows.results,total:count.total,page,pageSize});
 }
 export async function managedComments(env,url){
  const status=url.searchParams.get('status')||'pending',page=Number(url.searchParams.get('page')||1);
@@ -41,7 +53,7 @@ export async function managedComments(env,url){
  const condition=status==='trash'?'c.deleted_at IS NOT NULL':'c.deleted_at IS NULL'+(status==='all'?'':' AND c.status=?'),args=['trash','all'].includes(status)?[]:[status];
  const count=await env.DB.prepare('SELECT COUNT(*) AS total FROM article_comments c WHERE '+condition).bind(...args).first();
  const pending=await env.DB.prepare("SELECT COUNT(*) AS total FROM article_comments WHERE status='pending' AND deleted_at IS NULL").first();
- const rows=await env.DB.prepare('SELECT c.*,p.title AS post_title FROM article_comments c JOIN posts p ON p.id=c.post_id WHERE '+condition+' ORDER BY c.created_at DESC,c.id LIMIT 20 OFFSET ?').bind(...args,(page-1)*20).all();
+ const rows=await env.DB.prepare('SELECT c.*,p.title AS post_title,t.name AS target_name FROM article_comments c LEFT JOIN article_comments t ON t.id=c.target_id JOIN posts p ON p.id=c.post_id WHERE '+condition+' ORDER BY c.created_at DESC,c.id LIMIT 20 OFFSET ?').bind(...args,(page-1)*20).all();
  return json({items:rows.results,total:count.total,pending:pending.total,page,pageSize:20});
 }
 export async function moderateComment(env,data){
