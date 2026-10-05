@@ -1,7 +1,7 @@
 import {publicResponse,notFound} from './public-response.mjs';
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
-import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages,moveMessage} from './contact.js';
+import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages,moveMessage,bulkMessages} from './contact.js';
 import {exportBackup,restoreBackup} from './backup.js';
 import {recordRead} from './reads.js';
 import { escapeHtml, renderMarkdown, editorBlocks } from './content.js';
@@ -81,6 +81,10 @@ async function handle(request, env) {
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));
+    }
+    if(path==='/api/messages/bulk'&&method==='POST'){
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return bulkMessages(env,await readJson(request,4096));
     }
     if(path==='/api/messages/count'&&method==='GET')return json(await unreadMessages(env));
     if(path==='/api/messages/read-all'&&method==='POST'){

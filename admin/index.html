@@ -15,7 +15,7 @@
 .delete-modal-article{padding:16px 18px;background:#f5f7f4;border:1px solid var(--line);border-radius:12px;margin-bottom:18px}.delete-modal-article small{display:block;font-size:11px;letter-spacing:1px;margin-bottom:5px}.delete-modal-article strong{display:block;overflow-wrap:anywhere;font-size:16px}
 .delete-modal-warning{color:#a44a3e;font-size:13px;margin-bottom:22px}.delete-modal-actions{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding-top:20px}
 .delete-modal-actions .confirm-delete{background:#b34d42;color:white;border-color:#b34d42}.delete-modal-actions .confirm-delete:hover{background:#973d33}
-.message-card{padding:22px 0;border-bottom:1px solid var(--line)}.message-card:last-child{border-bottom:0}.message-meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}.message-meta strong{font-size:15px;color:var(--ink)}.message-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:15px 0;line-height:1.9}.message-body.collapsed{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.message-expand{margin:0 0 14px}.message-expand[hidden]{display:none}.message-badge{border-radius:20px;background:#edf3eb;color:var(--green);padding:3px 10px}.message-contact{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.message-contact a{overflow-wrap:anywhere}#message-filter{width:auto;min-width:130px;margin:0}
+.message-card{position:relative;padding:22px 0 22px 34px;border-bottom:1px solid var(--line)}.message-card:last-child{border-bottom:0}.message-meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}.message-meta strong{font-size:15px;color:var(--ink)}.message-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:15px 0;line-height:1.9}.message-body.collapsed{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.message-select{position:absolute;left:0;top:25px;width:18px!important;height:18px;margin:0;accent-color:var(--green)}.message-bulk{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0}.message-bulk label{display:flex;gap:8px;align-items:center;margin:0}.message-bulk input{width:18px;height:18px;margin:0}.message-expand{margin:0 0 14px}.message-expand[hidden]{display:none}.message-badge{border-radius:20px;background:#edf3eb;color:var(--green);padding:3px 10px}.message-contact{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.message-contact a{overflow-wrap:anywhere}#message-filter{width:auto;min-width:130px;margin:0}
 [data-nav="messages"]{justify-content:space-between}.nav-unread{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 7px;border-radius:20px;background:#b34d42;color:#fff;font-size:11px;line-height:1;font-weight:700}#read-all-messages{white-space:nowrap}
 .visual-column{display:none}.editor[data-view="visual"]{grid-template-columns:1fr}.editor[data-view="visual"] .write-column,.editor[data-view="visual"] .preview-column{display:none}.editor[data-view="visual"] .visual-column{display:block}.visual-body{background:#fff;max-width:980px;margin:auto;padding:30px 38px;font-size:16px;line-height:1.9}.visual-block{border:1px solid transparent;border-radius:6px;padding:4px 10px;margin:4px -10px;min-height:24px;outline:none}.visual-block:hover{border-color:#e2e8e1}.visual-block:focus-within{border-color:#97b99a;background:#fcfdfb;box-shadow:0 0 0 3px #edf4ed}.visual-block p:last-child{margin-bottom:0}.visual-body table{border-collapse:collapse;width:100%}.visual-body th,.visual-body td{min-width:60px}.visual-body pre{white-space:pre-wrap;tab-size:2}.visual-readonly{opacity:.85}.visual-readonly:hover{border-style:dashed}.visual-toolbar{position:sticky;top:0;z-index:2;background:#fff;padding:8px 0}.editor-tabs{flex-wrap:wrap}@media(max-width:640px){.visual-body{padding:18px;font-size:15px}.visual-toolbar{gap:4px}}
 </style></head><body>
@@ -25,15 +25,15 @@
 <main class="workspace"><div class="page-header row spread"><div><div class="eyebrow">YOUR PERSONAL PUBLISHING SPACE</div><h1 id="page-heading">工作台</h1><p id="page-subtitle">管理每一篇文章，让灵感有处可放。</p></div><button id="new" class="primary">＋ 新建文章</button></div>
 <section data-panel="overview"><div class="card welcome"><div class="section-label" style="color:#c4d6c4">创作工作台</div><h2>今天，有什么值得记录？</h2><p>查看所有文章，整理过去的记录，或从一段新的文字开始。</p><div class="row"><button id="overview-new" class="button">开始写作 →</button><button id="overview-articles" class="button">管理文章</button></div></div><div class="stats"><div class="card stat"><span>文章总数</span><strong id="stat-total">—</strong></div><div class="card stat"><span>已公开文章</span><strong id="stat-visible">—</strong></div><div class="card stat"><span>待发布草稿</span><strong id="stat-drafts">—</strong></div><div class="card stat"><span>文章总阅读</span><strong id="stat-reads">—</strong><small>当前文章的累计阅读次数</small></div></div><div class="overview-grid"><section class="card"><h2>最近更新</h2><div id="recent-list">加载中…</div></section><section class="card"><h2>热门文章</h2><div id="popular-list"></div></section></div><div class="overview-grid"><section class="card stat"><span>内容分类</span><strong id="stat-categories">—</strong></section><section class="card checklist"><h2>写作小贴士</h2><p><strong>草稿也能随时续写</strong>保存草稿后换设备登录也能继续；发布前再检查预览。</p><p><strong>为文章保留稳定链接</strong>首次保存后短名固定，修改内容不会改变地址。</p><p><strong>保留一份自己的记录</strong>编辑器可导出当前文章为 Markdown。</p></section></div></section>
 <section data-panel="articles" class="hidden card"><div class="row spread"><div><h2 style="margin-bottom:2px">所有文章</h2><span id="article-count" class="muted">加载中…</span></div></div><div class="filters"><input id="search" type="search" aria-label="搜索文章" placeholder="搜索标题、摘要、分类或短名…"><select id="filter-category" aria-label="按分类筛选"><option value="">全部分类</option></select><select id="filter-status" aria-label="按状态筛选"><option value="">全部状态</option><option value="draft">未发布草稿</option><option value="pending">已发布·有草稿</option><option value="published">已发布</option></select><select id="sort" aria-label="文章排序"><option value="published">发布日期优先</option><option value="updated">最近修改优先</option><option value="title">标题排序</option><option value="reads">阅读量优先</option></select><button id="refresh-posts">刷新列表</button></div><p id="list-notice" role="status" class="muted"></p><div class="table-scroll"><table><thead><tr><th>文章</th><th>分类</th><th>状态</th><th>发布日期</th><th>最近修改</th><th>阅读量</th><th>操作</th></tr></thead><tbody id="post-list"></tbody></table></div><div id="empty-list" class="empty hidden"></div><div class="pagination"><small id="results-count"></small><div class="row"><button id="page-prev" aria-label="上一页">←</button><span id="page-number">1 / 1</span><button id="page-next" aria-label="下一页">→</button></div></div></section>
-<section data-panel="messages" class="hidden card"><div class="row spread"><div><h2 style="margin-bottom:4px">访客留言</h2><p id="message-count" class="muted">点击刷新查看留言</p></div><div class="row"><select id="message-filter" aria-label="留言状态"><option value="">全部留言</option><option value="unread">未读</option><option value="read">已读</option><option value="trash">回收站</option></select><button id="read-all-messages" disabled>全部标记已读</button><button id="refresh-messages">刷新留言</button></div></div><p id="message-notice" role="status"></p><div id="message-list"></div><div class="pagination"><small>留言仅管理员可见 · 邮箱由访客提供</small><div class="row"><button id="message-prev" aria-label="上一页留言">←</button><span id="message-page">1 / 1</span><button id="message-next" aria-label="下一页留言">→</button></div></div></section>
+<section data-panel="messages" class="hidden card"><div class="row spread"><div><h2 style="margin-bottom:4px">访客留言</h2><p id="message-count" class="muted">点击刷新查看留言</p></div><div class="row"><select id="message-filter" aria-label="留言状态"><option value="">全部留言</option><option value="unread">未读</option><option value="read">已读</option><option value="trash">回收站</option></select><button id="read-all-messages" disabled>全部标记已读</button><button id="refresh-messages">刷新留言</button></div></div><div class="message-bulk"><label><input id="message-select-all" type="checkbox">全选本页</label><span id="message-selected-count">已选 0 条</span><button id="message-bulk-trash" class="danger" disabled>删除所选</button><button id="message-bulk-restore" class="hidden" disabled>恢复所选</button><button id="message-bulk-purge" class="danger hidden" disabled>永久删除所选</button></div><p id="message-notice" role="status"></p><div id="message-list"></div><div class="pagination"><small>留言仅管理员可见 · 邮箱由访客提供</small><div class="row"><button id="message-prev" aria-label="上一页留言">←</button><span id="message-page">1 / 1</span><button id="message-next" aria-label="下一页留言">→</button></div></div></section>
 <section data-panel="editor" class="hidden card"><div class="row spread"><div><button id="editor-back" style="border:0;padding:0;min-height:25px;color:var(--muted)">← 返回文章库</button><h2 id="mode" style="margin:10px 0 0">新文章</h2></div><span class="muted" id="file-path"></span></div><div class="fields"><label>标题 *<input id="title" maxlength="160" placeholder="给这篇文章起个名字"></label><div><label for="category">分类 / 合集 *</label><select id="category"><option value="随笔">随笔</option></select><button id="new-category" type="button" style="margin-top:8px;font-size:12px">＋ 新建分类</button></div><label>网址短名 *<input id="slug" maxlength="70" placeholder="my-new-post"></label><label class="summary">文章摘要 *<input id="summary" maxlength="300" placeholder="一句话介绍这篇文章"></label></div><div class="row spread"><div class="editor-tabs"><button data-view="visual" class="active">文档编辑</button><button data-view="split">Markdown 双栏</button><button data-view="write">Markdown</button><button data-view="preview">预览</button></div><span id="article-state" class="muted"></span><span id="preview-state" class="muted"></span></div><div id="editor-layout" class="editor" data-view="visual"><div class="write-column"><label for="body">Markdown 正文</label><div class="toolbar"><button data-insert="heading">标题</button><button data-insert="bold">加粗</button><button data-insert="link">链接</button><button data-insert="list">列表</button><button data-insert="quote">引用</button><button data-insert="code">代码</button><button id="image">＋ 图片</button><input id="image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden"></div><textarea id="body" spellcheck="false" placeholder="写下你的第一句话…"></textarea></div><div class="preview-column"><label>文章预览</label><div style="min-height:44px" class="muted">发布效果预览 · 正文内可 Ctrl / ⌘ + V 粘贴图片</div><div id="preview" class="preview"></div></div><div class="visual-column"><div class="row spread"><label>正文 · 文档编辑</label><button id="visual-retry" type="button">重新载入编辑器</button></div><p class="muted">直接编辑正文 · # 加空格输入标题，- 加空格输入列表 · 支持图片粘贴/拖入 · 表格和代码块可用左侧区块菜单插入</p><div id="visual-body" aria-label="文章正文编辑器"></div><p class="muted">文档模式保存为 Markdown；特殊 HTML 和复杂语法可切换源码编辑。只切换模式不会改写原文，编辑后格式标记可能规范化。</p></div></div><div class="editor-footer"><div class="row spread"><div class="row"><button id="save-draft">保存草稿</button><button id="save" class="primary">发布文章</button><button id="export">导出 Markdown</button><button id="history-open" type="button">历史版本</button><button id="delete" class="danger hidden">删除</button><a id="view" class="button hidden" target="_blank" rel="noopener noreferrer">查看文章 ↗</a></div><div class="row muted"><span id="word-count">0 字符</span><span id="save-state">已同步</span></div></div><p id="notice" role="status"></p><small>Ctrl / ⌘ + S 保存草稿 · 草稿不会公开 · 支持直接粘贴或拖入图片 · 离开前请保存。</small></div></section>
 <section data-panel="account" class="hidden card"><h2>账号与安全</h2><p class="security-note">修改密码后，所有设备上的旧登录会话都会失效。请先保存正在编辑的文章。</p><button id="password-toggle" type="button" aria-expanded="false" aria-controls="password-panel">修改密码</button><section id="password-panel" class="hidden" style="margin-top:24px"><form id="password-form"><label for="current-password">当前密码</label><input id="current-password" type="password" autocomplete="current-password" maxlength="128" required><label for="new-password">新密码（至少 6 字符）</label><input id="new-password" type="password" autocomplete="new-password" minlength="6" maxlength="128" required><label for="confirm-password">确认新密码</label><input id="confirm-password" type="password" autocomplete="new-password" minlength="6" maxlength="128" required><button id="password-submit" class="primary">确认修改</button></form><p id="password-notice" role="status"></p></section><section style="margin-top:32px"><h2>备份与恢复</h2><p class="muted">下载文章、草稿、最近历史、分类、留言及 R2 图片。备份含私人留言，请妥善保存。恢复只补回缺失记录，不覆盖已有文章或图片，也不修改登录账号。便捷备份支持内容约 4 MB、图片 12 MB / 100 张；更大数据请从 Cloudflare 导出。</p><div class="row"><button id="backup-download" type="button">下载内容与图片备份</button><button id="backup-choose" type="button">从备份补回数据</button><input id="backup-file" type="file" accept=".json,application/json" class="hidden"></div><p id="backup-notice" role="status"></p></section></section>
 </main></div><dialog id="history-modal" class="delete-modal" aria-labelledby="history-title"><h2 id="history-title">文章历史版本</h2><p class="muted">保留每篇最近 50 次保存前的版本。载入后仍需保存草稿或发布，不会立即改变前台。</p><div id="history-list" style="max-height:55vh;overflow:auto"></div><form method="dialog"><button>关闭</button></form></dialog>
 <dialog id="backup-modal" class="delete-modal" aria-labelledby="backup-title"><h2 id="backup-title">确认补回备份数据</h2><p id="backup-summary"></p><p>只新增缺失数据，已有记录不覆盖；账号密码不变。中途失败可重试同一备份。恢复后请检查内容。</p><div class="row"><button id="backup-cancel" type="button">取消</button><button id="backup-confirm" class="primary" type="button">确认补回</button></div></dialog>
 <dialog id="message-delete-modal" class="delete-modal" aria-labelledby="message-delete-heading">
 <h2 id="message-delete-heading">删除这条留言？</h2>
-<p>留言将移入回收站，之后可以恢复。</p><strong id="message-delete-name"></strong>
-<form method="dialog"><div class="delete-modal-actions"><button id="message-delete-cancel" value="cancel" autofocus>取消</button><button class="confirm-delete" value="delete">移入回收站</button></div></form>
+<p id="message-delete-description">留言将移入回收站，之后可以恢复。</p><strong id="message-delete-name"></strong>
+<form method="dialog"><div class="delete-modal-actions"><button id="message-delete-cancel" value="cancel" autofocus>取消</button><button id="message-delete-confirm" class="confirm-delete" value="delete">移入回收站</button></div></form>
 </dialog>
 <dialog id="delete-modal" class="delete-modal" aria-labelledby="delete-modal-heading" aria-describedby="delete-modal-description delete-modal-warning">
 <form method="dialog">
@@ -147,11 +147,36 @@ function confirmDeletion(title,warning=""){
 $("delete-modal-close").onclick=()=>$("delete-modal").close("cancel");
 
 let messagePage=1,messagePages=1,messageLoading=false,messageMutating=false,messageUnread=0,messageReadThrough=0,unreadVersion=0,countPending=false;
-const expandedMessages=new Set();
+const expandedMessages=new Set(),selectedMessages=new Map();let messageItems=[];
+function syncMessageSelection(){
+ const busy=messageLoading||messageMutating,trash=messageTrash(),count=selectedMessages.size;
+ $("message-selected-count").textContent="已选 "+count+" 条";
+ const all=$("message-select-all");all.disabled=busy||!messageItems.length;all.checked=messageItems.length>0&&count===messageItems.length;all.indeterminate=count>0&&count<messageItems.length;
+ for(const [id,shown] of [["message-bulk-trash",!trash],["message-bulk-restore",trash],["message-bulk-purge",trash]]){$(id).classList.toggle("hidden",!shown);$(id).disabled=busy||!count}
+ document.querySelectorAll(".message-select").forEach(el=>{el.checked=selectedMessages.has(el.value);el.disabled=busy});
+}
+$("message-select-all").onchange=()=>{selectedMessages.clear();if($("message-select-all").checked)for(const item of messageItems)selectedMessages.set(item.id,item.version);syncMessageSelection()};
+async function applyMessageBulk(action){
+ if(messageLoading||messageMutating||!selectedMessages.size)return;
+ const items=[...selectedMessages].map(([id,version])=>({id,version})),notice=$("message-notice");
+ messageMutating=true;syncMessageSelection();$("message-filter").disabled=true;$("refresh-messages").disabled=true;
+ try{
+  if(action!=="restore"&&!await confirmMessageDeletion({name:"已选择 "+items.length+" 条留言"},action))return;
+  unreadVersion++;
+  const result=await api("/api/messages/bulk",{method:"POST",body:JSON.stringify({action,items,confirm:action==="purge"})});
+  selectedMessages.clear();setUnread(result.unread);
+  const refreshed=await loadMessages();notice.textContent="已"+({trash:"移入回收站",restore:"恢复",purge:"永久删除"}[action])+" "+result.changed+" 条留言。"+(refreshed?"":"列表刷新失败，请刷新留言。");notice.classList.toggle("error",!refreshed);
+ }catch(error){notice.textContent=error.message;notice.classList.add("error")}
+ finally{messageMutating=false;syncMessageSelection();syncMessageSelection();$("message-filter").disabled=false;$("refresh-messages").disabled=false;$("read-all-messages").disabled=messageUnread===0||messageTrash()}
+}
+$("message-bulk-trash").onclick=()=>applyMessageBulk("trash");
+$("message-bulk-restore").onclick=()=>applyMessageBulk("restore");
+$("message-bulk-purge").onclick=()=>applyMessageBulk("purge");
 function messageTrash(){return $("message-filter").value==="trash"}
-function confirmMessageDeletion(item){
+function confirmMessageDeletion(item,action='trash'){
+ $('message-delete-heading').textContent=action==='purge'?'永久删除这些留言？':'删除留言？';$('message-delete-description').textContent=action==='purge'?'将从数据库永久删除所选留言，无法恢复。已有下载的备份不会被清除。':'留言将移入回收站，之后可以恢复。';$('message-delete-confirm').textContent=action==='purge'?'确认永久删除':'移入回收站';
  const dialog=$("message-delete-modal");if(dialog.open)return Promise.resolve(false);
- $("message-delete-name").textContent=item.name+" · "+new Date(item.created_at).toLocaleString("zh-CN");
+ $("message-delete-name").textContent=item.created_at?item.name+" · "+new Date(item.created_at).toLocaleString("zh-CN"):item.name;
  dialog.returnValue="";return new Promise(resolve=>{dialog.addEventListener("close",()=>resolve(dialog.returnValue==="delete"),{once:true});dialog.showModal();$("message-delete-cancel").focus()});
 }
 function setUnread(count){
@@ -173,12 +198,13 @@ setInterval(()=>{if(document.visibilityState==="visible"){if(activePanel==="mess
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")void refreshUnread()});
 
 async function loadMessages(){
- if(messageLoading)return;messageLoading=true;
+ if(messageLoading)return;messageLoading=true;syncMessageSelection();
  const notice=$("message-notice");notice.textContent="正在读取留言…";notice.classList.remove("error");$("read-all-messages").disabled=true;
  $("refresh-messages").disabled=true;$("message-filter").disabled=true;$("message-prev").disabled=true;$("message-next").disabled=true;
  try{
   let data=await api("/api/messages?page="+messagePage+"&status="+encodeURIComponent($("message-filter").value));
   const lastPage=Math.max(1,Math.ceil(data.total/data.pageSize));if(messagePage>lastPage){messagePage=lastPage;data=await api("/api/messages?page="+messagePage+"&status="+encodeURIComponent($("message-filter").value))}
+  messageItems=data.items;for(const [id,version] of selectedMessages)if(!messageItems.some(i=>i.id===id&&i.version===version))selectedMessages.delete(id);
   messageReadThrough=data.readThrough;setUnread(data.unread);
   messagePages=Math.max(1,Math.ceil(data.total/data.pageSize));
   $("message-count").textContent=data.total+" 条留言 · "+data.unread+" 条未读";
@@ -186,7 +212,7 @@ async function loadMessages(){
   const target=$("message-list");target.replaceChildren();
   if(!data.items.length){const empty=document.createElement("p");empty.className="empty";empty.textContent="还没有符合条件的留言。";target.append(empty)}
   for(const item of data.items){
-   const card=document.createElement("article");card.className="message-card";
+   const card=document.createElement("article");card.className="message-card";const check=document.createElement("input");check.type="checkbox";check.className="message-select";check.value=item.id;check.setAttribute("aria-label","选择留言："+item.name);check.onchange=()=>{if(check.checked)selectedMessages.set(item.id,item.version);else selectedMessages.delete(item.id);syncMessageSelection()};card.append(check);
    const meta=document.createElement("div");meta.className="message-meta";
    const name=document.createElement("strong");name.textContent=item.name;
    const badge=document.createElement("span");badge.className="message-badge";badge.textContent=item.deleted_at?"回收站":item.status==="unread"?"未读":"已读";
@@ -218,7 +244,7 @@ async function loadMessages(){
   }
   notice.textContent="";return true;
  }catch(error){notice.textContent=error.message;notice.classList.add("error")}
- finally{messageLoading=false;$("read-all-messages").disabled=messageMutating||messageUnread===0||messageTrash();$("refresh-messages").disabled=false;$("message-filter").disabled=false;$("message-prev").disabled=messagePage<=1;$("message-next").disabled=messagePage>=messagePages}
+ finally{messageLoading=false;syncMessageSelection();$("read-all-messages").disabled=messageMutating||messageUnread===0||messageTrash();$("refresh-messages").disabled=false;$("message-filter").disabled=false;$("message-prev").disabled=messagePage<=1;$("message-next").disabled=messagePage>=messagePages}
 }
 $("read-all-messages").onclick=async()=>{
  if(messageLoading||messageMutating||messageUnread===0||messageTrash())return;
@@ -228,9 +254,9 @@ $("read-all-messages").onclick=async()=>{
  finally{messageMutating=false;$("message-filter").disabled=false;$("refresh-messages").disabled=false;button.textContent="全部标记已读";button.disabled=messageUnread===0}
 };
 $("refresh-messages").onclick=()=>{if(!messageMutating)void loadMessages()};
-$("message-filter").onchange=()=>{messagePage=1;void loadMessages()};
-$("message-prev").onclick=()=>{if(!messageLoading&&!messageMutating&&messagePage>1){messagePage--;void loadMessages()}};
-$("message-next").onclick=()=>{if(!messageLoading&&!messageMutating&&messagePage<messagePages){messagePage++;void loadMessages()}};
+$("message-filter").onchange=()=>{selectedMessages.clear();messagePage=1;void loadMessages()};
+$("message-prev").onclick=()=>{if(!messageLoading&&!messageMutating&&messagePage>1){selectedMessages.clear();messagePage--;void loadMessages()}};
+$("message-next").onclick=()=>{if(!messageLoading&&!messageMutating&&messagePage<messagePages){selectedMessages.clear();messagePage++;void loadMessages()}};
 
 const deletingIds=new Set();
 async function deleteFromList(item,button){

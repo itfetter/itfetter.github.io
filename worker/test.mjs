@@ -349,3 +349,22 @@ test('留言回收站鉴权、同源、版本冲突、全文保留与备份恢�
  assert.equal((await s.request('/api/messages','DELETE',data,cookie)).status,409);
  assert.equal(s.db.prepare('SELECT message FROM contact_messages WHERE id=?').get(id).message,text);s.db.close();
 });
+
+test('批量留言删除恢复与永久删除只操作选中版本、冲突时全部保留',async()=>{
+ const s=setup(),cookie=await token(),ids=[crypto.randomUUID(),crypto.randomUUID(),crypto.randomUUID()];
+ for(const id of ids)s.db.prepare('INSERT INTO contact_messages(id,name,message,created_at) VALUES(?,?,?,?)').run(id,'测试','保留全文',new Date().toISOString());
+ const items=ids.slice(0,2).map(id=>({id,version:1}));
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'trash',items})).status,401);
+ const cross=new Request(origin+'/api/messages/bulk',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify({action:'trash',items})});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'trash',items:[...items,items[0]]},cookie)).status,400);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'purge',items},cookie)).status,400);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'trash',items:[items[0],{...items[1],version:2}]},cookie)).status,409);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM contact_messages WHERE deleted_at IS NULL').get().n,3);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'trash',items},cookie)).status,200);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'purge',items:[{id:ids[2],version:1}],confirm:true},cookie)).status,409);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'restore',items:items.map(i=>({...i,version:2}))},cookie)).status,200);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'trash',items:items.map(i=>({...i,version:3}))},cookie)).status,200);
+ assert.equal((await s.request('/api/messages/bulk','POST',{action:'purge',items:items.map(i=>({...i,version:4})),confirm:true},cookie)).status,200);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM contact_messages').get().n,1);assert.equal(s.db.prepare('SELECT id FROM contact_messages').get().id,ids[2]);s.db.close();
+});

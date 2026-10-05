@@ -46,3 +46,14 @@ export async function moveMessage(env,data,restore=false){
  const result=await env.DB.prepare('UPDATE contact_messages SET deleted_at=?,version=version+1 WHERE id=? AND version=? AND deleted_at IS '+(restore?'NOT NULL':'NULL')).bind(restore?null:new Date().toISOString(),data.id,data.version).run();
  return result.meta.changes?response({ok:true,...await unreadMessages(env)}):response({error:'留言已被其他操作修改，请刷新后重试。'},409);
 }
+
+export async function bulkMessages(env,data){
+ const items=data?.items,action=data?.action;
+ if(!['trash','restore','purge'].includes(action)||!Array.isArray(items)||!items.length||items.length>20||new Set(items.map(i=>i?.id)).size!==items.length||items.some(i=>typeof i?.id!=='string'||! /^[a-f0-9-]{36}$/.test(i.id)||!Number.isSafeInteger(i.version)||i.version<1))return response({error:'请选择本页有效留言，最多20条。'},400);
+ if(action==='purge'&&data.confirm!==true)return response({error:'请明确确认永久删除。'},400);
+ const condition='deleted_at IS '+(action==='trash'?'NULL':'NOT NULL')+' AND ('+items.map(()=>'(id=? AND version=?)').join(' OR ')+')';
+ const values=items.flatMap(i=>[i.id,i.version]);
+ const sql=(action==='purge'?'DELETE FROM contact_messages':'UPDATE contact_messages SET deleted_at=?,version=version+1')+' WHERE '+condition+' AND (SELECT COUNT(*) FROM contact_messages WHERE '+condition+')=?';
+ const result=await env.DB.prepare(sql).bind(...(action==='purge'?[]:[action==='restore'?null:new Date().toISOString()]),...values,...values,items.length).run();
+ return result.meta.changes===items.length?response({ok:true,changed:result.meta.changes,...await unreadMessages(env)}):response({error:'选中留言已变化，请刷新后重新选择。'},409);
+}
