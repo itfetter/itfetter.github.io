@@ -559,3 +559,5 @@ worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；wo
 
 ## 编辑器重试入口（2026-10-05）
 admin/index.html将“重新载入编辑器”改为“重试加载”，默认隐藏，仅文档引擎明确error状态显示；loading/ready/文章切换idle均隐藏。assets/document-editor.mjs的onState额外提供状态值，不依赖提示文字判错；重试继续保留Markdown字段且不执行保存或发布。worker/document.test.mjs在原有加载失败重试回归中核对状态序列与invalidate归位。正常写作不展示重置入口，避免误清撤销记录。三维护文档同步更新；云端部署和浏览器结果待确认，无数据库迁移或本机依赖下载。
+
+验收完成：功能提交c50d034c6e67735f136c0be5049c58b56050a010；Cloudflare构建2114ce6b-833b-404e-a911-33bca56c45d5成功，51测试通过/0失败，Worker版本ec832b4e-3db7-4b03-a8a4-1c4fedc94176。实际Chrome新建空文章正常加载后visual-retry为hidden且display:none，按钮文案重试加载；未保存/发布测试内容。失败重试与idle状态由已有模拟引擎回归验证，不故意断开生产浏览器网络。未触碰用户正在编辑的原标签页。
