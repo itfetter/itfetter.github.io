@@ -141,9 +141,18 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
   convert.addEventListener("click",()=>{
    const block=pendingBlock,code=codeNode(block);
    if(!ready||busy||composing||!code||block.isConnected===false)return;
-   const text=code.textContent,range=root.ownerDocument.createRange();range.selectNode(block);
-   canvas().focus({preventScroll:true});const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
-   editor.updateValue(plainCodeHtml(text));flush();hoverBlock=null;closeBlockTools();updateBlockHandle();
+   const blocks=Array.from(canvas().querySelectorAll('pre')).filter(pre=>pre.querySelector('code'));
+   const index=blocks.indexOf(code.closest('pre'));
+   const template=root.ownerDocument.createElement('template');template.innerHTML=editor.getHTML();
+   const target=Array.from(template.content.querySelectorAll('pre')).filter(pre=>pre.querySelector('code'))[index];
+   if(!target)return;
+   const replacement=root.ownerDocument.createElement('template');replacement.innerHTML=plainCodeHtml(code.textContent);
+   target.replaceWith(replacement.content);
+   const markdown=editor.html2md(template.innerHTML);
+   // setValue(false) 走引擎渲染和撤销栈，不清空历史，也不依赖浏览器跨代码容器选区。
+   syncing=true;try{editor.setValue(markdown,false)}finally{syncing=false}
+   const value=editor.getValue();baseline=value;display=value;onChange(value);
+   hoverBlock=null;closeBlockTools();updateBlockHandle();
   });
   menu.append(convert);menu.append(toolbar);root.append(menu);
   blockHandle=root.ownerDocument.createElement("button");blockHandle.type="button";blockHandle.className="blog-block-handle";

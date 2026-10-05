@@ -135,5 +135,5 @@ worker/contact.js bulkMessages用单条参数化SQL同时校验全部id/version�
 
 ## 网址与代码块编辑优化（2026-10-05）
 网址短名选填，空值由服务端生成article-UUID，发布和草稿共用；自定义短名保持字符/长度/唯一校验，首次保存后固定，不改变旧文章链接。admin/index.html显示完整地址预览与自动生成说明；worker/index.js仅调整新建路径，不改变鉴权、id/version或历史。
-assets/document-editor.mjs识别Vditor代码块容器，在侧边菜单提供“转为正文”，通过引擎updateValue替换选中区块，保留文字与换行，HTML字符转义，不重置撤销栈。其他不适用代码的格式仍禁用。保存链路仍仅Markdown。
+assets/document-editor.mjs识别Vditor代码块容器，在侧边菜单提供“转为正文”，通过getHTML/html2md与setValue(false)转换对应代码块，保留文字与换行，HTML字符转义，不重置撤销栈。其他不适用代码的格式仍禁用。保存链路仍仅Markdown。
 worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；worker/document.test.mjs新增转换转义与换行回归。无依赖安装/数据库迁移；本次提交与云端构建、浏览器验收结果待实际确认。
