@@ -22,3 +22,18 @@ test('草稿状态筛选与公开统计不把未发布文章计入前台',()=>{
  assert.equal(selectPosts(rows,{status:'published'}).total,2);
  assert.equal(postStats(rows,'2027-01-01').visible,2);assert.equal(postStats(rows).drafts,2);
 });
+
+import {readAdminRoute,adminRouteURL} from '../assets/admin-route.mjs';
+test('后台刷新恢复栏目及已保存文章，非法路由安全回退',()=>{
+ for(const view of ['overview','articles','editor','messages','comments','account']){
+  const url=adminRouteURL('https://itfetter.com/admin/?password=changed',view,null);
+  assert.deepEqual(readAdminRoute('https://itfetter.com'+url),{view,id:null});
+  assert.equal(url.includes('password'),false);
+ }
+ assert.deepEqual(readAdminRoute('https://itfetter.com/admin/?view=editor&id=hello'),{view:'editor',id:'hello'});
+ assert.deepEqual(readAdminRoute('https://itfetter.com/admin/?view=editor&id=../secret'),{view:'articles',id:null});
+ assert.deepEqual(readAdminRoute('https://itfetter.com/admin/?view=unknown&id=hello'),{view:'overview',id:null});
+ assert.deepEqual(readAdminRoute('https://itfetter.com/admin/?view=messages&id=hello'),{view:'messages',id:null});
+ assert.equal(adminRouteURL('https://itfetter.com/admin/?view=editor&id=hello','messages',null),'/admin/?view=messages');
+ assert.equal(adminRouteURL('https://itfetter.com/admin/','editor','hello'),'/admin/?view=editor&id=hello');
+});

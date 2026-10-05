@@ -52,6 +52,7 @@
 </form></dialog>
 <dialog id="category-modal" class="delete-modal" aria-labelledby="category-heading"><form id="category-form"><div class="delete-modal-header"><h2 id="category-heading">新建分类</h2><button id="category-close" type="button" class="delete-modal-close" aria-label="关闭">×</button></div><p class="muted">把同一主题的文章整理成一个合集。</p><label for="category-name">分类名称</label><input id="category-name" maxlength="80" required placeholder="例如：Cloudflare 建站笔记"><p id="category-notice" role="status"></p><div class="delete-modal-actions"><button id="category-cancel" type="button">取消</button><button id="category-create" class="primary">创建并选择</button></div></form></dialog>
 <script type="module">
+import {readAdminRoute,adminRouteURL} from "/assets/admin-route.mjs";
 import {mountCommentManagement} from "/assets/admin-comments.mjs";
 import {selectPosts,postStats} from "/assets/admin-utils.mjs";
 import {createDocumentEditor} from "/assets/document-editor.mjs";
@@ -61,7 +62,8 @@ const $=id=>document.getElementById(id), ids=["title","category","slug","summary
 let categories=["随笔"], categorySaving=false;
 let current=null, listing=[], dirty=false, page=1, activePanel="overview", previewSequence=0, editorRevision=0, editorGeneration=0, uploads=0, saving=false;
 const formatDate=value=>new Date(value).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
-function panel(name){activePanel=name;document.querySelectorAll("[data-panel]").forEach(el=>el.classList.toggle("hidden",el.dataset.panel!==name));document.querySelectorAll("[data-nav]").forEach(el=>{el.classList.toggle("active",el.dataset.nav===name);el.setAttribute("aria-current",el.dataset.nav===name?"page":"false")});$("page-heading").textContent={overview:"工作台",articles:"文章库",editor:current?(current.status==="draft"?"编辑草稿":"编辑文章"):"写文章",account:"账号设置",messages:"留言管理",comments:"评论管理"}[name];$("page-subtitle").textContent=name==="messages"?"收集访客的想法，让交流有处可寻。":name==="comments"?"审核访客评论，回复文章下的交流。":name==="account"?"管理你的账号与登录安全。":"管理每一篇文章，让灵感有处可放。";$("new").classList.toggle("hidden",["messages","comments","account"].includes(name))}
+function syncRoute(){history.replaceState(null,"",adminRouteURL(location.href,activePanel,current?.id))}
+function panel(name){activePanel=name;document.querySelectorAll("[data-panel]").forEach(el=>el.classList.toggle("hidden",el.dataset.panel!==name));document.querySelectorAll("[data-nav]").forEach(el=>{el.classList.toggle("active",el.dataset.nav===name);el.setAttribute("aria-current",el.dataset.nav===name?"page":"false")});$("page-heading").textContent={overview:"工作台",articles:"文章库",editor:current?(current.status==="draft"?"编辑草稿":"编辑文章"):"写文章",account:"账号设置",messages:"留言管理",comments:"评论管理"}[name];$("page-subtitle").textContent=name==="messages"?"收集访客的想法，让交流有处可寻。":name==="comments"?"审核访客评论，回复文章下的交流。":name==="account"?"管理你的账号与登录安全。":"管理每一篇文章，让灵感有处可放。";$("new").classList.toggle("hidden",["messages","comments","account"].includes(name));syncRoute()}
 const fields=Object.fromEntries(ids.map(id=>[id,$(id)]));
 function message(value,error=false){$("notice").textContent=value;$("notice").classList.toggle("error",error)}
 function clear(){visual.invalidate();editorGeneration++;editorRevision++;current=null;for(const id of ids)fields[id].value="";renderCategories("随笔");fields.slug.disabled=false;$("mode").textContent="新文章";$("save").textContent="发布文章";$("file-path").textContent="";$("delete").classList.add("hidden");$("view").classList.add("hidden");dirty=false;$("article-state").textContent="尚未保存";preview();renderList();message("")}
@@ -286,9 +288,15 @@ async function deleteFromList(item,button){
  finally{deletingIds.delete(item.id);button.disabled=false;button.textContent="删除"}
 }
 function discard(){if(uploads||saving){message(uploads?"图片仍在上传，请稍候。":"正在保存，请稍候。",true);return false}return !dirty||confirm("当前修改尚未保存，建议先取消并保存草稿。确定放弃这些修改吗？")}
-async function openPost(id){if(!discard())return;message("正在读取文章…");try{const article=await api("/api/post?id="+encodeURIComponent(id));visual.invalidate();editorGeneration++;editorRevision++;current={id,version:article.version,status:article.status,has_draft:article.has_draft};renderCategories(article.category||"");for(const id of ["title","category","summary","body"])fields[id].value=article[id]||"";fields.slug.value=article.id||"";fields.slug.disabled=true;$("mode").textContent="编辑文章";$("file-path").textContent=id;$("delete").classList.remove("hidden");$("view").href="/articles/"+article.id+"/";$("view").classList.toggle("hidden",article.status==="draft");$("article-state").textContent=article.status==="draft"?"未发布草稿":article.has_draft?"已发布 · 正在编辑草稿":"已发布";$("save").textContent=article.status==="published"?"更新发布":"发布文章";dirty=false;preview();renderList();panel("editor");message("")}catch(e){message(e.message,true)}}
+async function openPost(id){if(!discard())return;message("正在读取文章…");try{const article=await api("/api/post?id="+encodeURIComponent(id));visual.invalidate();editorGeneration++;editorRevision++;current={id,version:article.version,status:article.status,has_draft:article.has_draft};renderCategories(article.category||"");for(const id of ["title","category","summary","body"])fields[id].value=article[id]||"";fields.slug.value=article.id||"";fields.slug.disabled=true;$("mode").textContent="编辑文章";$("file-path").textContent=id;$("delete").classList.remove("hidden");$("view").href="/articles/"+article.id+"/";$("view").classList.toggle("hidden",article.status==="draft");$("article-state").textContent=article.status==="draft"?"未发布草稿":article.has_draft?"已发布 · 正在编辑草稿":"已发布";$("save").textContent=article.status==="published"?"更新发布":"发布文章";dirty=false;preview();renderList();panel("editor");message("");return true}catch(e){message(e.message,true);return false}}
 async function refresh(){const data=await Promise.all([api("/api/posts"),api("/api/categories")]);listing=data[0];categories=data[1];renderCategories();const selected=$("filter-category").value;$("filter-category").replaceChildren(new Option("全部分类",""));for(const category of [...new Set(listing.map(p=>p.category))].sort())$("filter-category").add(new Option(category,category));$("filter-category").value=selected;renderList()}
-async function login(){try{await api("/api/me");$("login").classList.add("hidden");$("dashboard").classList.remove("hidden");await refresh();clear();panel("overview");void refreshUnread()}catch(e){$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("login-notice").textContent=new URLSearchParams(location.search).get("password")==="changed"?"密码已修改，请使用新密码登录。":e.message}}
+async function login(){const route=readAdminRoute(location.href);try{await api("/api/me");$("login").classList.add("hidden");await refresh();clear();panel(route.view);$("dashboard").classList.remove("hidden");
+ if(route.view==="editor"&&route.id){
+  if(!await openPost(route.id)){panel("articles");$("list-notice").textContent="文章未能载入，可能已删除或暂时无法读取，请从文章库重试。"}
+ }
+ if(route.view==="messages")void loadMessages();
+ if(route.view==="comments")void commentManagement.load();
+ void refreshUnread()}catch(e){$("dashboard").classList.add("hidden");$("login").classList.remove("hidden");$("login-notice").textContent=new URLSearchParams(location.search).get("password")==="changed"?"密码已修改，请使用新密码登录。":e.message}}
 $("login-form").onsubmit=async e=>{e.preventDefault();$("login-submit").disabled=true;$("login-notice").textContent="正在登录…";try{await api("/api/login",{method:"POST",body:JSON.stringify({username:$("username").value,password:$("password").value})});$("password").value="";location.replace("/admin/")}catch(error){$("password").value="";$("login-notice").textContent=error.message}finally{$("login-submit").disabled=false}};
 $("password-toggle").onclick=()=>{const visible=$("password-panel").classList.toggle("hidden")===false;$("password-toggle").setAttribute("aria-expanded",String(visible));$("password-form").reset();$("password-notice").textContent="";if(visible)$("current-password").focus()};
 $("password-form").onsubmit=async e=>{
@@ -334,7 +342,7 @@ async function savePost(status){
  try{
  const result=await api("/api/post",{method:"PUT",body:JSON.stringify(data)});
  current={id:result.id,version:result.version,status:status==="published"?"published":current?.status||"draft",has_draft:status==="draft"};
- fields.slug.value=result.id;fields.slug.disabled=true;await refresh();
+ fields.slug.value=result.id;fields.slug.disabled=true;syncRoute();await refresh();
  if(revision===editorRevision){dirty=false;saving=false;await openPost(result.id)}
  else{$("delete").classList.remove("hidden");$("article-state").textContent=current.status==="draft"?"未发布草稿":status==="draft"?"已发布 · 正在编辑草稿":"已发布";preview()}
  message((status==="draft"?"草稿已保存，未改动前台公开内容。":"文章已发布。")+(dirty?"保存期间的新修改尚未保存。":""));

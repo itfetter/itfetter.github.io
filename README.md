@@ -153,3 +153,6 @@ worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；wo
 
 ## 编辑器重试入口（2026-10-05）
 admin/index.html将“重新载入编辑器”改为“重试加载”，默认隐藏，仅文档引擎明确error状态显示；loading/ready/文章切换idle均隐藏。assets/document-editor.mjs的onState额外提供状态值，不依赖提示文字判错；重试继续保留Markdown字段且不执行保存或发布。worker/document.test.mjs在原有加载失败重试回归中核对状态序列与invalidate归位。正常写作不展示重置入口，避免误清撤销记录。三维护文档同步更新；云端部署和浏览器结果待确认，无数据库迁移或本机依赖下载。
+
+## 后台刷新保留页面（2026-10-05）
+后台用同源URL查询参数view记录所在栏目，编辑已保存文章时另记录id。切换栏目用replaceState，不重载页面；登录/刷新后验证会话再恢复栏目并读取其数据，编辑正文仍从认证API加载，不写入浏览器持久存储。新文章刷新只恢复新建界面，未保存内容仍需先保存草稿；原有beforeunload/切换确认保护保留。非法view回工作台，非法文章id回文章库，文章读取失败显示提示。文件入口为assets/admin-route.mjs、admin/index.html和worker/admin.test.mjs。
