@@ -544,4 +544,4 @@ R2 是对象存储，D1 才是文章数据库。R2 开通需要完成订阅/付�
 
 ## 留言多选与永久删除（2026-10-05）
 admin/index.html新增左侧勾选框、全选本页、选中计数；正常列表删除所选到回收站，回收站可批量恢复与永久删除所选。翻页/筛选清除选择，刷新仅保留同id/version选择。确认框默认取消，永久删除明确不可恢复；不执行真实留言删除验收。回收站仍不自动过期，但永久删除会清除数据库记录，既有离线备份不受影响。
-worker/contact.js bulkMessages用单条参数化SQL同时校验全部id/version与回收站状态，最多20条，任何冲突整批不修改；worker/index.js POST /api/messages/bulk保留登录/同源/JSON/大小保护。无需新迁移。worker/test.mjs覆盖鉴权、跨站、重复ID、永久删除确认、冲突原子性、恢复、所选清除及未选保留。当前代码与三维护文档同步提交，完整测试和部署待云端确认。
+worker/contact.js bulkMessages用单条参数化SQL同时校验全部id/version与回收站状态，最多20条，任何冲突整批不修改；worker/index.js POST /api/messages/bulk保留登录/同源/JSON/大小保护。无需新迁移。worker/test.mjs覆盖鉴权、跨站、重复ID、永久删除确认、冲突原子性、恢复、所选清除及未选保留。已提交2fc8b1a4cc33349ee554d3ed679210491392cb11并推送main；Cloudflare构建15e605e0-1ba7-492f-a96e-e9f2c7e04611成功，48测试通过/0失败，Worker版本6c09796c-c595-4117-b514-fb5fb50a6ba6。实际Chrome验证勾选/全选、选中数量、批量删除和永久删除确认框默认取消、取消不改数据；最终清空选择并返回全部留言视图。真实留言永久删除未执行；SQL行为由云端SQLite测试验证。
