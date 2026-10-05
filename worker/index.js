@@ -3,6 +3,7 @@ import {publicResponse,notFound} from './public-response.mjs';
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages,moveMessage,bulkMessages} from './contact.js';
 import {exportBackup,restoreBackup} from './backup.js';
+import {submitComment,publicComments,managedComments,moderateComment} from './comments.js';
 import {recordRead} from './reads.js';
 import { escapeHtml, renderMarkdown, editorBlocks } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
@@ -43,6 +44,13 @@ function validImage(bytes, type) {
 }
 async function handle(request, env) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  if(path==='/api/comments'){
+    if(method==='GET')return publicComments(env,url);
+    if(method!=='POST')return fail('请使用 GET 或 POST。',405);
+    if(!secureTransport(request,env)||request.headers.get('origin')!==url.origin)return fail('来源未获允许。',403);
+    if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+    return submitComment(request,env,await readJson(request,16000));
+  }
   if(path==='/api/contact'){
     if(method!=='POST')return fail('请使用 POST。',405);
     if(!secureTransport(request,env)||request.headers.get('origin')!==url.origin)return fail('来源未获允许。',403);
@@ -81,6 +89,14 @@ async function handle(request, env) {
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));
+    }
+    if(path==='/api/admin/comments'){
+      if(method==='GET')return managedComments(env,url);
+      if(method==='PATCH'){
+        if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+        return moderateComment(env,await readJson(request,16000));
+      }
+      return fail('请使用 GET 或 PATCH。',405);
     }
     if(path==='/api/messages/bulk'&&method==='POST'){
       if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);

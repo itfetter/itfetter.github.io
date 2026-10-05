@@ -18,3 +18,15 @@ html{scroll-padding-top:100px}body{font-family:system-ui,-apple-system,"Noto San
 .post-neighbors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;border-top:1px solid #deded6;padding:28px 0}.post-neighbors small{display:block;color:#777b75}.post-neighbors a,.post-related a{display:block;color:#1f332d;text-decoration:none;overflow-wrap:anywhere}.post-related{padding-bottom:24px}.post-related a{padding:10px 0}.code-copy{display:block;margin:8px 0 0 auto;border:1px solid #deded6;border-radius:7px;background:#fff;color:#1f332d;padding:7px 12px;cursor:pointer}@media(max-width:600px){.post-neighbors{grid-template-columns:1fr}}
 
 .reading-tools nav a{padding-left:calc(var(--toc-depth,0)*14px);overflow-wrap:anywhere}.reading-tools nav a[aria-current="location"]{color:#ce603e;font-weight:650}
+
+/* 文章级评论：与正文目录和私密留言分开 */
+.article-comments{border-top:1px solid #deded6;margin-top:48px;padding-top:24px}
+.comments-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.comments-heading h2{margin:0}
+.article-comments button{font:inherit;font-size:14px;min-height:42px;border:1px solid #d0d9cf;border-radius:9px;background:#fff;color:#234737;padding:8px 15px;cursor:pointer}
+.article-comments button:disabled{opacity:.45;cursor:default}.article-comments button:focus-visible,.comment-form input:focus-visible,.comment-form textarea:focus-visible{outline:2px solid #315146;outline-offset:3px}
+.comment-muted{color:#747c75;font-size:13px}.comment-item{padding:20px 0;border-bottom:1px solid #e1e3da;min-width:0}
+.comment-meta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;overflow-wrap:anywhere}.comment-meta time{font-size:12px;color:#747c75}
+.comment-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.comment-reply{background:#eaf0e8;border-left:3px solid #315146;padding:12px 16px;border-radius:8px;margin-top:14px}
+.comments-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin:20px 0;font-size:13px}
+.comment-form{display:grid;gap:14px;position:relative}.comment-form label{display:grid;gap:6px;font-size:14px}.comment-form input,.comment-form textarea{font:inherit;width:100%;min-width:0;box-sizing:border-box;background:#fff;color:#242722;border:1px solid #d0d9cf;border-radius:9px;padding:12px}.comment-form textarea{resize:vertical}.comment-form button[type=submit]{justify-self:start;background:#234737;color:#fff}.comment-form [role=status]{margin:0;overflow-wrap:anywhere}.comment-form .comment-trap{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+@media(max-width:620px){.comments-heading{gap:8px}.comments-heading h2{font-size:23px}.comments-pagination{justify-content:center;flex-wrap:wrap}}

@@ -30,9 +30,23 @@
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
     <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/#contact">有想法？和我聊聊 ↗</a></div>
+    <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
+      <div class="comments-heading"><h2 id="comments-heading">文章评论</h2><button type="button" data-comments-refresh>刷新评论</button></div>
+      <p class="comment-muted">评论经审核后公开显示 · 昵称由访客填写，未经身份验证</p>
+      <div data-comments-list aria-live="polite"><p>正在加载评论…</p></div>
+      <div class="comments-pagination"><button type="button" data-comments-prev disabled aria-label="上一页评论">←</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">→</button></div>
+      <form class="comment-form">
+        <label>昵称<input name="name" maxlength="80" required autocomplete="nickname" placeholder="怎么称呼你"></label>
+        <label>评论<textarea name="content" maxlength="3000" required rows="5" placeholder="留下你的想法，最多3000字。请勿填写密码或其他私密信息。"></textarea></label>
+        <label class="comment-trap" aria-hidden="true">网站<input name="website" tabindex="-1" autocomplete="off"></label>
+        <button type="submit">提交评论</button><p data-comment-notice role="status"></p>
+      </form>
+      <noscript>请启用 JavaScript 查看和提交评论。</noscript>
+    </section>
   </main>
   <button id="back-top" type="button" aria-label="回到顶部" hidden>↑</button><footer>© {{ site.time | date: "%Y" }} itfetter</footer>
 <script src="/assets/read-count.js"></script>
 <script type="module" src="/assets/reading-tools.js"></script>
+<script type="module" src="/assets/comments.js"></script>
 </body>
 </html>

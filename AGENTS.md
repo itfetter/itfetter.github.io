@@ -155,3 +155,7 @@ worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；wo
 
 ## 编辑器重试入口（2026-10-05）
 admin/index.html将“重新载入编辑器”改为“重试加载”，默认隐藏，仅文档引擎明确error状态显示；loading/ready/文章切换idle均隐藏。assets/document-editor.mjs的onState额外提供状态值，不依赖提示文字判错；重试继续保留Markdown字段且不执行保存或发布。worker/document.test.mjs在原有加载失败重试回归中核对状态序列与invalidate归位。正常写作不展示重置入口，避免误清撤销记录。三维护文档同步更新；云端部署和浏览器结果待确认，无数据库迁移或本机依赖下载。
+
+## 文章评论维护规则（2026-10-05）
+
+评论独立于私密contact_messages，article_comments关联posts并在删除文章时级联清理。默认待审核，仅published且非未来文章的approved非回收站评论可公开；公开返回显式字段，禁止泄露pending/hidden/回收站内容、版本或限速标识。访客与作者回复均用textContent显示，不渲染HTML/Markdown；不得将昵称当作经认证身份。匿名提交验证同源Origin/HTTPS/JSON/长度/提交UUID，D1原子限速；不得自动重试写请求，人工同ID同内容重试幂等。管理操作验证会话、Origin及id/version。新迁移0009_comments.sql只增加空表和索引，不修改真实文章或留言。备份兼容旧v1无comments字段，评论恢复先验证全文再写入，仍仅补缺。生产验证不能新增、审核、隐藏或删除真实/测试评论；完整写流程使用合成SQLite数据。当前回收站无自动清理或永久删除功能，后续若增加须明确保留期限和不可撤销确认。

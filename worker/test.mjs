@@ -17,6 +17,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0006_categories.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0007_history.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0008_message_trash.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0009_comments.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -382,4 +383,56 @@ test('短名选填：发布和草稿自动生成稳定地址，自定义与非�
  assert.equal((await s.request('/api/post','PUT',{...article,slug:'my-post'},auth)).status,201);
  assert.equal((await s.request('/api/post','PUT',{...article,slug:'my-post'},auth)).status,409);
  s.db.close();
+});
+
+const commentData=()=>({id:crypto.randomUUID(),post_id:'hello',name:'访客',content:'很有帮助 <script>alert(1)</script>',website:''});
+test('文章评论须审核后公开，支持回复、隐藏、回收站和版本冲突检查',async()=>{
+ const s=setup(),jwt=await token(),c=commentData();
+ await s.request('/api/post','PUT',article,jwt);
+ assert.equal((await s.request('/api/comments','POST',c)).status,201);
+ let rows=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(rows.total,0);
+ assert.equal((await s.request('/api/admin/comments')).status,401);
+ let managed=await(await s.request('/api/admin/comments','GET',undefined,jwt)).json();assert.equal(managed.pending,1);assert.equal(managed.items[0].content,c.content);
+ const patch=(action,version,extra={})=>s.request('/api/admin/comments','PATCH',{id:c.id,version,action,...extra},jwt);
+ assert.equal((await patch('reply',1,{reply:'谢谢你的反馈'})).status,200);
+ assert.equal((await patch('approve',1)).status,409);
+ assert.equal((await patch('approve',2)).status,200);
+ rows=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(rows.total,1);assert.equal(rows.items[0].reply,'谢谢你的反馈');assert.equal(rows.items[0].version,undefined);assert.equal(rows.items[0].status,undefined);
+ assert.equal((await patch('hide',3)).status,200);assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,0);
+ assert.equal((await patch('approve',4)).status,200);
+ assert.equal((await patch('trash',5)).status,200);assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,0);
+ assert.equal((await patch('reply',6,{reply:'不能回复回收站'})).status,409);
+ assert.equal((await patch('restore',6)).status,200);assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,1);
+ assert.equal((await patch('reply',7,{reply:''})).status,200);
+ rows=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(rows.items[0].reply,'');assert.equal(rows.items[0].replied_at,null);
+ s.db.close();
+});
+test('评论人工重试不重复写入，验证字段、文章可见性、跨站和原子限速',async()=>{
+ const s=setup(),jwt=await token(),c=commentData();await s.request('/api/post','PUT',article,jwt);
+ for(let i=0;i<6;i++)assert.equal((await s.request('/api/comments','POST',c)).status,201);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM article_comments').get().n,1);
+ assert.equal((await s.request('/api/comments','POST',{...c,content:'不同内容'})).status,409);
+ for(const change of [{website:'bot'},{name:''},{content:'x'.repeat(3001)},{id:'bad'},{post_id:'../private'}])assert.equal((await s.request('/api/comments','POST',{...commentData(),...change})).status,400);
+ assert.equal((await s.request('/api/comments','POST',{...commentData(),post_id:'missing'})).status,404);
+ const cross=new Request(origin+'/api/comments',{method:'POST',headers:{origin:'https://evil.example','content-type':'application/json'},body:JSON.stringify(commentData())});assert.equal((await worker.fetch(cross,s.env)).status,403);
+ const crossAdmin=new Request(origin+'/api/admin/comments',{method:'PATCH',headers:{origin:'https://evil.example','content-type':'application/json',cookie:jwt},body:JSON.stringify({id:c.id,version:1,action:'approve'})});assert.equal((await worker.fetch(crossAdmin,s.env)).status,403);
+ for(let i=0;i<4;i++)assert.equal((await s.request('/api/comments','POST',commentData())).status,201);
+ const limited=await s.request('/api/comments','POST',commentData());assert.equal(limited.status,429);assert.ok(limited.headers.get('retry-after'));
+ s.db.exec("UPDATE posts SET status='draft'");assert.equal((await s.request('/api/comments?post_id=hello')).status,404);
+ s.db.exec("UPDATE posts SET status='published',published_at='2999-01-01T00:00:00Z'");assert.equal((await s.request('/api/comments','POST',commentData())).status,404);
+ s.db.close();
+});
+test('评论分页、备份恢复、旧备份兼容及删除文章级联清理',async()=>{
+ const s=setup(),jwt=await token();await s.request('/api/post','PUT',article,jwt);
+ const insert=s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,status,created_at) VALUES(?,'hello','访客','评论','approved',?)");
+ for(let i=0;i<21;i++)insert.run(crypto.randomUUID(),new Date().toISOString());
+ assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).items.length,20);
+ assert.equal((await(await s.request('/api/comments?post_id=hello&page=2')).json()).items.length,1);
+ assert.equal((await s.request('/api/comments?post_id=hello&page=-1')).status,400);
+ const backup=await(await s.request('/api/backup','GET',undefined,jwt)).json();assert.equal(backup.comments.length,21);
+ const dest=setup();const result=await dest.request('/api/backup/restore','POST',{...backup,confirm:true},jwt);assert.equal(result.status,200);assert.equal(dest.db.prepare('SELECT COUNT(*) AS n FROM article_comments').get().n,21);
+ const legacy={...backup,confirm:true};delete legacy.comments;assert.equal((await dest.request('/api/backup/restore','POST',legacy,jwt)).status,200);
+ assert.equal((await dest.request('/api/backup/restore','POST',{...backup,comments:[{...backup.comments[0],post_id:'missing'}],confirm:true},jwt)).status,400);
+ s.db.exec('PRAGMA foreign_keys=ON');s.db.exec("DELETE FROM posts WHERE id='hello'");assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM article_comments').get().n,0);
+ s.db.close();dest.db.close();
 });

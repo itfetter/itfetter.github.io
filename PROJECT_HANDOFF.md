@@ -1,5 +1,27 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## 最新工作：文章评论（2026-10-05）
+
+## 文章评论（2026-10-05）
+
+每篇公开文章底部支持访客填写昵称和纯文本评论（最多3000字）。评论默认待审核，后台“评论管理”可审核公开、隐藏、回复、移入回收站和恢复；作者回复与评论一起公开。访客昵称未经身份验证，评论不接受 HTML/Markdown 渲染。私密“联系留言”仍只对管理员可见。
+
+首次部署评论前应用新增迁移 `0009_comments.sql`，不要修改旧迁移。公开接口 GET/POST `/api/comments`；认证管理 GET/PATCH `/api/admin/comments`。写入验证同源、JSON大小、提交UUID，人工重试不重复产生评论；D1 原子限速每IP每小时5次、全站每小时100次。评论每页20条，修改带id/version。删除文章会级联删除所属评论。
+
+内容备份现包含评论和作者回复，便捷备份评论上限1000条，支持恢复没有comments字段的旧v1备份；仅补缺，不覆盖。评论回收站当前可恢复，暂无定时清理或永久删除入口；不把移入回收站说成物理删除。当前是文章级评论，未实现选中文字的行内评论、访客间楼中楼或点赞。
+
+### 当前文件地图补充
+- `worker/comments.js`：匿名评论提交、幂等与原子限速、公开列表、管理员审核/隐藏/回复/回收站，绑定SQL。
+- `worker/migrations/0009_comments.sql`：article_comments、索引和comment_limits；已在生产执行，创建空表并登记迁移，未改文章/留言内容。
+- `worker/index.js`：公开及认证评论路由、同源和请求体保护，沿用no-store API策略。
+- `_layouts/post.html`、`assets/comments.js`、`assets/front.css`：文章底部评论、分页、表单、15秒请求超时和提交失败保留内容，textContent渲染。
+- `admin/index.html`、`assets/admin-comments.mjs`：评论管理导航及筛选、审核、回复、隐藏、回收站、版本冲突和自定义删除确认。
+- `worker/backup.js`：评论导出/恢复、容量检查、旧备份兼容；`worker/test.mjs`补充审核/回复/隐藏/重试/限速/跨站/分页/备份/级联回归。
+- 上述为源码，不含私人内容；静态build仅复制前端资源，新模块在assets内自动纳入。
+
+### 验证与发布状态
+本地复用Node24，无安装：修改的JS和后台内联module语法检查通过；内存SQLite直接执行9个迁移，审核前公开列表为空、审核公开、回复、隐藏、版本冲突、回收站恢复、同ID人工重试、限速、备份新旧兼容和删除文章级联均通过。全套Worker依赖测试由Cloudflare构建执行，不在本地下载依赖。源代码准备提交main并自动部署；最终云端构建和浏览器验证结果在后续记录中补充。未在生产创建测试评论。
+
 ## 留言折叠与回收站（2026-10-05）
 列表正文默认3行，查看全文/收起保留原文；新增删除确认、回收站筛选与恢复，无永久删除或自动清理。回收站不计入未读、批量已读不操作回收站；恢复保留原已读状态。DELETE /api/messages 与 POST /api/messages/restore沿用登录、同源、JSON与大小保护，id/version条件更新；已读操作增加version，旧删除/恢复返回409。
 文件地图：admin/index.html为折叠/确认/恢复/筛选与状态反馈；worker/contact.js为查询、计数及条件更新；worker/index.js为鉴权路由；0008_message_trash.sql新增deleted_at/version/索引；worker/backup.js备份回收站状态并兼容旧备份缺省字段；worker/test.mjs新增路由安全、恢复、冲突与备份回归。顺带修正编辑器“工具栏插入”提示为“左侧区块菜单插入”。
