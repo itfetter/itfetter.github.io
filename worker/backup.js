@@ -17,7 +17,7 @@ export async function exportBackup(env){
  const posts=(await env.DB.prepare('SELECT '+fields.join(',')+' FROM posts').all()).results;
  const categories=(await env.DB.prepare('SELECT name FROM categories').all()).results;
  const history=(await env.DB.prepare('SELECT * FROM post_versions').all()).results;
- const messages=(await env.DB.prepare('SELECT id,name,email,message,status,created_at FROM contact_messages').all()).results;
+ const messages=(await env.DB.prepare('SELECT id,name,email,message,status,created_at,deleted_at,version FROM contact_messages').all()).results;
  const data={format:'itfetter-content-v1',created_at:new Date().toISOString(),posts,categories,history,messages,images:[]};
  if(posts.length>1000||history.length>5000||messages.length>1000||categories.length>1000||JSON.stringify(data).length>4000000)error('内容超过便捷备份上限，请使用 Cloudflare D1 导出。');
  let cursor,total=0;
@@ -48,7 +48,7 @@ export async function restoreBackup(env,data){
  }
  for(const c of data.categories)if(typeof c.name!=='string'||!c.name.trim()||c.name.length>80||/[\u0000-\u001f\u007f]/.test(c.name))error('分类无效。');
  for(const h of data.history){if(!ids.has(h.post_id)||!Number.isSafeInteger(h.version)||h.version<1||!iso(h.saved_at))error('历史版本无效。');for(const [f,max] of [['title',160],['category',80],['summary',300],['body',300000]])if(typeof h[f]!=='string'||h[f].length>max)error('历史字段无效。')}
- for(const m of data.messages)if(typeof m.id!=='string'||m.id.length>80||typeof m.name!=='string'||m.name.length>80||typeof m.message!=='string'||m.message.length>3000||typeof m.email!=='string'||m.email.length>254||!['unread','read'].includes(m.status)||!iso(m.created_at))error('留言无效。');
+ for(const m of data.messages)if(typeof m.id!=='string'||m.id.length>80||typeof m.name!=='string'||m.name.length>80||typeof m.message!=='string'||m.message.length>3000||typeof m.email!=='string'||m.email.length>254||!['unread','read'].includes(m.status)||!iso(m.created_at)||(m.deleted_at!=null&&!iso(m.deleted_at))||(m.version!==undefined&&(!Number.isSafeInteger(m.version)||m.version<1)))error('留言无效。');
  let total=0;const images=[];
  for(const i of data.images){
   if(!imageKey.test(i.key)||!['image/png','image/jpeg','image/webp','image/gif'].includes(i.type)||typeof i.base64!=='string'||!/^[A-Za-z0-9+/]+={0,2}$/.test(i.base64))error('图片备份无效。');
@@ -67,7 +67,7 @@ export async function restoreBackup(env,data){
  ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>p[f]))),
  ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name) VALUES(?) ON CONFLICT DO NOTHING').bind(c.name)),
  ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at)),
- ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at))
+ ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at,m.deleted_at??null,m.version??1))
  ];
  // 分批仅追加；现有记录永不覆盖。中途失败可重新提交同一备份。
  let changed=0;for(let i=0;i<statements.length;i+=50){const result=await env.DB.batch(statements.slice(i,i+50));changed+=result.reduce((sum,r)=>sum+(r.meta.changes||0),0)}

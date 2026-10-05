@@ -16,6 +16,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0005_reads.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0006_categories.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0007_history.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0008_message_trash.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -321,4 +322,30 @@ test('可视化区块保持原始Markdown与引用定义，渲染安全且仅管
  assert.ok(Array.isArray(data.blocks));assert.equal(data.blocks.map(b=>b.raw).join(''),bodies[1]);
  assert.match((await(await s.request('/api/preview','POST',{body:'**正文**'},cookie)).json()).html,/<strong>正文<\/strong>/);
  }finally{s.db.close()}
+});
+
+test('留言回收站鉴权、同源、版本冲突、全文保留与备份恢复',async()=>{
+ const s=setup(),cookie=await token(),id=crypto.randomUUID(),text='长留言\n'.repeat(200);
+ s.db.prepare('INSERT INTO contact_messages(id,name,message,created_at) VALUES(?,?,?,?)').run(id,'访客',text,new Date().toISOString());
+ const data={id,version:1};
+ assert.equal((await s.request('/api/messages','DELETE',data)).status,401);
+ assert.equal((await s.request('/api/messages/restore','POST',data)).status,401);
+ const cross=new Request(origin+'/api/messages',{method:'DELETE',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify(data)});
+ assert.equal((await worker.fetch(cross,s.env)).status,403);
+ assert.equal((await s.request('/api/messages','DELETE',{id,version:0},cookie)).status,400);
+ assert.equal((await s.request('/api/messages','DELETE',data,cookie)).status,200);
+ assert.equal((await (await s.request('/api/messages','GET',undefined,cookie)).json()).total,0);
+ assert.equal((await (await s.request('/api/messages/count','GET',undefined,cookie)).json()).unread,0);
+ const trash=await (await s.request('/api/messages?status=trash','GET',undefined,cookie)).json();
+ assert.equal(trash.items[0].message,text);assert.equal(trash.items[0].version,2);
+ assert.equal((await s.request('/api/messages','PATCH',{id,status:'read'},cookie)).status,404);
+ assert.equal((await s.request('/api/messages/restore','POST',data,cookie)).status,409);
+ const backup=await (await s.request('/api/backup','GET',undefined,cookie)).json();
+ assert.ok(backup.messages[0].deleted_at);assert.equal(backup.messages[0].version,2);
+ const copy=setup();assert.equal((await copy.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.equal((await (await copy.request('/api/messages?status=trash','GET',undefined,cookie)).json()).total,1);copy.db.close();
+ assert.equal((await s.request('/api/messages/restore','POST',{id,version:2},cookie)).status,200);
+ assert.equal((await (await s.request('/api/messages/count','GET',undefined,cookie)).json()).unread,1);
+ assert.equal((await s.request('/api/messages','DELETE',data,cookie)).status,409);
+ assert.equal(s.db.prepare('SELECT message FROM contact_messages WHERE id=?').get(id).message,text);s.db.close();
 });

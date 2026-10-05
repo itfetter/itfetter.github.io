@@ -1,5 +1,10 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## 留言折叠与回收站（2026-10-05）
+列表正文默认3行，查看全文/收起保留原文；新增删除确认、回收站筛选与恢复，无永久删除或自动清理。回收站不计入未读、批量已读不操作回收站；恢复保留原已读状态。DELETE /api/messages 与 POST /api/messages/restore沿用登录、同源、JSON与大小保护，id/version条件更新；已读操作增加version，旧删除/恢复返回409。
+文件地图：admin/index.html为折叠/确认/恢复/筛选与状态反馈；worker/contact.js为查询、计数及条件更新；worker/index.js为鉴权路由；0008_message_trash.sql新增deleted_at/version/索引；worker/backup.js备份回收站状态并兼容旧备份缺省字段；worker/test.mjs新增路由安全、恢复、冲突与备份回归。顺带修正编辑器“工具栏插入”提示为“左侧区块菜单插入”。
+已有Node/SQLite验证软删除、恢复、冲突、全文与未读隔离通过；后台模块及测试语法通过。没有本机下载依赖，没有删除现有两条生产留言。完整测试与部署结果待云端确认。
+
 ## 全层级目录与章节分享（2026-10-05）
 正文目录支持H1–H6，按最低标题级别计算缩进（视觉最多3级缩进）；章节ID由规范化标题生成并处理重复/页面ID冲突，插入其他标题不改变已有唯一标题链接，改名或重复标题重排可能改变链接。目录点击更新URL片段，深链接加载及浏览器前进/返回定位章节，复制按钮随章节切换；旧reading-section-N按原H2/H3顺序解析。文字用textContent，保留折叠目录、减少动态效果与键盘焦点。assets/heading-links.mjs为纯标题映射，assets/reading-tools.js以module加载；首页与独立文章模板同步module入口，front.css支持全部标题滚动偏移/层级/当前章节，公开缓存key更新v2。worker/heading.test.mjs纳入云端测试，无新增依赖/数据迁移。RSS、预计阅读时间、桌面侧栏目录不在本次范围。
 验证与部署：本地已有Node的3项标题映射回归与模块语法通过，未安装依赖；功能提交d757397dabba23ff18d43ae954900b04215d2452已推送main；Cloudflare构建7ed978b0-3507-4cf6-90b0-721f772cdd17成功，46项测试通过、0失败，Worker版本3edd21d7-3a9a-4111-9923-637b6e415e72。线上只读HTTP确认首页/hello独立文章module入口及reading-tools.js/heading-links.mjs均200且内容更新；未写入生产统计/留言/文章。真实浏览器交互仍待验收。
