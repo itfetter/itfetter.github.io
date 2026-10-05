@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createDocumentEditor,contextMenuPosition} from "../assets/document-editor.mjs";
+import {createDocumentEditor,contextMenuPosition,plainCodeHtml} from "../assets/document-editor.mjs";
 globalThis.window={VditorI18n:{},getSelection:()=>null};
 function setup(body="原文\r\n"){
  let value=body,changes=[],state=[],instance;
@@ -93,4 +93,8 @@ test("悬停不移动选区，点击后生成目标区块菜单，选字显示�
   root.handlers.compositionend();editor.setBusy(true);assert.equal(button.hidden,true);
   editor.setBusy(false);editor.setActive(false);assert.equal(button.hidden,true);
  }finally{globalThis.window=priorWindow;globalThis.document=priorDocument;globalThis.MouseEvent=priorMouse}
+});
+
+test("代码转正文转义 HTML 并保留中文、换行与空行",()=>{
+ assert.equal(plainCodeHtml('中文 <script> & "引号"\r\n\n# 标题'),'<p data-block="0">中文 &lt;script&gt; &amp; &quot;引号&quot;<br><br># 标题</p>');
 });

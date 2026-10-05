@@ -27,6 +27,10 @@ export function contextMenuPosition(anchor,size,viewport,inline=false){
  if(inline&&top<margin)top=anchor.bottom+8;
  return {left:Math.max(margin,Math.min(left,viewport.width-width-margin)),top:Math.max(margin,Math.min(top,viewport.height-height-margin))};
 }
+export function plainCodeHtml(text){
+ const escaped=String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+ return '<p data-block="0">'+escaped.replace(/\r\n?|\n/g,"<br>")+'</p>';
+}
 export function createDocumentEditor({root,getBody,onChange,onState,onImage,loadEngine=engine}){
  let editor=null,ready=false,busy=false,active=true,epoch=0,pending=null,display="",baseline="",syncing=false;
  let blockHandle=null,panelBlock=null,hoverBlock=null,menu=null,toolbar=null,pendingBlock=null,composing=false;
@@ -44,6 +48,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
   while(block.parentElement&&block.parentElement!==body)block=block.parentElement;
   return block===body||block.parentElement!==body?null:block;
  }
+ function codeNode(block){return block?.matches?.('pre,[data-type="code-block"]')?block.querySelector('pre code')||block.querySelector('code'):null}
  function selectedBlock(){return topBlock(window.getSelection()?.anchorNode)}
  function updateBlockHandle(){
   if(!blockHandle)return;
@@ -53,7 +58,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
   if(!block)return;
   const rect=block.getBoundingClientRect();
   if(rect.bottom<=8||rect.top>=window.innerHeight-32)return;
-  const type=/^H[1-6]$/.test(block.tagName)?block.tagName:
+  const type=codeNode(block)?"代码":/^H[1-6]$/.test(block.tagName)?block.tagName:
    ({P:"T",UL:"列表",OL:"列表",BLOCKQUOTE:"引用",TABLE:"表格",PRE:"代码"})[block.tagName]||"块";
   blockHandle.textContent=type+" ⠿";
   blockHandle.style.left=Math.max(4,rect.left-54)+"px";
@@ -72,7 +77,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
  function showMenu(mode,rect){
   if(!menu||!ready||busy||!active||composing)return;
   menu.dataset.mode=mode;menu.dataset.native=String(mode==="block"&&panelBlock===pendingBlock);
-  menu.hidden=false;syncFormatAvailability();root.dataset.blockTools="open";
+  menu.hidden=false;const convert=menu.querySelector("[data-type='code-to-text']");if(convert)convert.hidden=mode!=="block"||!codeNode(pendingBlock);syncFormatAvailability();root.dataset.blockTools="open";
   blockHandle.setAttribute("aria-expanded",String(mode==="block"));
   positionMenu(rect,mode==="inline");
  }
@@ -132,7 +137,15 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
   const headings=toolbar.querySelector("[data-type='headings']");
   if(headings){headings.textContent="正文";headings.title="将标题恢复为正文"}
   toolbar.querySelectorAll?.("[data-tag]").forEach(button=>{button.title=button.textContent;button.textContent=button.dataset.tag.toUpperCase()});
-  menu.append(toolbar);root.append(menu);
+  const convert=root.ownerDocument.createElement("button");convert.type="button";convert.dataset.type="code-to-text";convert.textContent="转为正文";convert.title="保留代码文字，转换为普通正文";convert.hidden=true;
+  convert.addEventListener("click",()=>{
+   const block=pendingBlock,code=codeNode(block);
+   if(!ready||busy||composing||!code||block.isConnected===false)return;
+   const text=code.textContent,range=root.ownerDocument.createRange();range.selectNode(block);
+   canvas().focus({preventScroll:true});const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+   editor.updateValue(plainCodeHtml(text));flush();hoverBlock=null;closeBlockTools();updateBlockHandle();
+  });
+  menu.append(convert);menu.append(toolbar);root.append(menu);
   blockHandle=root.ownerDocument.createElement("button");blockHandle.type="button";blockHandle.className="blog-block-handle";
   blockHandle.dataset.type="block-tools";blockHandle.textContent="T ⠿";blockHandle.title="区块格式与操作";
   blockHandle.setAttribute("aria-label","打开区块格式与操作");blockHandle.setAttribute("aria-haspopup","true");blockHandle.setAttribute("aria-expanded","false");blockHandle.hidden=true;

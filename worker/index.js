@@ -158,11 +158,12 @@ async function handle(request, env) {
         if (!result.meta.changes) return fail('文章已被修改或删除，请刷新后重试。',409);
         return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/',savedAs:draft?'draft':'published'});
       }
-      if (!slug(data.slug)) return fail('网址短名只能用小写英文、数字和连字符。');
+      const newSlug = data.slug === undefined || (typeof data.slug === 'string' && !data.slug.trim()) ? 'article-'+crypto.randomUUID() : typeof data.slug === 'string' ? data.slug.trim() : data.slug;
+      if (!slug(newSlug)) return fail('网址短名只能用小写英文、数字和连字符。');
       const result = await env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at,status,draft_title,draft_category,draft_summary,draft_body) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
-        .bind(data.slug,draft?'':data.title.trim(),draft?'':data.category.trim(),draft?'':data.summary.trim(),draft?'':data.body,now,'/articles/'+data.slug+'/',now,draft?'draft':'published',draft?data.title.trim():null,draft?data.category.trim():null,draft?data.summary.trim():null,draft?data.body:null).run();
+        .bind(newSlug,draft?'':data.title.trim(),draft?'':data.category.trim(),draft?'':data.summary.trim(),draft?'':data.body,now,'/articles/'+newSlug+'/',now,draft?'draft':'published',draft?data.title.trim():null,draft?data.category.trim():null,draft?data.summary.trim():null,draft?data.body:null).run();
       if (!result.meta.changes) return fail('网址短名已被使用。',409);
-      return json({id:data.slug,version:1,url:url.origin+'/articles/'+data.slug+'/',savedAs:draft?'draft':'published'},201);
+      return json({id:newSlug,version:1,url:url.origin+'/articles/'+newSlug+'/',savedAs:draft?'draft':'published'},201);
     }
     if (path === '/api/post' && method === 'DELETE') {
       const data = await readJson(request);

@@ -368,3 +368,18 @@ test('批量留言删除恢复与永久删除只操作选中版本、冲突时�
  assert.equal((await s.request('/api/messages/bulk','POST',{action:'purge',items:items.map(i=>({...i,version:4})),confirm:true},cookie)).status,200);
  assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM contact_messages').get().n,1);assert.equal(s.db.prepare('SELECT id FROM contact_messages').get().id,ids[2]);s.db.close();
 });
+
+test('短名选填：发布和草稿自动生成稳定地址，自定义与非法值保持校验',async()=>{
+ const s=setup(),auth=await token();
+ for(const status of ['published','draft']){
+  const response=await s.request('/api/post','PUT',{...article,slug:' ',status},auth);
+  assert.equal(response.status,201);const created=await response.json();
+  assert.match(created.id,/^article-[a-f0-9-]+$/);assert.equal(created.url,origin+'/articles/'+created.id+'/');
+  const updated=await s.request('/api/post','PUT',{...article,id:created.id,version:1,slug:'changed',status},auth);
+  assert.equal(updated.status,200);assert.equal((await updated.json()).id,created.id);
+ }
+ for(const slug of [null,42,'Bad Slug','../unsafe'])assert.equal((await s.request('/api/post','PUT',{...article,slug},auth)).status,400);
+ assert.equal((await s.request('/api/post','PUT',{...article,slug:'my-post'},auth)).status,201);
+ assert.equal((await s.request('/api/post','PUT',{...article,slug:'my-post'},auth)).status,409);
+ s.db.close();
+});
