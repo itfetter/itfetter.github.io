@@ -37,9 +37,9 @@ test("切换文章隔离旧回调，不覆盖新文章",async()=>{
  old.markdown="旧回调";old.options.input();assert.equal(h.value(),"新文章");assert.equal(h.changes.length,0);assert.equal(old.destroyed,true);
 });
 test("资源失败可重试，未保存正文不丢失",async()=>{
- let attempts=0,value="未保存原文";const h=setup();
- const editor=createDocumentEditor({root:{replaceChildren(){}},getBody:()=>value,onChange:()=>assert.fail(),onState:()=>{},onImage:async()=>{},loadEngine:async()=>{if(!attempts++)throw Error("网络失败");return h.Fake}});
- await editor.load();await editor.load();assert.equal(attempts,2);assert.equal(value,"未保存原文");
+ let attempts=0,value="未保存原文",states=[];const h=setup();
+ const editor=createDocumentEditor({root:{replaceChildren(){}},getBody:()=>value,onChange:()=>assert.fail(),onState:(_message,state)=>states.push(state),onImage:async()=>{},loadEngine:async()=>{if(!attempts++)throw Error("网络失败");return h.Fake}});
+ await editor.load();await editor.load();assert.equal(attempts,2);assert.equal(value,"未保存原文");assert.deepEqual(states,["loading","error","loading","ready"]);editor.invalidate();assert.equal(states.at(-1),"idle");
 });
 
 

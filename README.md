@@ -141,3 +141,7 @@ worker/test.mjs新增自动地址/稳定编辑/非法值/重复短名回归；wo
 浏览器发现HTML转Markdown会重新解释代码内的#和列表符号，转换改为临时占位替换、逐行Markdown转义，避免代码文字自动变标题/列表。真实数据未保存验收。
 
 最终验证：Cloudflare构建2471b686-063e-43f9-a011-a80c8c036bc4成功，51项测试全部通过；Worker版本38faf42e-7b19-434d-9c0e-d69fe97b84e6。实际Chrome未保存测试验证选填与自定义URL预览、代码转正文、中文/HTML字面字符/空行/#和列表符号保留、前后正文不变、Ctrl+Z恢复代码及Ctrl+Y重做。测试未发布/保存文章、未上传私密内容；代码转换会使用引擎规范化全文Markdown格式，复杂自定义HTML继续建议源码模式。
+
+
+## 编辑器重试入口（2026-10-05）
+admin/index.html将“重新载入编辑器”改为“重试加载”，默认隐藏，仅文档引擎明确error状态显示；loading/ready/文章切换idle均隐藏。assets/document-editor.mjs的onState额外提供状态值，不依赖提示文字判错；重试继续保留Markdown字段且不执行保存或发布。worker/document.test.mjs在原有加载失败重试回归中核对状态序列与invalidate归位。正常写作不展示重置入口，避免误清撤销记录。三维护文档同步更新；云端部署和浏览器结果待确认，无数据库迁移或本机依赖下载。

@@ -203,7 +203,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
    return;
   }
   if(pending)return pending;
-  const n=epoch;onState("正在加载文档编辑器…");
+  const n=epoch;onState("正在加载文档编辑器…","loading");
   pending=(async()=>{
    try{
     const Constructor=await loadEngine();if(!alive(n))return;
@@ -221,18 +221,18 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
       customWysiwygToolbar:(_type,panel)=>syncNativePanel(panel),
       input:()=>{if(!globalThis.document?.activeElement?.closest(".blog-document-menu"))closeBlockTools();if(alive(n)&&ready)flush()},
       after:()=>{clearTimeout(timeout);if(!alive(n)){resolve();return}
-       ready=true;mountBlockHandle();display=getBody();syncing=true;try{editor.setValue(display,true);baseline=editor.getValue()}finally{syncing=false}lock();onState("文档编辑 · 悬停左侧打开区块菜单，选中文字设置格式 · 修改后请保存草稿");resolve();
+       ready=true;mountBlockHandle();display=getBody();syncing=true;try{editor.setValue(display,true);baseline=editor.getValue()}finally{syncing=false}lock();onState("文档编辑 · 悬停左侧打开区块菜单，选中文字设置格式 · 修改后请保存草稿","ready");resolve();
       }
      });
     });
-   }catch(error){if(alive(n)){epoch++;destroy();onState(error.message)}}
+   }catch(error){if(alive(n)){epoch++;destroy();onState(error.message,"error")}}
    finally{if(alive(n))pending=null}
   })();
   return pending;
  }
  return {
   load,flush,
-  invalidate(){epoch++;destroy()},
+  invalidate(){epoch++;destroy();onState("","idle")},
   setBusy(value){if(value&&!busy)flush();busy=Boolean(value);lock()},
   setActive(value){closeBlockTools();if(!value)flush();active=Boolean(value);updateBlockHandle()},
   rememberSelection(){const selection=window.getSelection();return selection?.rangeCount&&root.contains(selection.anchorNode)?selection.getRangeAt(0).cloneRange():null},
