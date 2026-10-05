@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createDocumentEditor,contextMenuPosition,plainCodeHtml} from "../assets/document-editor.mjs";
+import {createDocumentEditor,contextMenuPosition,plainCodeHtml,plainCodeMarkdown} from "../assets/document-editor.mjs";
 globalThis.window={VditorI18n:{},getSelection:()=>null};
 function setup(body="原文\r\n"){
  let value=body,changes=[],state=[],instance;
@@ -97,4 +97,8 @@ test("悬停不移动选区，点击后生成目标区块菜单，选字显示�
 
 test("代码转正文转义 HTML 并保留中文、换行与空行",()=>{
  assert.equal(plainCodeHtml('中文 <script> & "引号"\r\n\n# 标题'),'<p data-block="0">中文 &lt;script&gt; &amp; &quot;引号&quot;<br><br># 标题</p>');
+});
+
+test("代码文字转换不会把井号、列表和 HTML 重新解释为格式",()=>{
+ assert.equal(plainCodeMarkdown('# 标题\n- 列表\n<script>\n反斜线\\路径'),'\\# 标题  \n\\- 列表  \n\\<script\\>  \n反斜线\\\\路径');
 });

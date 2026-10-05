@@ -31,6 +31,9 @@ export function plainCodeHtml(text){
  const escaped=String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
  return '<p data-block="0">'+escaped.replace(/\r\n?|\n/g,"<br>")+'</p>';
 }
+export function plainCodeMarkdown(text){
+ return String(text).replace(/\r\n?/g,"\n").replace(/\\/g,"\\\\").replace(/([`*_{}\[\]<>#+.!|~\-])/g,"\\$1").split("\n").map(line=>line||"").join("  \n").trimEnd();
+}
 export function createDocumentEditor({root,getBody,onChange,onState,onImage,loadEngine=engine}){
  let editor=null,ready=false,busy=false,active=true,epoch=0,pending=null,display="",baseline="",syncing=false;
  let blockHandle=null,panelBlock=null,hoverBlock=null,menu=null,toolbar=null,pendingBlock=null,composing=false;
@@ -146,9 +149,10 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
    const template=root.ownerDocument.createElement('template');template.innerHTML=editor.getHTML();
    const target=Array.from(template.content.querySelectorAll('pre')).filter(pre=>pre.querySelector('code'))[index];
    if(!target)return;
-   const replacement=root.ownerDocument.createElement('template');replacement.innerHTML=plainCodeHtml(code.textContent);
-   target.replaceWith(replacement.content);
-   const markdown=editor.html2md(template.innerHTML);
+   const marker="blogplaincode"+crypto.randomUUID().replaceAll("-","");
+   const replacement=root.ownerDocument.createElement('p');replacement.textContent=marker;
+   target.replaceWith(replacement);
+   const markdown=editor.html2md(template.innerHTML).replace(marker,plainCodeMarkdown(code.textContent));
    // setValue(false) 走引擎渲染和撤销栈，不清空历史，也不依赖浏览器跨代码容器选区。
    syncing=true;try{editor.setValue(markdown,false)}finally{syncing=false}
    const value=editor.getValue();baseline=value;display=value;onChange(value);
