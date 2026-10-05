@@ -387,13 +387,13 @@ test('短名选填：发布和草稿自动生成稳定地址，自定义与非�
 });
 
 const commentData=()=>({id:crypto.randomUUID(),post_id:'hello',name:'访客',content:'很有帮助 <script>alert(1)</script>',website:''});
-test('文章评论须审核后公开，支持回复、隐藏、回收站和版本冲突检查',async()=>{
+test('文章评论直接公开，支持作者回复、隐藏、回收站和版本冲突检查',async()=>{
  const s=setup(),jwt=await token(),c=commentData();
  await s.request('/api/post','PUT',article,jwt);
  assert.equal((await s.request('/api/comments','POST',c)).status,201);
- let rows=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(rows.total,0);
+ let rows=await(await s.request('/api/comments?post_id=hello')).json();assert.equal(rows.total,1);
  assert.equal((await s.request('/api/admin/comments')).status,401);
- let managed=await(await s.request('/api/admin/comments','GET',undefined,jwt)).json();assert.equal(managed.pending,1);assert.equal(managed.items[0].content,c.content);
+ let managed=await(await s.request('/api/admin/comments','GET',undefined,jwt)).json();assert.equal(managed.pending,0);assert.equal(managed.items[0].content,c.content);
  const patch=(action,version,extra={})=>s.request('/api/admin/comments','PATCH',{id:c.id,version,action,...extra},jwt);
  assert.equal((await patch('reply',1,{reply:'谢谢你的反馈'})).status,200);
  assert.equal((await patch('approve',1)).status,409);
@@ -445,6 +445,7 @@ test('访客回复归属原评论，支持回复回复，隐藏关系保护和�
  await approve(root.id);
  const first={...commentData(),name:'回复者甲',target_id:root.id};
  assert.equal((await s.request('/api/comments','POST',first)).status,201);
+ s.db.prepare("UPDATE article_comments SET status='pending' WHERE id=?").run(first.id);
  assert.equal((await s.request('/api/comments','POST',{...commentData(),target_id:first.id})).status,404);
  await approve(first.id);
  const second={...commentData(),target_id:first.id};
@@ -476,4 +477,20 @@ test('回复备份逆序可恢复，拒绝跨文章及循环回复，旧字段�
  const badRoot=structuredClone(backup);badRoot.comments[0].root_id=ids[1];
  assert.equal((await d.request('/api/backup/restore','POST',{...badRoot,confirm:true},jwt)).status,400);
  s.db.close();d.db.close();
+});
+
+test('直接发布回复无需审核，隐藏后幂等重试不重新公开',async()=>{
+ const s=setup(),jwt=await token();await s.request('/api/post','PUT',article,jwt);
+ const root=commentData(),first={...commentData(),target_id:root.id};
+ const response=await s.request('/api/comments','POST',root);assert.equal(response.status,201);assert.equal((await response.json()).item.id,root.id);
+ assert.equal(s.db.prepare('SELECT status FROM article_comments WHERE id=?').get(root.id).status,'approved');
+ const reply=await s.request('/api/comments','POST',first);assert.equal(reply.status,201);assert.equal((await reply.json()).item.target_name,root.name);
+ const second={...commentData(),target_id:first.id};assert.equal((await s.request('/api/comments','POST',second)).status,201);
+ let data=await(await s.request('/api/comments?post_id=hello&root_id='+root.id)).json();assert.equal(data.total,2);
+ await s.request('/api/admin/comments','PATCH',{id:root.id,version:1,action:'hide'},jwt);
+ const retry=await s.request('/api/comments','POST',root);assert.equal((await retry.json()).item,null);
+ const retryReply=await s.request('/api/comments','POST',first);assert.equal((await retryReply.json()).item,null);
+ assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,0);
+ assert.equal(s.db.prepare('SELECT COUNT(*) n FROM article_comments').get().n,3);
+ s.db.close();
 });

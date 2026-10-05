@@ -158,7 +158,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 文章评论维护规则（2026-10-05）
 
-评论独立于私密contact_messages，article_comments关联posts并在删除文章时级联清理。默认待审核，仅published且非未来文章的approved非回收站评论可公开；公开返回显式字段，禁止泄露pending/hidden/回收站内容、版本或限速标识。访客与作者回复均用textContent显示，不渲染HTML/Markdown；不得将昵称当作经认证身份。匿名提交验证同源Origin/HTTPS/JSON/长度/提交UUID，D1原子限速；不得自动重试写请求，人工同ID同内容重试幂等。管理操作验证会话、Origin及id/version。新迁移0009_comments.sql只增加空表和索引，不修改真实文章或留言。备份兼容旧v1无comments字段，评论恢复先验证全文再写入，仍仅补缺。生产验证不能新增、审核、隐藏或删除真实/测试评论；完整写流程使用合成SQLite数据。当前回收站无自动清理或永久删除功能，后续若增加须明确保留期限和不可撤销确认。
+评论独立于私密contact_messages，article_comments关联posts并在删除文章时级联清理。新提交默认公开（approved），仅published且非未来文章的approved非回收站评论可公开；公开返回显式字段，禁止泄露pending/hidden/回收站内容、版本或限速标识。访客与作者回复均用textContent显示，不渲染HTML/Markdown；不得将昵称当作经认证身份。匿名提交验证同源Origin/HTTPS/JSON/长度/提交UUID，D1原子限速；不得自动重试写请求，人工同ID同内容重试幂等。管理操作验证会话、Origin及id/version。新迁移0009_comments.sql只增加空表和索引，不修改真实文章或留言。备份兼容旧v1无comments字段，评论恢复先验证全文再写入，仍仅补缺。生产验证不能新增、审核、隐藏或删除真实/测试评论；完整写流程使用合成SQLite数据。当前回收站无自动清理或永久删除功能，后续若增加须明确保留期限和不可撤销确认。
 
 ## 后台刷新保留页面（2026-10-05）
 后台用同源URL查询参数view记录所在栏目，编辑已保存文章时另记录id。切换栏目用replaceState，不重载页面；登录/刷新后验证会话再恢复栏目并读取其数据，编辑正文仍从认证API加载，不写入浏览器持久存储。新文章刷新只恢复新建界面，未保存内容仍需先保存草稿；原有beforeunload/切换确认保护保留。非法view回工作台，非法文章id回文章库，文章读取失败显示提示。文件入口为assets/admin-route.mjs、admin/index.html和worker/admin.test.mjs。
@@ -167,7 +167,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 
 ## 访客评论讨论串（2026-10-05）
-新增 0010_comment_threads.sql；原评论分页20条，回复分页10条，回复他人仍归属同一原评论，显示直接回复对象。所有访客回复需审核，原评论隐藏/回收后整串不公开。备份保留并校验回复关系，恢复按依赖顺序追加。当前用户明确授权在一篇文章加入数十条标注测试评论，仅适用于本次演示，不授权修改或删除真实评论。
+新增 0010_comment_threads.sql；原评论分页20条，回复分页10条，回复他人仍归属同一原评论，显示直接回复对象。访客评论与回复直接公开，原评论隐藏/回收后整串不公开。备份保留并校验回复关系，恢复按依赖顺序追加。当前用户明确授权在一篇文章加入数十条标注测试评论，仅适用于本次演示，不授权修改或删除真实评论。
 
 
 ### 讨论串上线验收
@@ -176,3 +176,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 - Chrome 验收：原评论分页20+10；讨论串回复分页10+3；回复回复显示目标昵称；取消/翻页保留输入；实际提交→待审核→审核通过→前台公开。390px 窄屏 DOM scrollWidth375px，无横向溢出，视口已恢复。
 - 清理追踪仅本地 work/thread/demo-comment-ids.json（50条）及 work/thread/verification.json 的 lastId（浏览器1条）；未把真实评论内容写入代码。清理仍需用户授权。
 - 图片证据：C:/Users/codedev/Documents/Codex/comment-thread-check.jpg、comment-thread-mobile.jpg。没有本地依赖下载，完整构建测试由 Cloudflare 执行。
+
+
+## 当前评论发布规则（2026-10-05，取代此前先审核说明）
+按用户要求，新访客评论及回复直接以approved状态公开，无需审核；后台默认全部评论，支持隐藏、重新公开、软删除和恢复，历史pending状态仍兼容。已有隐藏、回收站及历史待审核内容不批量改动。提交成功在页面显示服务器确认的公开内容；重复提交不重新公开被管理员隐藏的评论。保留同源/HTTPS/JSON/字段/纯文本保护、UUID幂等、D1原子限速和id/version管理。无需迁移，不改既有0009/0010。文件入口worker/comments.js、assets/comments.js、assets/admin-comments.mjs、admin/index.html、_layouts/post.html；worker/test.mjs增加直接发布回复与隐藏后重试回归。没有本地下载依赖；云端完整测试与部署待核对。

@@ -33,13 +33,13 @@ export function mountCommentManagement(api){
     const content=node('p',item.content,'comment-admin-text'),actions=node('div',undefined,'row');
     const action=(label,name,cls)=>{const b=node('button',label,cls);b.type='button';b.onclick=()=>void change(item,name);actions.append(b)};
     if(item.deleted_at)action('恢复','restore');
-    else{if(item.status!=='approved')action('审核通过','approve');if(item.status!=='hidden')action('隐藏','hide');action('移入回收站','trash','danger')}
+    else{if(item.status!=='approved')action(item.status==='hidden'?'重新公开':'公开','approve');if(item.status!=='hidden')action('隐藏','hide');action('移入回收站','trash','danger')}
     card.append(header,article);
     card.append(node('p',item.root_id?'访客回复 → '+(item.target_name||'已移除的访客'):'原评论 · 隐藏或移入回收站后，整条讨论不再公开。','muted'),content,actions);
     if(!item.deleted_at){
      const details=node('details'),summary=node('summary',item.reply?'编辑作者回复':'回复评论'),textarea=node('textarea'),save=node('button','保存回复');
      textarea.value=item.reply;textarea.maxLength=3000;textarea.rows=4;textarea.setAttribute('aria-label','作者回复');save.type='button';save.onclick=()=>void change(item,'reply',textarea.value);
-     details.append(summary,node('p','审核通过后，评论和作者回复一起公开。清空回复后保存可移除回复。','muted'),textarea,save);card.append(details);
+     details.append(summary,node('p','公开状态下，评论和作者回复一起显示。清空回复后保存可移除回复。','muted'),textarea,save);card.append(details);
     }
     list.append(card);
    }

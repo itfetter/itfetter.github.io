@@ -12,21 +12,21 @@ if(root){
  }
  function render(item,isReply=false){
   const card=el('div',undefined,isReply?'comment-item comment-thread-item':'comment-item'),head=el('div',undefined,'comment-meta');
-  head.append(el('strong',item.name));
+  card.dataset.commentId=item.id;head.append(el('strong',item.name));
   if(isReply)head.append(el('span','回复 '+(item.target_name||'已隐藏的访客')));
   card.append(head,el('p',item.content,'comment-text'));
   const actions=el('div',undefined,'comment-actions'),button=el('button','回复');button.type='button';button.onclick=()=>replyTo(item,card);
   actions.append(el('time',date(item.created_at)),button);card.append(actions);
   if(item.reply){const author=el('div',undefined,'comment-reply');author.append(el('strong','作者回复'),el('p',item.reply,'comment-text'));card.append(author)}
   if(!isReply&&item.reply_count){
-   const thread=el('div',undefined,'comment-thread'),toggle=el('button','展开 '+item.reply_count+' 条回复'),more=el('button','查看更多回复'),rows=el('div'),close=el('button','收起回复');
+   const thread=el('div',undefined,'comment-thread'),toggle=el('button','展开 '+item.reply_count+' 条回复'),more=el('button','查看更多回复'),rows=el('div',undefined,'comment-thread-rows'),close=el('button','收起回复');
    for(const b of [toggle,more,close])b.type='button';
    let nextPage=1,busy=false;
    async function loadReplies(){
     if(busy)return;busy=true;more.disabled=toggle.disabled=true;
     try{
      const data=await request('/api/comments?post_id='+encodeURIComponent(id)+'&root_id='+item.id+'&page='+nextPage);
-     for(const reply of data.items)rows.append(render(reply,true));nextPage++;more.hidden=(nextPage-1)*data.pageSize>=data.total;
+     for(const reply of data.items)if(!list.querySelector('[data-comment-id="'+reply.id+'"]'))rows.append(render(reply,true));nextPage++;more.hidden=(nextPage-1)*data.pageSize>=data.total;
      thread.hidden=false;toggle.hidden=true;
     }catch(error){notice.textContent=error.message}
     finally{busy=false;more.disabled=toggle.disabled=false}
@@ -64,8 +64,15 @@ if(root){
   if(!submission||submission.signature!==signature)submission={signature,id:crypto.randomUUID()};
   submit.disabled=true;notice.textContent='正在提交…';
   try{
-   await request('/api/comments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:submission.id,post_id:id,name,content,target_id:target?.id??null,website:form.elements.website.value})});
-   form.elements.content.value='';submission=null;resetTarget();notice.textContent='评论或回复已提交，审核通过后公开显示。';
+   const replyTarget=target,replyCard=form.parentElement;
+   const result=await request('/api/comments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:submission.id,post_id:id,name,content,target_id:target?.id??null,website:form.elements.website.value})});
+   const posted=result.item;
+   form.elements.content.value='';submission=null;resetTarget();notice.textContent=posted?'评论或回复已发布。':'提交已接收，评论目前未公开。';
+   if(replyTarget&&posted&&!list.querySelector('[data-comment-id="'+posted.id+'"]')){
+    const fresh=render(posted,true);
+    if(replyCard.classList.contains('comment-thread-item'))replyCard.after(fresh);
+    else{let thread=replyCard.querySelector('.comment-thread');if(!thread){thread=el('div',undefined,'comment-thread');replyCard.append(thread)}thread.hidden=false;(thread.querySelector('.comment-thread-rows')||thread).append(fresh);const toggle=replyCard.querySelector(':scope > button');if(toggle)toggle.hidden=true}
+   }else if(!replyTarget){page=1;submit.disabled=false;await load()}
   }catch(error){notice.textContent=error.name==='TimeoutError'?'提交超时，内容已保留，可以再次点击提交。':error.message||'连接失败，内容已保留，请重试。'}
   finally{submit.disabled=false}
  };
