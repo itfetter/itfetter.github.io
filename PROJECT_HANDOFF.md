@@ -592,3 +592,11 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 访客评论讨论串（2026-10-05）
 新增 0010_comment_threads.sql；原评论分页20条，回复分页10条，回复他人仍归属同一原评论，显示直接回复对象。所有访客回复需审核，原评论隐藏/回收后整串不公开。备份保留并校验回复关系，恢复按依赖顺序追加。当前用户明确授权在一篇文章加入数十条标注测试评论，仅适用于本次演示，不授权修改或删除真实评论。
+
+
+### 讨论串上线验收
+- 功能提交：6df157fd1be8c0ef564d40cf0f6fd8bcb931e69c；Cloudflare Build f89f05f6-4338-47ad-a50a-de6c8734c03d；57/57 测试通过，Worker 23181cc6-df4d-44a8-bed0-f40e20706aff。
+- 生产 D1 已应用并登记 0010_comment_threads.sql。图文示例 /articles/rich-markdown-demo/ 加入30条原评论、20条演示回复；另通过真实浏览器提交并在后台审核1条回复，总计51条，全部标注“功能测试，可清理”。原有 cloudflare 文章3条评论未改动。
+- Chrome 验收：原评论分页20+10；讨论串回复分页10+3；回复回复显示目标昵称；取消/翻页保留输入；实际提交→待审核→审核通过→前台公开。390px 窄屏 DOM scrollWidth375px，无横向溢出，视口已恢复。
+- 清理追踪仅本地 work/thread/demo-comment-ids.json（50条）及 work/thread/verification.json 的 lastId（浏览器1条）；未把真实评论内容写入代码。清理仍需用户授权。
+- 图片证据：C:/Users/codedev/Documents/Codex/comment-thread-check.jpg、comment-thread-mobile.jpg。没有本地依赖下载，完整构建测试由 Cloudflare 执行。
