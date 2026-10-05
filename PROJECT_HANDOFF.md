@@ -605,3 +605,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 - Chrome 验收：原评论分页20+10；讨论串回复分页10+3；回复回复显示目标昵称；取消/翻页保留输入；实际提交→待审核→审核通过→前台公开。390px 窄屏 DOM scrollWidth375px，无横向溢出，视口已恢复。
 - 清理追踪仅本地 work/thread/demo-comment-ids.json（50条）及 work/thread/verification.json 的 lastId（浏览器1条）；未把真实评论内容写入代码。清理仍需用户授权。
 - 图片证据：C:/Users/codedev/Documents/Codex/comment-thread-check.jpg、comment-thread-mobile.jpg。没有本地依赖下载，完整构建测试由 Cloudflare 执行。
+
+
+### 直接发布上线验收
+功能提交 48fcfb0bc78471f9ec653d4f91dfac7e88b4e78d 已推送main并部署；Cloudflare Build 71c2b032-19cd-4ece-a66c-9d7e0e2f73f1，58项测试全部通过，Worker 2680cb5f-01b1-472a-9fbe-4739b77f4c14。本地Node/SQLite验证直接公开、互相回复、隐藏/回收站/恢复及幂等重试保持隐藏；没有本地安装依赖。Chrome实际提交1条标注测试评论和1条回复到原图文演示文章，两者立即公开、刷新后仍显示，不执行任何审核操作；后台默认all，显示已公开并提供隐藏/移入回收站。原有评论未修改，既有待审核/隐藏/删除状态未批量变更。新增演示ID仅保存在本地work/direct/verification.json，截图Documents/Codex/comment-direct-publish.jpg。旧先审核记录仅作历史，不再作为新提交规则。

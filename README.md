@@ -172,3 +172,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 当前评论发布规则（2026-10-05，取代此前先审核说明）
 按用户要求，新访客评论及回复直接以approved状态公开，无需审核；后台默认全部评论，支持隐藏、重新公开、软删除和恢复，历史pending状态仍兼容。已有隐藏、回收站及历史待审核内容不批量改动。提交成功在页面显示服务器确认的公开内容；重复提交不重新公开被管理员隐藏的评论。保留同源/HTTPS/JSON/字段/纯文本保护、UUID幂等、D1原子限速和id/version管理。无需迁移，不改既有0009/0010。文件入口worker/comments.js、assets/comments.js、assets/admin-comments.mjs、admin/index.html、_layouts/post.html；worker/test.mjs增加直接发布回复与隐藏后重试回归。没有本地下载依赖；云端完整测试与部署待核对。
+
+
+### 直接发布上线验收
+功能提交 48fcfb0bc78471f9ec653d4f91dfac7e88b4e78d 已推送main并部署；Cloudflare Build 71c2b032-19cd-4ece-a66c-9d7e0e2f73f1，58项测试全部通过，Worker 2680cb5f-01b1-472a-9fbe-4739b77f4c14。本地Node/SQLite验证直接公开、互相回复、隐藏/回收站/恢复及幂等重试保持隐藏；没有本地安装依赖。Chrome实际提交1条标注测试评论和1条回复到原图文演示文章，两者立即公开、刷新后仍显示，不执行任何审核操作；后台默认all，显示已公开并提供隐藏/移入回收站。原有评论未修改，既有待审核/隐藏/删除状态未批量变更。新增演示ID仅保存在本地work/direct/verification.json，截图Documents/Codex/comment-direct-publish.jpg。旧先审核记录仅作历史，不再作为新提交规则。
