@@ -19,3 +19,8 @@
 .topbar .nav a{display:inline!important}.topbar .nav a[aria-current=page]{color:var(--accent);font-weight:700}
 #main{min-height:65vh}.archive-section{min-height:60vh}.article-row{overflow-wrap:anywhere}
 @media(max-width:620px){.topbar{height:auto;min-height:76px;flex-wrap:wrap;gap:16px;padding-top:18px;padding-bottom:18px}.topbar .nav{gap:18px;flex-wrap:wrap;font-size:13px}.brand{font-size:20px}.footer-links{display:flex;gap:16px;flex-wrap:wrap}}
+
+.section-head .page-title{font-size:34px;line-height:1.3;letter-spacing:-.055em;margin:10px 0 0}
+.archive-section .page-title{font-size:30px;line-height:1.5;margin:20px 0}
+.about .page-title{font-size:37px;line-height:1.4;letter-spacing:-.055em;margin:18px 0 0}
+@media(max-width:620px){.section-head .page-title{font-size:27px}.about .page-title{font-size:30px}}

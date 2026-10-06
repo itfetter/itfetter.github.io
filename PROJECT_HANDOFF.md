@@ -6,7 +6,7 @@
 
 index.html、articles/index.html、archive/index.html、about/index.html 为静态页面；assets/site.css 为共有基础布局，assets/front.css 为公共视觉，assets/front.js 按页面元素初始化功能；列表状态仍使用 public-utils.mjs，阅读页返回链接接受本站新列表及旧首页列表。scripts/build.mjs 显式复制三个新页面；worker/index.js 将 /articles/ 列表交给静态资源，仅其子路径读取文章，并在 sitemap 收录四个公开页面。修改页面时关联文章模板导航、reading-tools、404入口及构建白名单。后台与D1/R2业务不受页面拆分影响。
 
-本次按用户要求拆分原单页，减少首页长度并使栏目可单独刷新、收藏和分享。沿用已有Node轻量检查和既有云端回归；不安装本机依赖。提交/部署及实际验证结果待核对。
+本次实际结果：功能提交984ff1467379e690da5dbcd1ecd2ac58ed15ca63已推送main，Cloudflare自动构建成功并上线，完整67项测试通过、0失败；本地6项公开URL/缓存/留言请求回归与脚本语法检查通过，没有安装依赖。真实内置浏览器核对四页、文章列表3篇、搜索Cloudflare刷新仍保留q并匹配1篇、归档月份1+2篇、关于我私密留言表单；旧/#archive自动转向/archive/，390px视口四导航可见、文档375px无横向溢出，控制台无错误。未提交留言或改动文章/评论/R2。补充独立页H1语义及响应式标题；页面标题、canonical和静态构建入口保持对应。线上文章不足5篇，真实多页翻页未覆盖，原分页逻辑保留。截图保存本地Documents/Codex/public-pages.png。
 
 
 ## 文章回收站（2026-10-06，当前规则）
