@@ -11,17 +11,19 @@ export function mountCommentManagement(api,articles=()=>[]){
   $('select-all').checked=items.length>0&&checked===items.length;
   $('select-all').indeterminate=checked>0&&checked<items.length;
   $('select-all').disabled=busy||!items.length;
-  for(const action of ['approve','hide','trash','restore']){
-   const button=$('bulk-'+action);button.classList.toggle('hidden',(action==='restore')!==trash());button.disabled=busy||!checked;
+  for(const action of ['approve','hide','trash','restore','purge']){
+   const button=$('bulk-'+action);button.classList.toggle('hidden',(['restore','purge'].includes(action))!==trash());button.disabled=busy||!checked;
   }
   $('prev').disabled=busy||page<=1;$('next').disabled=busy||page>=pages;
  }
  function locked(value){
   busy=value;root.querySelectorAll('button,select,textarea,input').forEach(n=>n.disabled=value);sync();
  }
- function confirmTrash(count=1){
+ function confirmTrash(count=1,permanent=false){
   const dialog=$('dialog');
-  $('dialog-description').textContent='将所选 '+count+' 条评论移入回收站，评论及其作者回复停止公开显示。原评论移入回收站后，整条讨论不再公开。可在回收站恢复。';
+  dialog.querySelector('h2').textContent=permanent?'彻底删除评论？':'移入回收站？';
+  $('confirm').textContent=permanent?'彻底删除':'移入回收站';
+  $('dialog-description').textContent=permanent?'彻底删除所选 '+count+' 条评论及其作者回复，无法从回收站恢复。删除原评论还会清除该讨论中的全部访客回复，包括未勾选的回复。已下载的离线备份不受影响。':'将所选 '+count+' 条评论移入回收站，评论及其作者回复停止公开显示。原评论移入回收站后，整条讨论不再公开。可在回收站恢复。';
   dialog.showModal();$('cancel').focus();
   return new Promise(resolve=>{
    const done=value=>{dialog.close();dialog.oncancel=null;$('confirm').onclick=$('cancel').onclick=null;resolve(value)};
@@ -30,20 +32,20 @@ export function mountCommentManagement(api,articles=()=>[]){
  }
  async function change(item,action,reply){
   if(busy||confirming)return;
-  if(action==='trash'){confirming=true;const ok=await confirmTrash();confirming=false;if(!ok)return}
+  if(['trash','purge'].includes(action)){confirming=true;const ok=await confirmTrash(1,action==='purge');confirming=false;if(!ok)return}
   locked(true);$('notice').textContent='正在保存…';
   try{
-   await api('/api/admin/comments',{method:'PATCH',body:JSON.stringify({id:item.id,version:item.version,action,...(reply===undefined?{}:{reply})})});
+   await api('/api/admin/comments',{method:'PATCH',body:JSON.stringify({id:item.id,version:item.version,action,...(action==='purge'?{confirm:true}:{}),...(reply===undefined?{}:{reply})})});
    busy=false;const refreshed=await load();if(refreshed)$('notice').textContent='操作已保存。';else $('notice').textContent='操作已保存，但列表刷新失败。请刷新评论。';
   }catch(error){$('notice').textContent=error.message;locked(false)}
  }
  async function bulk(action){
   if(busy||confirming||!selected.size)return;
   const snapshot=[...selected].map(([id,version])=>({id,version}));
-  if(action==='trash'){confirming=true;const ok=await confirmTrash(snapshot.length);confirming=false;if(!ok)return}
+  if(['trash','purge'].includes(action)){confirming=true;const ok=await confirmTrash(snapshot.length,action==='purge');confirming=false;if(!ok)return}
   locked(true);$('notice').textContent='正在保存所选评论…';
   try{
-   const result=await api('/api/admin/comments/bulk',{method:'POST',body:JSON.stringify({action,items:snapshot})});
+   const result=await api('/api/admin/comments/bulk',{method:'POST',body:JSON.stringify({action,items:snapshot,...(action==='purge'?{confirm:true}:{})})});
    busy=false;const refreshed=await load();$('notice').textContent='已处理 '+result.changed+' 条评论。'+(refreshed?'':'列表刷新失败，请刷新评论。');
   }catch(error){$('notice').textContent=error.message;locked(false)}
  }
@@ -76,7 +78,7 @@ export function mountCommentManagement(api,articles=()=>[]){
      const collapsed=content.classList.toggle('collapsed');expand.textContent=collapsed?'查看全文':'收起';expand.setAttribute('aria-expanded',String(!collapsed));
     };
     const action=(label,name,cls)=>{const b=node('button',label,cls);b.type='button';b.onclick=()=>void change(item,name);actions.append(b)};
-    if(item.deleted_at)action('恢复','restore');
+    if(item.deleted_at){action('恢复','restore');action('彻底删除','purge','danger')}
     else{if(item.status!=='approved')action(item.status==='hidden'?'重新公开':'公开','approve');if(item.status!=='hidden')action('隐藏','hide');action('移入回收站','trash','danger')}
     card.append(header,article,node('p',item.root_id?'访客回复 → '+(item.target_name||'已移除的访客'):'原评论 · 隐藏或移入回收站后，整条讨论不再公开。','muted'),content,expand,actions);
     if(!item.deleted_at){
@@ -99,6 +101,6 @@ export function mountCommentManagement(api,articles=()=>[]){
  $('clear').onclick=()=>{query='';$('search').value='';$('article').value='';$('filter').value='all';resetPage()};
  $('prev').onclick=()=>{if(!busy&&page>1){page--;void load()}};$('next').onclick=()=>{if(!busy&&page<pages){page++;void load()}};
  $('select-all').onchange=()=>{selected.clear();if($('select-all').checked)for(const item of items)selected.set(item.id,item.version);list.querySelectorAll('input[type=checkbox]').forEach(n=>n.checked=$('select-all').checked);sync()};
- for(const action of ['approve','hide','trash','restore'])$('bulk-'+action).onclick=()=>void bulk(action);
+ for(const action of ['approve','hide','trash','restore','purge'])$('bulk-'+action).onclick=()=>void bulk(action);
  return {load};
 }

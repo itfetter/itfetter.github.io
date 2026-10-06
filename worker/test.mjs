@@ -543,3 +543,53 @@ test('评论批量管理保护鉴权、来源、全部版本和状态，冲突�
  const mixed=versions();assert.equal((await send('restore',6)).status,409);assert.deepEqual(versions(),mixed);
  s.db.close();
 });
+
+test('评论彻底删除要求确认与回收站状态，整批版本冲突不删除，回复级联与目标清空',async()=>{
+ const s=setup(),jwt=await token(),now=new Date().toISOString();s.db.exec('PRAGMA foreign_keys=ON');
+ await s.request('/api/post','PUT',article,jwt);
+ const ids=Array.from({length:5},()=>crypto.randomUUID());
+ const insert=s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,status,created_at,root_id,target_id,deleted_at) VALUES(?,'hello','测试','内容','approved',?,?,?,?)");
+ insert.run(ids[0],now,null,null,now);
+ insert.run(ids[1],now,ids[0],ids[0],now);
+ insert.run(ids[2],now,ids[0],ids[1],null);
+ insert.run(ids[3],now,null,null,now);
+ insert.run(ids[4],now,null,null,null);
+ const path='/api/admin/comments/bulk',items=ids.slice(0,2).map(id=>({id,version:1})),body={action:'purge',items,confirm:true};
+ const snapshot=()=>s.db.prepare('SELECT * FROM article_comments ORDER BY id').all(),initial=snapshot();
+ assert.equal((await s.request(path,'POST',body)).status,401);
+ assert.equal((await worker.fetch(new Request(origin+path,{method:'POST',headers:{origin:'https://evil.example',cookie:jwt,'content-type':'application/json'},body:JSON.stringify(body)}),s.env)).status,403);
+ for(const confirm of [undefined,false,'true'])assert.equal((await s.request(path,'POST',{...body,confirm},jwt)).status,400);
+ for(const bad of [[items[0],{id:ids[1],version:2}],[items[0],{id:ids[4],version:1}],[items[0],{id:crypto.randomUUID(),version:1}]])assert.equal((await s.request(path,'POST',{...body,items:bad},jwt)).status,409);
+ assert.deepEqual(snapshot(),initial);
+ // 删除一条访客回复，保留同串的后续回复并清空被移除的直接对象。
+ assert.equal((await s.request('/api/admin/comments','PATCH',{id:ids[1],version:1,action:'purge'},jwt)).status,400);
+ assert.equal((await s.request('/api/admin/comments','PATCH',{id:ids[1],version:1,action:'purge',confirm:true},jwt)).status,200);
+ assert.equal(s.db.prepare('SELECT target_id FROM article_comments WHERE id=?').get(ids[2]).target_id,null);
+ assert.equal(s.db.prepare('SELECT root_id FROM article_comments WHERE id=?').get(ids[2]).root_id,ids[0]);
+ // 根评论删除必须清除全部回复，包含尚未进入回收站的回复；未选其他原评论保留。
+ assert.equal((await s.request(path,'POST',{action:'purge',items:[items[0]],confirm:true},jwt)).status,200);
+ assert.equal(s.db.prepare('SELECT id FROM article_comments WHERE id=?').get(ids[2]),undefined);
+ assert.equal(s.db.prepare('SELECT COUNT(*) n FROM article_comments').get().n,2);
+ assert.equal((await s.request(path,'POST',{action:'purge',items:[items[0]],confirm:true},jwt)).status,409);
+ assert.equal((await s.request(path,'POST',{action:'purge',items:[{id:ids[3],version:1}],confirm:true},jwt)).status,200);
+ assert.equal(s.db.prepare('SELECT id FROM article_comments').get().id,ids[4]);
+ const pair=[crypto.randomUUID(),crypto.randomUUID()];insert.run(pair[0],now,null,null,now);insert.run(pair[1],now,pair[0],pair[0],now);
+ assert.equal((await s.request(path,'POST',{action:'purge',items:pair.map(id=>({id,version:1})),confirm:true},jwt)).status,200);
+ assert.equal(s.db.prepare('SELECT COUNT(*) n FROM article_comments').get().n,1);
+ s.db.close();
+});
+test('文章库评论数包含正常状态原评论和访客回复，排除回收站，不公开管理字段',async()=>{
+ const s=setup(),jwt=await token(),now=new Date().toISOString();await s.request('/api/post','PUT',article,jwt);
+ await s.request('/api/post','PUT',{...article,slug:'empty'},jwt);
+ const ids=Array.from({length:4},()=>crypto.randomUUID());
+ for(let i=0;i<4;i++)s.db.prepare('INSERT INTO article_comments(id,post_id,name,content,status,created_at,root_id,target_id,deleted_at) VALUES(?,?,?,?,?,?,?,?,?)').run(ids[i],'hello','测试','正文',['approved','hidden','pending','approved'][i],now,i===1?ids[0]:null,i===1?ids[0]:null,i===3?now:null);
+ let list=await(await s.request('/api/posts','GET',undefined,jwt)).json();
+ assert.equal(list.find(p=>p.id==='hello').comment_count,3);assert.equal(list.find(p=>p.id==='empty').comment_count,0);
+ await s.request('/api/admin/comments','PATCH',{id:ids[1],version:1,action:'trash'},jwt);
+ list=await(await s.request('/api/posts','GET',undefined,jwt)).json();assert.equal(list.find(p=>p.id==='hello').comment_count,2);
+ await s.request('/api/admin/comments','PATCH',{id:ids[1],version:2,action:'restore'},jwt);
+ list=await(await s.request('/api/posts','GET',undefined,jwt)).json();assert.equal(list.find(p=>p.id==='hello').comment_count,3);
+ assert.equal((await s.request('/api/posts')).status,401);
+ const publicList=await(await s.request('/posts.json')).json();assert.ok(publicList.every(p=>p.comment_count===undefined));
+ s.db.close();
+});

@@ -64,7 +64,8 @@ export async function managedComments(env,url){
  return json({items:rows.results,total:count.total,pending:pending.total,page,pageSize:20});
 }
 export async function moderateComment(env,data){
- if(!uuid(data?.id)||!Number.isSafeInteger(data.version)||data.version<1||!['approve','hide','trash','restore','reply'].includes(data.action))return json({error:'评论操作无效，请刷新重试。'},400);
+ if(!uuid(data?.id)||!Number.isSafeInteger(data.version)||data.version<1||!['approve','hide','trash','restore','reply','purge'].includes(data.action))return json({error:'评论操作无效，请刷新重试。'},400);
+ if(data.action==='purge')return bulkComments(env,{action:'purge',items:[{id:data.id,version:data.version}],confirm:data.confirm});
  let set='',args=[],condition='deleted_at IS NULL';
  if(data.action==='approve')set="status='approved'";
  if(data.action==='hide')set="status='hidden'";
@@ -80,9 +81,15 @@ export async function moderateComment(env,data){
 
 export async function bulkComments(env,data){
  const items=data?.items,action=data?.action;
- if(!['approve','hide','trash','restore'].includes(action)||!Array.isArray(items)||!items.length||items.length>20||new Set(items.map(i=>i?.id)).size!==items.length||items.some(i=>!uuid(i?.id)||!Number.isSafeInteger(i.version)||i.version<1))return json({error:'请选择本页有效评论，最多20条。'},400);
- const condition='deleted_at IS '+(action==='restore'?'NOT NULL':'NULL')+' AND ('+items.map(()=>'(id=? AND version=?)').join(' OR ')+')';
+ if(!['approve','hide','trash','restore','purge'].includes(action)||!Array.isArray(items)||!items.length||items.length>20||new Set(items.map(i=>i?.id)).size!==items.length||items.some(i=>!uuid(i?.id)||!Number.isSafeInteger(i.version)||i.version<1))return json({error:'请选择本页有效评论，最多20条。'},400);
+ if(action==='purge'&&data.confirm!==true)return json({error:'请明确确认彻底删除，删除后无法恢复。'},400);
+ const condition='deleted_at IS '+(['restore','purge'].includes(action)?'NOT NULL':'NULL')+' AND ('+items.map(()=>'(id=? AND version=?)').join(' OR ')+')';
  const values=items.flatMap(i=>[i.id,i.version]);
+ if(action==='purge'){
+  // 固定整批版本快照后再删除；原评论的访客回复由已有外键级联清除。
+  const result=await env.DB.prepare('WITH chosen AS MATERIALIZED (SELECT id FROM article_comments WHERE '+condition+') DELETE FROM article_comments WHERE id IN (SELECT id FROM chosen) AND (SELECT COUNT(*) FROM chosen)=? RETURNING id').bind(...values,items.length).all();
+  return result.results.length?json({ok:true,changed:items.length}):json({error:'选中评论已变化，请刷新后重新选择。'},409);
+ }
  const set={approve:"status='approved'",hide:"status='hidden'",trash:'deleted_at=?',restore:'deleted_at=NULL'}[action];
  // 单条条件更新校验全部版本；任意缺失/冲突时整批不写入。
  const result=await env.DB.prepare('UPDATE article_comments SET '+set+',version=version+1 WHERE '+condition+' AND (SELECT COUNT(*) FROM article_comments WHERE '+condition+')=?').bind(...(action==='trash'?[new Date().toISOString()]:[]),...values,...values,items.length).run();

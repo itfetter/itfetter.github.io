@@ -148,7 +148,7 @@ async function handle(request, env) {
       return json((await env.DB.prepare('SELECT version,title,saved_at FROM post_versions WHERE post_id=? ORDER BY version DESC LIMIT 50').bind(id).all()).results);
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
-    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,read_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
+    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,read_count,(SELECT COUNT(*) FROM article_comments c WHERE c.post_id=posts.id AND c.deleted_at IS NULL) AS comment_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
     if (path === '/api/preview' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       const data=await readJson(request,400000);
