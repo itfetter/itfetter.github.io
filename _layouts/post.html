@@ -24,12 +24,12 @@
 <link rel="stylesheet" href="/assets/front.css">
 </head>
 <body><div id="reading-progress" aria-hidden="true"></div>
-  <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/#articles">文章</a><a href="/#contact">联系 ↗</a></header>
+  <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/articles/">文章</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
   <main>
     <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
-    <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/#contact">有想法？和我聊聊 ↗</a></div>
+    <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/about/#contact">有想法？和我聊聊 ↗</a></div>
     <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
       <div class="comments-heading"><h2 id="comments-heading">文章评论</h2><button type="button" data-comments-refresh>刷新评论</button></div>
       <p class="comment-muted">点击“回复”可以回复其他访客，评论与回复提交后直接公开 · 昵称由访客填写，未经身份验证</p>

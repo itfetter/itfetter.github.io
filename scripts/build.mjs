@@ -3,7 +3,7 @@ import { mkdir, rm, readFile, writeFile, cp } from 'node:fs/promises';
 import {buildDocumentEditor} from "./editor-assets.mjs";
 const root = new URL('../', import.meta.url), dist = new URL('dist/', root);
 await rm(dist,{recursive:true,force:true}); await mkdir(dist,{recursive:true});
-for (const name of ['index.html','admin/index.html','assets']) {
+for (const name of ['index.html','articles/index.html','archive/index.html','about/index.html','admin/index.html','assets']) {
   const target=new URL(name,dist); await mkdir(new URL('./',target),{recursive:true});
   await cp(new URL(name,root),target,{recursive:true});
 }

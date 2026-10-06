@@ -1,7 +1,7 @@
 import {headingEntries,findChapter} from "./heading-links.mjs";
 (()=>{"use strict";
-// 恢复本标签页最后一次公开列表筛选；只接受本站首页地址。
-try{const saved=sessionStorage.getItem("blog-list-return");if(saved&&saved.length<2000){const target=new URL(saved,location.origin);if(target.origin===location.origin&&target.pathname==="/"&&target.hash==="#articles")document.querySelectorAll('.post-topbar a[href="/#articles"]').forEach(a=>a.href=target.pathname+target.search+target.hash)}}catch{}
+// 恢复本标签页最后一次公开列表筛选；只接受本站文章列表地址，兼容旧首页列表。
+try{const saved=sessionStorage.getItem("blog-list-return");if(saved&&saved.length<2000){const target=new URL(saved,location.origin);if(target.origin===location.origin&&(target.pathname==="/articles/"||target.pathname==="/"&&target.hash==="#articles"))document.querySelectorAll('.post-topbar a[href="/articles/"]').forEach(a=>a.href=target.pathname+target.search+target.hash)}}catch{}
 let chapters=[],chapterLinks=[],copyLink=null;
 function syncChapter(scroll=false){const entry=findChapter(location.hash,chapters);chapterLinks.forEach((a,i)=>{if(chapters[i]===entry)a.setAttribute("aria-current","location");else a.removeAttribute("aria-current")});if(copyLink)copyLink.textContent=entry?"复制当前章节链接 ↗":"复制文章链接 ↗";if(scroll&&entry){entry.heading.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});if(!entry.heading.hasAttribute("tabindex"))entry.heading.tabIndex=-1;entry.heading.focus({preventScroll:true})}}
 addEventListener("hashchange",()=>syncChapter(true));

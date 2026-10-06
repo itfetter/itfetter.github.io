@@ -23,3 +23,13 @@ export async function sendContact(data,{fetcher=fetch,timeoutMs=15000}={}) {
  }catch(error){if(expired)throw Error("请求超时，留言可能已收到。请稍后再确认，避免重复提交；你的输入已保留。");throw error}
  finally{clearTimeout(timer)}
 }
+
+export function legacyPageUrl(url) {
+ const source=new URL(url),match=source.hash.match(/^#post\/([^/?#]+)/);
+ if(match){let id;try{id=decodeURIComponent(match[1])}catch{return "/articles/"}
+ return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)?"/articles/"+encodeURIComponent(id)+"/":"/articles/"}
+ if(source.pathname!=="/")return null;
+ const destinations={"#articles":"/articles/","#collections":"/articles/","#archive":"/archive/","#about":"/about/","#contact":"/about/#contact"};
+ const target=destinations[source.hash];
+ return target?(target+(["#articles","#collections"].includes(source.hash)?source.search:"")):null;
+}

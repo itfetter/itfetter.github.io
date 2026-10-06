@@ -223,14 +223,14 @@ async function handle(request, env) {
     const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,public_updated_at,permalink,read_count FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
     const entries=results.filter(post=>slug(post.id));
     if(path==='/sitemap.xml'){
-      const locations=['https://itfetter.com/',...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
+      const locations=['https://itfetter.com/','https://itfetter.com/articles/','https://itfetter.com/archive/','https://itfetter.com/about/',...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
       const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+locations.map(location=>'<url><loc>'+escapeHtml(location)+'</loc></url>').join('')+'</urlset>';
       return new Response(method==='HEAD'?null:xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
     }
     const data=JSON.stringify(entries.map(publicPost)).replace(/</g,'\\u003c');
     return new Response(method==='HEAD'?null:(path==='/posts.js'?'const posts = '+data+';':data),{headers:{'content-type':path==='/posts.js'?'text/javascript; charset=utf-8':'application/json; charset=utf-8','cache-control':'no-store'}});
   }
-  if (path.startsWith('/articles/') && ['GET','HEAD'].includes(method)) {
+  if (path.startsWith('/articles/') && path !== '/articles/' && ['GET','HEAD'].includes(method)) {
     const article = await env.DB.prepare("SELECT * FROM posts WHERE deleted_at IS NULL AND status='published' AND permalink=? AND published_at<=?").bind(path,new Date().toISOString()).first();
     if (!article) return notFound(request);
     const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));

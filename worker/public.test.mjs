@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {publicCacheKey,publicResponse,notFound} from "./public-response.mjs";
-import {readListState,listStateUrl,sendContact} from "../assets/public-utils.mjs";
+import {readListState,listStateUrl,sendContact,legacyPageUrl} from "../assets/public-utils.mjs";
 const origin="https://itfetter.com";
 test("公开缓存命中减少源读取，查询参数共享缓存，HEAD无正文",async()=>{
  const data=new Map(),pending=[],ctx={waitUntil(p){pending.push(p)}},cache={async match(key){return data.get(key.url)?.clone()},async put(key,response){data.set(key.url,response)}};
@@ -34,4 +34,18 @@ test("留言成功、服务错误、无效响应和请求超时分别处理",asy
  await assert.rejects(sendContact({},{fetcher:async()=>new Response("<html>error")}),/有效结果/);
  await assert.rejects(sendContact({},{fetcher:async()=>new Response("{}")}),/确认留言/);
  await assert.rejects(sendContact({},{timeoutMs:5,fetcher:async(_url,options)=>new Promise((resolve,reject)=>options.signal.addEventListener("abort",()=>reject(new DOMException("aborted","AbortError"))))}),/可能已收到/);
+});
+
+test("旧栏目和文章链接迁移，保留列表条件且不劫持新页面章节",()=>{
+ assert.equal(legacyPageUrl(origin+"/?category=tech&page=2#articles"),"/articles/?category=tech&page=2");
+ assert.equal(legacyPageUrl(origin+"/#collections"),"/articles/");
+ assert.equal(legacyPageUrl(origin+"/#archive"),"/archive/");
+ assert.equal(legacyPageUrl(origin+"/#about"),"/about/");
+ assert.equal(legacyPageUrl(origin+"/#contact"),"/about/#contact");
+ assert.equal(legacyPageUrl(origin+"/#post/hello"),"/articles/hello/");
+ assert.equal(legacyPageUrl(origin+"/#post/%3Cscript%3E"),"/articles/");
+ assert.equal(legacyPageUrl(origin+"/#post/%E0"),"/articles/");
+ assert.equal(legacyPageUrl(origin+"/about/#contact"),null);
+ const state={category:"随笔",query:"hello",sort:"reads",page:2};
+ const href=listStateUrl(origin+"/articles/",state);assert.deepEqual(readListState(origin+href),state);assert.match(href,/^\/articles\/\?/);
 });
