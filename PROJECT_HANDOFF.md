@@ -1,5 +1,11 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## Linux / Docker 后续迁移方案（2026-10-06，未实施）
+
+当前仍使用 Cloudflare。用户确认未来可采用可拉取的应用镜像 + 独立数据库 + 阿里云 OSS，通过 Docker Compose 在 Linux 云服务器部署；宝塔负责 HTTPS / 反向代理。详细准备、适配、JSON 导入、更新与回滚步骤见 [迁移备忘](docs/LINUX_DOCKER_MIGRATION.md)。目前未提供可部署镜像，D1 与 OSS 适配尚未实现，不得把规划描述为现成功能。
+
+本次文件：新增 docs/LINUX_DOCKER_MIGRATION.md，README/AGENTS 增加入口，本文件记录状态及文件地图：该文档只负责未来迁移规划，不是当前部署指南；现行 Cloudflare 部署仍见 worker/README.md。验证为文档检查与 GitHub 写入回读，无业务代码、数据库或配置修改，无需运行业务测试；提交推送结果由 GitHub 确认，可能触发现有 main 自动构建，但本次未主动更改任何部署资源。
+
 
 ## 当前评论发布规则（2026-10-05，取代此前先审核说明）
 按用户要求，新访客评论及回复直接以approved状态公开，无需审核；后台默认全部评论，支持隐藏、重新公开、软删除和恢复，历史pending状态仍兼容。已有隐藏、回收站及历史待审核内容不批量改动。提交成功在页面显示服务器确认的公开内容；重复提交不重新公开被管理员隐藏的评论。保留同源/HTTPS/JSON/字段/纯文本保护、UUID幂等、D1原子限速和id/version管理。无需迁移，不改既有0009/0010。文件入口worker/comments.js、assets/comments.js、assets/admin-comments.mjs、admin/index.html、_layouts/post.html；worker/test.mjs增加直接发布回复与隐藏后重试回归。没有本地下载依赖；云端完整测试与部署待核对。

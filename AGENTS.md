@@ -1,5 +1,9 @@
 # AGENTS.md — 博客项目开发与 AI 协作规则
 
+## Linux / Docker 后续迁移方案（2026-10-06，未实施）
+
+当前仍使用 Cloudflare。用户确认未来可采用可拉取的应用镜像 + 独立数据库 + 阿里云 OSS，通过 Docker Compose 在 Linux 云服务器部署；宝塔负责 HTTPS / 反向代理。详细准备、适配、JSON 导入、更新与回滚步骤见 [迁移备忘](docs/LINUX_DOCKER_MIGRATION.md)。目前未提供可部署镜像，D1 与 OSS 适配尚未实现，不得把规划描述为现成功能。
+
 适用于整个仓库。修改前阅读本文、README.md、PROJECT_HANDOFF.md；提交信息和修改记录使用中文。尊重现有文章、链接和用户改动。
 
 ## 当前目标架构
