@@ -2,9 +2,9 @@ import {digest} from './auth.js';
 const json=(data,status=200,headers={})=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers}});
 const slug=value=>typeof value==='string'&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)&&value.length<=70;
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
-const visible="status='published' AND published_at<=?";
+const visible="deleted_at IS NULL AND status='published' AND published_at<=?";
 async function acceptedComment(env,id){
- const item=await env.DB.prepare("SELECT c.id,c.name,c.content,c.reply,c.created_at,c.replied_at,t.name AS target_name FROM article_comments c JOIN posts p ON p.id=c.post_id LEFT JOIN article_comments t ON t.id=c.target_id AND t.status='approved' AND t.deleted_at IS NULL WHERE c.id=? AND c.status='approved' AND c.deleted_at IS NULL AND p.status='published' AND p.published_at<=? AND (c.root_id IS NULL OR EXISTS (SELECT 1 FROM article_comments r WHERE r.id=c.root_id AND r.status='approved' AND r.deleted_at IS NULL))").bind(id,new Date().toISOString()).first();
+ const item=await env.DB.prepare("SELECT c.id,c.name,c.content,c.reply,c.created_at,c.replied_at,t.name AS target_name FROM article_comments c JOIN posts p ON p.id=c.post_id LEFT JOIN article_comments t ON t.id=c.target_id AND t.status='approved' AND t.deleted_at IS NULL WHERE c.id=? AND c.status='approved' AND c.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='published' AND p.published_at<=? AND (c.root_id IS NULL OR EXISTS (SELECT 1 FROM article_comments r WHERE r.id=c.root_id AND r.status='approved' AND r.deleted_at IS NULL))").bind(id,new Date().toISOString()).first();
  return json({ok:true,item},201);
 }
 export async function submitComment(request,env,data){
@@ -95,3 +95,4 @@ export async function bulkComments(env,data){
  const result=await env.DB.prepare('UPDATE article_comments SET '+set+',version=version+1 WHERE '+condition+' AND (SELECT COUNT(*) FROM article_comments WHERE '+condition+')=?').bind(...(action==='trash'?[new Date().toISOString()]:[]),...values,...values,items.length).run();
  return result.meta.changes===items.length?json({ok:true,changed:result.meta.changes}):json({error:'选中评论已变化，请刷新后重新选择。'},409);
 }
+

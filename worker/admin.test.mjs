@@ -15,6 +15,14 @@ test('统计区分未来发布日期，分类去重并处理空文章库',()=>{
  assert.deepEqual(postStats(posts,'2026-01-10T00:00:00.000Z'),{total:23,visible:10,drafts:0,categories:2});
  assert.deepEqual(postStats([]),{total:0,visible:0,drafts:0,categories:0});
 });
+test('普通列表和工作台排除回收站，回收站可独立搜索及分页',()=>{
+ const rows=[...posts.map(p=>({...p,status:'published'})),{...posts[0],id:'trash-one',title:'回收记录',category:'归档',status:'draft',has_draft:1,deleted_at:'2026-01-01T00:00:00Z'}];
+ assert.equal(selectPosts(rows).total,23);
+ assert.equal(selectPosts(rows,{status:'draft'}).total,0);
+ assert.equal(selectPosts(rows,{status:'trash',query:'回收',page:99}).page,1);
+ assert.deepEqual(selectPosts(rows,{status:'trash'}).items.map(p=>p.id),['trash-one']);
+ assert.deepEqual(postStats(rows,'2027-01-01'),{total:23,visible:23,drafts:0,categories:2});
+});
 
 test('草稿状态筛选与公开统计不把未发布文章计入前台',()=>{
  const rows=[{...posts[0],status:'draft',has_draft:1},{...posts[1],status:'published',has_draft:1},{...posts[2],status:'published',has_draft:0}];
@@ -37,3 +45,4 @@ test('后台刷新恢复栏目及已保存文章，非法路由安全回退',()=
  assert.equal(adminRouteURL('https://itfetter.com/admin/?view=editor&id=hello','messages',null),'/admin/?view=messages');
  assert.equal(adminRouteURL('https://itfetter.com/admin/','editor','hello'),'/admin/?view=editor&id=hello');
 });
+

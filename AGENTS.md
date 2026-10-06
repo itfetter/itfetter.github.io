@@ -1,5 +1,16 @@
 # AGENTS.md — 博客项目开发与 AI 协作规则
 
+## 文章回收站（2026-10-06，当前规则）
+
+文章库“按状态筛选 → 回收站”为入口。普通删除和编辑器删除均改为“移入回收站”：撤下公开文章，保留正文、独立草稿、历史版本、阅读量及全部评论。回收站不自动过期；支持恢复及经明确确认后的彻底删除。恢复沿用原链接、发布日期与发布状态；原本已发布且到期的文章重新公开，未发布草稿仍不公开。彻底删除级联清除正文、草稿、历史、评论及阅读去重记录；共享 R2 图片不自动删除，既有离线备份不受影响。新功能不能找回此前已经永久删除的文章。
+
+新增 `worker/post-trash.js` 与迁移 `0011_post_trash.sql`：`posts.deleted_at` 隔离回收站，操作必须携带 id/version；DELETE /api/post 移入回收站，POST /api/post/restore 恢复，POST /api/post/purge 仅允许回收站且 confirm=true。保留管理员会话、同源、JSON/大小、版本及状态保护。移入/恢复推进 version，但不改变内容日期、不生成或挤占内容历史快照；编辑回收站文章前必须恢复。
+
+认证 GET /api/posts 返回含 deleted_at 的全部元数据；普通列表、工作台统计/最近更新/热门文章排除回收站，状态=trash 单独筛选。所有公开摘要、正文、地图、推荐、评论读取/提交及阅读计数均过滤 deleted_at IS NULL，公开缓存版本已更新、传播仍最多约30秒。备份包含回收站状态；旧 v1 无此字段时按正常文章导入，仅补缺不覆盖。
+
+修改时关联 admin/index.html、assets/admin-utils.mjs、worker/index.js、worker/post-trash.js、worker/comments.js、worker/reads.js、worker/backup.js、worker/public-response.mjs、0011 及 worker/test.mjs/admin.test.mjs。不得修改已上线迁移，也不得以真实文章删除/恢复/彻底删除来验收；确认弹窗默认取消，使用合成 SQLite 数据和云端回归测试验证写流程。
+
+
 ## 评论彻底删除与文章评论数（2026-10-06，当前规则）
 
 按用户新要求，评论回收站提供单条及本页批量彻底删除，取代此前无永久删除说明；仅回收站记录、confirm=true、有效id/version可操作，最多20条，任一缺失/状态或版本冲突整批409且不删除。已有root_id外键使删除原评论级联清除全部访客回复（包括未勾选、未入回收站的回复）；删除单条回复仅清除它及作者回复，其他访客回复保留，直接回复对象由target_id外键设空。确认默认取消，明确不可恢复和整串影响；既有离线备份不受影响，无自动过期。生产验收仅检查入口和取消确认，不删除真实评论。
@@ -37,12 +48,12 @@
 
 AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；明确区分云端工作目录已修改、已提交、已推送、已构建和已上线，不能把其中一个状态当成另一个。按用户授权提交或推送，提交信息使用中文。
 
-正式使用自动部署后，避免单独在 Cloudflare 在线编辑另一份程序代码；修复通过源码提交进入构建流程。文章增删改和图片上传直接操作 D1/R2，不改 GitHub 源码，不触发代码构建。Cloudflare 中的账户资源、管理员初始化和构建配置按部署文档维护，不将密钥放入仓库。
+正式使用自动部署后，避免单独在 Cloudflare 在线编辑另一份程序代码；修复通过源码提交进入构建流程。文章增删改和图片上传直接操作 D1/R2，不改 GitHub 源码，不触发代码构建。Cloudflare 中的账户资源、管理员初始化和构建配置按部署文档维护，不将密钥放入仓库。公开文档不记录真实 Cloudflare 账户 ID、Worker tag 或 D1 UUID；实际资源从已授权连接和私有部署配置核对。
 
 ## 路径与约束
 
 `index.html` 保留首页布局、分类、搜索、CSDN 入口和旧 `#post/<id>`。
-`assets/admin-utils.mjs` 提供文章库筛选、排序、分页与统计，回归测试位于 `worker/admin.test.mjs`。只读预览调用已登录同源 `/api/preview` 并复用正式 Markdown 清理。文档编辑使用固定 Vditor 引擎且启用 sanitize；保存仍是 Markdown，不能直接发布未经服务端清理的引擎 HTML。后台导出仅包含当前 Markdown，不等于数据库或图片备份；草稿字段只通过认证管理 API 返回；公开文章接口显式限定 status=published 且只渲染公开字段。首次保存固定短名，草稿与发布共用 version 防止并发覆盖。当前无自动保存。
+`assets/admin-utils.mjs` 提供文章库筛选、排序、分页与统计，回归测试位于 `worker/admin.test.mjs`。只读预览调用已登录同源 `/api/preview` 并复用正式 Markdown 清理。文档编辑使用固定 Vditor 引擎且启用 sanitize；保存仍是 Markdown，不能直接发布未经服务端清理的引擎 HTML。后台导出仅包含当前 Markdown，不等于数据库或图片备份；草稿字段只通过认证管理 API 返回；公开文章接口显式限定 deleted_at IS NULL、status=published 且只渲染公开字段。首次保存固定短名，草稿与发布共用 version 防止并发覆盖。当前无自动保存。
 `admin/index.html` 为工作台、文章库、编辑器和账号设置，使用同源 HttpOnly、Secure、SameSite=Strict 的短期会话 Cookie，不在浏览器存 GitHub token、密码或 localStorage 会话。
 `worker/index.js` 使用参数绑定操作 D1，并以 id/version 保护更新和删除；不能关闭并发检查。
 `worker/content.js` 负责 Markdown 和 HTML 清理；标题、摘要等字段插入 HTML 必须转义，不能允许脚本、事件属性或危险协议。
@@ -88,7 +99,7 @@ AI 修改代码后先完成相关验证，并同步更新 PROJECT_HANDOFF.md；�
 
 后台导航规则：左侧“写文章”与新建按钮必须共用新建流程，不能恢复上一次文章；已有内容只从文章库/最近更新进入编辑。新建与切换必须复用未保存、上传中及保存中保护；点击取消不得清空编辑内容。
 
-文章库行内删除必须先确认文章标题与不可撤销提示，再复用认证 DELETE /api/post，传该行 id/version；禁止绕过并发检查。失败或冲突时保留行并显示错误；成功更新列表/统计，不能清空其他文章的编辑内容。不在生产删除真实文章来验证 UI。
+文章库行内移入回收站必须先确认文章标题与撤下公开/可恢复提示；仅彻底删除显示不可撤销提示，再复用认证 DELETE /api/post，传该行 id/version；禁止绕过并发检查。失败或冲突时保留行并显示错误；成功更新列表/统计，不能清空其他文章的编辑内容。不在生产删除真实文章来验证 UI。
 
 删除确认使用自定义 HTML dialog：标题用 textContent，默认聚焦取消，Esc/关闭均不删除，仅明确确认后调用带 id/version 的接口。文章库与编辑页共用，禁止以真实文章测试删除。
 
@@ -179,7 +190,7 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 文章评论维护规则（2026-10-05）
 
-评论独立于私密contact_messages，article_comments关联posts并在删除文章时级联清理。新提交默认公开（approved），仅published且非未来文章的approved非回收站评论可公开；公开返回显式字段，禁止泄露pending/hidden/回收站内容、版本或限速标识。访客与作者回复均用textContent显示，不渲染HTML/Markdown；不得将昵称当作经认证身份。匿名提交验证同源Origin/HTTPS/JSON/长度/提交UUID，D1原子限速；不得自动重试写请求，人工同ID同内容重试幂等。管理操作验证会话、Origin及id/version。新迁移0009_comments.sql只增加空表和索引，不修改真实文章或留言。备份兼容旧v1无comments字段，评论恢复先验证全文再写入，仍仅补缺。生产验证不能新增、审核、隐藏或删除真实/测试评论；完整写流程使用合成SQLite数据。当前回收站无自动清理或永久删除功能，后续若增加须明确保留期限和不可撤销确认。
+评论独立于私密contact_messages，article_comments关联posts，仅彻底删除文章时级联清理。新提交默认公开（approved），仅published且非未来文章的approved非回收站评论可公开；公开返回显式字段，禁止泄露pending/hidden/回收站内容、版本或限速标识。访客与作者回复均用textContent显示，不渲染HTML/Markdown；不得将昵称当作经认证身份。匿名提交验证同源Origin/HTTPS/JSON/长度/提交UUID，D1原子限速；不得自动重试写请求，人工同ID同内容重试幂等。管理操作验证会话、Origin及id/version。新迁移0009_comments.sql只增加空表和索引，不修改真实文章或留言。备份兼容旧v1无comments字段，评论恢复先验证全文再写入，仍仅补缺。生产验证不能新增、审核、隐藏或删除真实/测试评论；完整写流程使用合成SQLite数据。当前回收站无自动清理或永久删除功能，后续若增加须明确保留期限和不可撤销确认。
 
 ## 后台刷新保留页面（2026-10-05）
 后台用同源URL查询参数view记录所在栏目，编辑已保存文章时另记录id。切换栏目用replaceState，不重载页面；登录/刷新后验证会话再恢复栏目并读取其数据，编辑正文仍从认证API加载，不写入浏览器持久存储。新文章刷新只恢复新建界面，未保存内容仍需先保存草稿；原有beforeunload/切换确认保护保留。非法view回工作台，非法文章id回文章库，文章读取失败显示提示。文件入口为assets/admin-route.mjs、admin/index.html和worker/admin.test.mjs。
@@ -208,3 +219,4 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 功能地图维护
 新增或改变功能、文件职责、API、数据库迁移、测试入口时，必须同步 docs/FEATURE_MAP.md，并与对应源码及交接记录一起提交。新窗口先按地图定位，再阅读实际实现；文件地图不替代权限授权或线上验证。本机验证遵守用户轻量环境规则，不自动安装依赖。
+

@@ -1,5 +1,16 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## 文章回收站（2026-10-06，当前规则）
+
+文章库“按状态筛选 → 回收站”为入口。普通删除和编辑器删除均改为“移入回收站”：撤下公开文章，保留正文、独立草稿、历史版本、阅读量及全部评论。回收站不自动过期；支持恢复及经明确确认后的彻底删除。恢复沿用原链接、发布日期与发布状态；原本已发布且到期的文章重新公开，未发布草稿仍不公开。彻底删除级联清除正文、草稿、历史、评论及阅读去重记录；共享 R2 图片不自动删除，既有离线备份不受影响。新功能不能找回此前已经永久删除的文章。
+
+新增 `worker/post-trash.js` 与迁移 `0011_post_trash.sql`：`posts.deleted_at` 隔离回收站，操作必须携带 id/version；DELETE /api/post 移入回收站，POST /api/post/restore 恢复，POST /api/post/purge 仅允许回收站且 confirm=true。保留管理员会话、同源、JSON/大小、版本及状态保护。移入/恢复推进 version，但不改变内容日期、不生成或挤占内容历史快照；编辑回收站文章前必须恢复。
+
+认证 GET /api/posts 返回含 deleted_at 的全部元数据；普通列表、工作台统计/最近更新/热门文章排除回收站，状态=trash 单独筛选。所有公开摘要、正文、地图、推荐、评论读取/提交及阅读计数均过滤 deleted_at IS NULL，公开缓存版本已更新、传播仍最多约30秒。备份包含回收站状态；旧 v1 无此字段时按正常文章导入，仅补缺不覆盖。
+
+修改时关联 admin/index.html、assets/admin-utils.mjs、worker/index.js、worker/post-trash.js、worker/comments.js、worker/reads.js、worker/backup.js、worker/public-response.mjs、0011 及 worker/test.mjs/admin.test.mjs。不得修改已上线迁移，也不得以真实文章删除/恢复/彻底删除来验收；确认弹窗默认取消，使用合成 SQLite 数据和云端回归测试验证写流程。
+
+本次验证：复用已安装 Node 24，内存 SQLite 检查回收站状态与版本、历史不增加、草稿保留、关联级联清理及新旧备份恢复通过；5项后台列表/统计/路由测试通过。新增3项完整 Worker 回归及1项后台回归，无本机下载依赖。生产 D1 已应用并登记 0011_post_trash.sql，前后3篇文章、版本总和5、53条评论、1份历史均保持，回收站0篇；未对真实内容执行验收写入。GitHub 提交和云端完整构建/部署结果待实际完成后补记。公开仓库不再重复记录真实 Cloudflare 账户 ID、Worker tag 与 D1 UUID；接手者从已授权连接或私有部署配置核对实际资源。\n\n
 ## 评论彻底删除与文章评论数（2026-10-06，当前规则）
 
 按用户新要求，评论回收站提供单条及本页批量彻底删除，取代此前无永久删除说明；仅回收站记录、confirm=true、有效id/version可操作，最多20条，任一缺失/状态或版本冲突整批409且不删除。已有root_id外键使删除原评论级联清除全部访客回复（包括未勾选、未入回收站的回复）；删除单条回复仅清除它及作者回复，其他访客回复保留，直接回复对象由target_id外键设空。确认默认取消，明确不可恢复和整串影响；既有离线备份不受影响，无自动过期。生产验收仅检查入口和取消确认，不删除真实评论。
@@ -162,11 +173,11 @@ assets/visual-editor.mjs 负责逐区块编辑与Markdown序列化；未改动�
 | --- | --- |
 | GitHub 所有者 / 仓库 | `itfetter` / `itfetter/itfetter.github.io` |
 | 源码分支 | `main`；Cloudflare 自动拉取 |
-| Cloudflare 账户 | ID `44bd0c60ac0075b4a4b9fea76032f0f9`；核对账户 ID，勿混用历史 itfetpro 账户。登录邮箱留在私有账户配置中 |
-| Worker 应用名称 | `itfetter-blog`；tag `8dda8f9ac9f24df8bc033d5c4e28580e` |
+| Cloudflare 账户 | ID `见私有部署配置`；核对账户 ID，勿混用历史 itfetpro 账户。登录邮箱留在私有账户配置中 |
+| Worker 应用名称 | `itfetter-blog`；tag `见私有部署配置` |
 | 正式入口 / 后台 | https://itfetter.com / https://itfetter.com/admin/ |
 | 临时 Worker 入口 | https://itfetter-blog.itfetterit.workers.dev |
-| D1 数据库 | `itfetter-blog`；UUID `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`；绑定 `DB` |
+| D1 数据库 | `itfetter-blog`；UUID `见私有部署配置`；绑定 `DB` |
 | D1 内容 | 文章、草稿、单管理员密码哈希、会话哈希、登录限速；当前迁移至 0006_categories.sql；访客留言另存 contact_messages |
 | R2 存储桶 | `itfetter-blog-images`；绑定 `IMAGES`；图片由 Worker /images/ 路由提供，未开启公开桶入口 |
 | 静态资源 | Worker Static Assets，绑定 `ASSETS`，构建输出 dist/ |
@@ -290,7 +301,7 @@ Cloudflare Builds 的私有 BLOG_WRANGLER_CONFIG 增加 itfetter.com 的 custom_
 
 ## 2026-10-03 Worker 应用创建与绑定（历史状态）
 
-用户要求继续创建应用、拉取 GitHub 并部署。通过 API 创建 Worker `itfetter-blog`，Worker tag 为 `8dda8f9ac9f24df8bc033d5c4e28580e`。已绑定 D1 `DB` 到 `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`，R2 `IMAGES` 到 `itfetter-blog-images`，开启 observability，compatibility_date=2026-10-03、nodejs_compat。
+用户要求继续创建应用、拉取 GitHub 并部署。通过 API 创建 Worker `itfetter-blog`，Worker tag 为 `见私有部署配置`。已绑定 D1 `DB` 到 `见私有部署配置`，R2 `IMAGES` 到 `itfetter-blog-images`，开启 observability，compatibility_date=2026-10-03、nodejs_compat。
 
 当前仅上传创建应用用的最小占位模块，所有请求返回 503“博客构建尚未完成”。尚未上传仓库的实际 Worker 或 Static Assets，也未拉取构建仓库代码；不得称博客已部署。核对 settings 确认绑定准确；workers.dev enabled=false、previews_enabled=false，尚无公开临时入口。未改正式域名。
 
@@ -323,10 +334,10 @@ GitHub repo_connection_uuid 延用 `6743b7b9-ce99-4223-94d1-a362c7d63529`。buil
 
 ## 2026-10-03 Cloudflare 账户资源初始化（最新部署进度）
 
-用户授权开始创建 Cloudflare 应用并部署。通过 Cloudflare 插件核对当前连接账户 `44bd0c60ac0075b4a4b9fea76032f0f9`；该账户起初没有 Worker、D1 或 R2，Workers 子域名为 `itfetterit.workers.dev`。它与历史规划中提到的 `itfetpro.workers.dev` 不同，不能混用历史账户资源。
+用户授权开始创建 Cloudflare 应用并部署。通过 Cloudflare 插件核对当前连接账户 `见私有部署配置`；该账户起初没有 Worker、D1 或 R2，Workers 子域名为 `itfetterit.workers.dev`。它与历史规划中提到的 `itfetpro.workers.dev` 不同，不能混用历史账户资源。
 
 已实际完成：
-- 创建亚太 D1 数据库 `itfetter-blog`，UUID 为 `62f6dd9a-23f8-4137-a6ce-b22be4f56e32`。
+- 创建亚太 D1 数据库 `itfetter-blog`，UUID 为 `见私有部署配置`。
 - 按仓库 `worker/migrations/0001_posts.sql` 的结构通过 D1 API 初始化 `posts` 表和 `posts_published` 索引。未通过 Wrangler migration 命令执行；后续执行同一初始迁移前应核对迁移记录，其建表语句为 IF NOT EXISTS。
 - 创建 R2 标准存储桶 `itfetter-blog-images`，位置 APAC。未启用公开桶访问，后续由 Worker 图片路由读取。
 - 用户已确认唯一管理员登录邮箱；具体值应配置在 Cloudflare 账户配置中，不记入公开交接文档。
@@ -646,3 +657,4 @@ admin/index.html将“重新载入编辑器”改为“重试加载”，默认�
 
 ## 2026-10-06 功能定位文档
 新增 docs/FEATURE_MAP.md，集中记录需求到前端/服务端/API/迁移/测试的映射、源码与产物/线上数据区别，以及当前评论直接发布、历史完整快照、回收站差异等限制。README、AGENTS、本文件顶部增加入口；AGENTS 增加持续同步规则。基于 main 00423063f8ff8fb407566713e8d5428a66c3187a 的树和实际路由/模块/迁移/构建/测试脚本核对，所有相对文件链接检查。仅文档变更，无依赖下载、业务代码或线上数据修改；无需业务测试。提交与推送由 GitHub 返回和回读确认，未以本次文档提交宣称业务部署完成。
+

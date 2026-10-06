@@ -1,5 +1,16 @@
 # 功能定位与修改地图
 
+## 文章回收站（2026-10-06，当前规则）
+
+文章库“按状态筛选 → 回收站”为入口。普通删除和编辑器删除均改为“移入回收站”：撤下公开文章，保留正文、独立草稿、历史版本、阅读量及全部评论。回收站不自动过期；支持恢复及经明确确认后的彻底删除。恢复沿用原链接、发布日期与发布状态；原本已发布且到期的文章重新公开，未发布草稿仍不公开。彻底删除级联清除正文、草稿、历史、评论及阅读去重记录；共享 R2 图片不自动删除，既有离线备份不受影响。新功能不能找回此前已经永久删除的文章。
+
+新增 `worker/post-trash.js` 与迁移 `0011_post_trash.sql`：`posts.deleted_at` 隔离回收站，操作必须携带 id/version；DELETE /api/post 移入回收站，POST /api/post/restore 恢复，POST /api/post/purge 仅允许回收站且 confirm=true。保留管理员会话、同源、JSON/大小、版本及状态保护。移入/恢复推进 version，但不改变内容日期、不生成或挤占内容历史快照；编辑回收站文章前必须恢复。
+
+认证 GET /api/posts 返回含 deleted_at 的全部元数据；普通列表、工作台统计/最近更新/热门文章排除回收站，状态=trash 单独筛选。所有公开摘要、正文、地图、推荐、评论读取/提交及阅读计数均过滤 deleted_at IS NULL，公开缓存版本已更新、传播仍最多约30秒。备份包含回收站状态；旧 v1 无此字段时按正常文章导入，仅补缺不覆盖。
+
+修改时关联 admin/index.html、assets/admin-utils.mjs、worker/index.js、worker/post-trash.js、worker/comments.js、worker/reads.js、worker/backup.js、worker/public-response.mjs、0011 及 worker/test.mjs/admin.test.mjs。不得修改已上线迁移，也不得以真实文章删除/恢复/彻底删除来验收；确认弹窗默认取消，使用合成 SQLite 数据和云端回归测试验证写流程。
+
+
 ## 评论彻底删除与文章评论数（2026-10-06，当前规则）
 
 按用户新要求，评论回收站提供单条及本页批量彻底删除，取代此前无永久删除说明；仅回收站记录、confirm=true、有效id/version可操作，最多20条，任一缺失/状态或版本冲突整批409且不删除。已有root_id外键使删除原评论级联清除全部访客回复（包括未勾选、未入回收站的回复）；删除单条回复仅清除它及作者回复，其他访客回复保留，直接回复对象由target_id外键设空。确认默认取消，明确不可恢复和整串影响；既有离线备份不受影响，无自动过期。生产验收仅检查入口和取消确认，不删除真实评论。
@@ -27,15 +38,15 @@
 | 目录、章节深链接、复制代码/链接、阅读进度 | [reading-tools.js](../assets/reading-tools.js)、[heading-links.mjs](../assets/heading-links.mjs)、front.css、文章模板 | 标题映射主要在浏览器；文章 HTML 由 Worker 渲染 | [heading.test.mjs](../worker/heading.test.mjs)；重复标题、旧片段、手机和键盘 |
 | 后台导航、刷新恢复栏目和文章 | [admin/index.html](../admin/index.html)：panel、syncRoute、login、openPost；[admin-route.mjs](../assets/admin-route.mjs) | /api/me、/api/post；会话验证后恢复 view/id | [admin.test.mjs](../worker/admin.test.mjs)；刷新不恢复未保存正文 |
 | 工作台统计、文章库筛选/排序/分页 | admin/index.html：refresh、renderList；[admin-utils.mjs](../assets/admin-utils.mjs) | GET /api/posts；posts 元数据与 read_count | admin.test.mjs；草稿、公开、待发布草稿需区分 |
-| 标题、摘要、短名、保存草稿、发布、删除 | admin/index.html：openPost、保存事件、deleteFromList、确认弹窗 | worker/index.js：validate、GET/PUT/DELETE /api/post；posts、draft_*、version | worker/test.mjs；空短名自动 article-UUID、首次保存固定、409 冲突、草稿不覆盖公开正文 |
-| 文档编辑、代码块转正文、选字/区块菜单 | [document-editor.mjs](../assets/document-editor.mjs)、[document-editor.css](../assets/document-editor.css)；admin/index.html：preview、正文同步/锁 | [content.js](../worker/content.js)、POST /api/preview；保存仍用 /api/post | [document.test.mjs](../worker/document.test.mjs)；flush、中文输入、撤销、旧回调隔离、sanitize |
+| 标题、摘要、短名、保存草稿、发布 | admin/index.html：openPost、保存事件、deleteFromList、确认弹窗 | worker/index.js：validate、GET/PUT/DELETE /api/post；posts、draft_*、version | worker/test.mjs；空短名自动 article-UUID、首次保存固定、409 冲突、草稿不覆盖公开正文 |
+| 文章回收站、恢复及彻底删除 | admin/index.html：filter-status、deleteFromList、confirmDeletion；assets/admin-utils.mjs | worker/post-trash.js：movePost；DELETE /api/post、POST /api/post/restore、POST /api/post/purge；0011_post_trash.sql | worker/test.mjs、admin.test.mjs；公开入口排除回收站、状态/版本冲突、恢复原状态、级联清理、旧备份兼容；图片保留 |\n| 文档编辑、代码块转正文、选字/区块菜单 | [document-editor.mjs](../assets/document-editor.mjs)、[document-editor.css](../assets/document-editor.css)；admin/index.html：preview、正文同步/锁 | [content.js](../worker/content.js)、POST /api/preview；保存仍用 /api/post | [document.test.mjs](../worker/document.test.mjs)；flush、中文输入、撤销、旧回调隔离、sanitize |
 | 图片粘贴/拖入/上传、图片读取 | document-editor.mjs、admin/index.html 的上传和占位符流程 | worker/index.js：validImage、POST /api/image、GET/HEAD /images/<key>；R2 IMAGES | worker/test.mjs；类型/5MB/认证；上传中不能保存/切换；删除文章不自动删除图片 |
 | 分类/合集创建和选择 | admin/index.html：renderCategories、分类弹窗 | worker/index.js：GET/POST /api/categories；categories + posts 分类合并 | worker/test.mjs；名称校验、同名幂等；当前无重命名/删除 |
-| 历史版本、载入旧稿 | admin/index.html 的历史版本弹窗和载入事件 | worker/index.js：GET /api/history；0007_history.sql 的 posts_history 触发器与 post_versions | worker/test.mjs；每篇最近50份完整快照；载入后保存/发布才生效 |
+| 历史版本、载入旧稿 | admin/index.html 的历史版本弹窗和载入事件 | worker/index.js：GET /api/history；0007_history.sql 和 0011_post_trash.sql 的 posts_history 触发器与 post_versions | worker/test.mjs；每篇最近50份完整快照；载入后保存/发布才生效 |
 | 私密联系留言表单 | index.html、front.js | [contact.js](../worker/contact.js)：submitMessage；POST /api/contact；contact_messages/contact_limits | worker/test.mjs；最多3000字、蜜罐、原子限速、超时保留输入；不发送邮件 |
 | 留言折叠、未读数、批量已读、多选、回收站 | admin/index.html：loadMessages、refreshUnread、applyMessageBulk、确认弹窗 | contact.js：listMessages、markMessage、readAllMessages、moveMessage、bulkMessages | worker/test.mjs；id/version、批量最多20条且全批冲突保护；永久清除须确认 |
 | 文章评论、评论回复、回复他人、讨论串分页 | [comments.js](../assets/comments.js)、_layouts/post.html、front.css | [comments.js（服务端）](../worker/comments.js)：submitComment、publicComments、acceptedComment；article_comments/comment_limits | worker/test.mjs；新评论直接公开，原评论20条/页、回复10条/页、root_id/target_id |
-| 后台评论筛选、搜索、多选、折叠、隐藏、回复、回收站 | [admin-comments.mjs](../assets/admin-comments.mjs)、admin/index.html 的 mountCommentManagement | worker/comments.js：managedComments、moderateComment、bulkComments；GET/PATCH /api/admin/comments、POST /api/admin/comments/bulk | worker/test.mjs；状态/post_id/q组合筛选、字面搜索、全部id/version原子校验；隐藏/回收根评论后整串不公开；当前无评论永久清除/自动过期 |
+| 后台评论筛选、搜索、多选、折叠、隐藏、回复、回收站 | [admin-comments.mjs](../assets/admin-comments.mjs)、admin/index.html 的 mountCommentManagement | worker/comments.js：managedComments、moderateComment、bulkComments；GET/PATCH /api/admin/comments、POST /api/admin/comments/bulk | worker/test.mjs；状态/post_id/q组合筛选、字面搜索、全部id/version原子校验；隐藏/回收根评论后整串不公开；回收站支持确认后永久清除，无自动过期 |
 | 登录、退出、修改密码、会话 | admin/index.html；[auth.js](../worker/auth.js)；[create-admin.mjs](../scripts/create-admin.mjs) | /api/login、/api/logout、/api/me、/api/password；管理员/会话/限速表 | [auth.test.mjs](../worker/auth.test.mjs)、worker/test.mjs；scrypt、同源、HTTPS、会话撤销，不公开注册 |
 | 阅读次数与后台阅读排序 | [read-count.js](../assets/read-count.js)、admin-utils.mjs、文章模板 | [reads.js](../worker/reads.js)：recordRead；POST /api/read；article_reads + posts.read_count | worker/test.mjs；触发器原子累计、小时去重、不改文章 version、不是精确人数 |
 | JSON 内容/图片备份与补回 | admin/index.html 账号设置中的下载/恢复流程 | [backup.js](../worker/backup.js)：exportBackup、restoreBackup；GET /api/backup、POST /api/backup/restore；D1 + R2 | worker/test.mjs；图片 Base64/key、回复关系、仅补缺不覆盖、旧 v1 兼容、容量限制 |
@@ -54,7 +65,7 @@
 | 公开 | GET /posts.json、/posts.js；GET/HEAD /articles/<id>/、/images/<key>、/sitemap.xml、/robots.txt | 列表、文章、图片与爬虫入口 |
 | 公开提交 | POST /api/contact、/api/read；GET/POST /api/comments | 私密留言、阅读累计、公开评论/回复 |
 | 认证 | POST /api/login、/api/logout、/api/password；GET /api/me | 登录、安全与当前会话 |
-| 文章管理 | GET /api/posts；GET/PUT/DELETE /api/post；POST /api/preview、/api/image | 列表、编辑、保存/删除、预览和图片 |
+| 文章管理 | GET /api/posts；GET/PUT/DELETE /api/post；POST /api/post/restore、/api/post/purge、/api/preview、/api/image | 列表、编辑、保存/删除、预览和图片 |
 | 分类与历史 | GET/POST /api/categories；GET /api/history | 分类创建；id 查询版本列表，id/version 查询快照 |
 | 留言管理 | GET/PATCH/DELETE /api/messages；GET /api/messages/count；POST /api/messages/read-all、/api/messages/restore、/api/messages/bulk | 状态、角标、删除/恢复与批量操作 |
 | 评论管理 | GET/PATCH /api/admin/comments；POST /api/admin/comments/bulk | 状态/文章/关键词筛选、本页批量隐藏/公开/移入回收站/恢复、作者回复 |
@@ -98,3 +109,4 @@ R2 是图片对象存储；图片在正文 Markdown 中用 /images/<key> 引用�
 UI 修改还需检查手机宽度、键盘、刷新路由、未保存保护；数据修改检查认证、同源、版本冲突、公开/私密边界及关联恢复。真实线上文章、留言和评论不用于破坏性验收，演示数据权限不能泛化。
 
 本地图只记录当前入口与限制；构建 ID、部署版本、测试结果、未完成事项放 PROJECT_HANDOFF.md。新增、移动、删除文件、改变职责/接口/迁移/验证入口时，必须在同一次提交同步本地图。
+

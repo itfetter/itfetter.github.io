@@ -19,6 +19,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0008_message_trash.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0009_comments.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0010_comment_threads.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0011_post_trash.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -30,6 +31,85 @@ function setup(){
  return {env,db,images,async request(path,method='GET',data,auth){return worker.fetch(new Request(origin+path,{method,headers:{...(auth?{cookie:auth}:{}),...(method!=='GET'?{origin,'content-type':'application/json'}:{})},...(data===undefined?{}:{body:JSON.stringify(data)})}),env)}};
 }
 const article={slug:'hello',title:'欢迎<script>alert(1)</script>',category:'随笔',summary:'测试摘要',body:'# 标题\n\n**正文**\n\n<script>alert(1)</script>\n<img src=x onerror="alert(1)">'};
+test('文章回收站保留内容与关联数据，隔离全部公开入口，恢复沿用原状态和链接',async()=>{
+ const s=setup(),cookie=await token();try{
+ await s.request('/api/post','PUT',article,cookie);
+ const root=commentData(),reply={...commentData(),target_id:root.id};
+ assert.equal((await s.request('/api/comments','POST',root)).status,201);
+ assert.equal((await s.request('/api/comments','POST',reply)).status,201);
+ await s.request('/api/read','POST',{id:'hello'});
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,status:'draft',body:'未发布修改'},cookie);
+ const before=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get(),history=s.db.prepare('SELECT * FROM post_versions').all();
+ assert.equal((await s.request('/api/post','DELETE',{id:'hello',version:1},cookie)).status,409);
+ const moved=await (await s.request('/api/post','DELETE',{id:'hello',version:2},cookie)).json();
+ assert.equal(moved.version,3);assert.ok(moved.deleted_at);
+ const trashed=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();
+ for(const field of ['body','draft_body','status','published_at','public_updated_at','updated_at','read_count'])assert.equal(trashed[field],before[field]);
+ assert.deepEqual(s.db.prepare('SELECT * FROM post_versions').all(),history);
+ assert.equal(s.db.prepare('SELECT count(*) AS n FROM article_comments').get().n,2);
+ assert.equal(s.db.prepare('SELECT count(*) AS n FROM article_reads').get().n,1);
+ assert.equal((await s.request('/api/posts','GET',undefined,cookie)).status,200);
+ assert.ok((await (await s.request('/api/posts','GET',undefined,cookie)).json())[0].deleted_at);
+ for(const path of ['/articles/hello/','/api/comments?post_id=hello','/api/post?id=hello'])assert.equal((await s.request(path,'GET',undefined,path.startsWith('/api/post?')?cookie:undefined)).status,404);
+ for(const path of ['/posts.json','/posts.js','/sitemap.xml'])assert.doesNotMatch(await (await s.request(path)).text(),/hello/);
+ assert.equal((await s.request('/api/comments','POST',commentData())).status,404);
+ assert.equal((await s.request('/api/read','POST',{id:'hello'})).status,404);
+ assert.equal((await s.request('/api/post','PUT',{...article,id:'hello',version:3},cookie)).status,409);
+ assert.equal((await s.request('/api/post/restore','POST',{id:'hello',version:2},cookie)).status,409);
+ assert.equal((await s.request('/api/post/restore','POST',{id:'hello',version:3},cookie)).status,200);
+ assert.equal((await s.request('/articles/hello/')).status,200);
+ const restored=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();
+ for(const field of ['body','draft_body','status','published_at','updated_at','permalink','read_count'])assert.equal(restored[field],before[field]);
+ assert.equal(restored.deleted_at,null);assert.equal(restored.version,4);
+ assert.deepEqual(s.db.prepare('SELECT * FROM post_versions').all(),history);
+ assert.equal((await s.request('/api/post','PUT',{...article,id:'hello',version:4,body:'新内容'},cookie)).status,200);
+ assert.equal(s.db.prepare('SELECT body FROM post_versions WHERE version=4').get().body,'未发布修改');
+ await s.request('/api/post','PUT',{...article,slug:'private-draft',status:'draft'},cookie);
+ await s.request('/api/post','DELETE',{id:'private-draft',version:1},cookie);
+ await s.request('/api/post/restore','POST',{id:'private-draft',version:2},cookie);
+ assert.equal((await s.request('/articles/private-draft/')).status,404);
+ }finally{s.db.close()}
+});
+test('彻底删除只允许回收站文章且必须确认，检查版本、鉴权并级联清理，保留 R2 图片',async()=>{
+ const s=setup(),cookie=await token();try{
+ s.db.exec('PRAGMA foreign_keys=ON');
+ await s.request('/api/post','PUT',article,cookie);
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,body:'第二版'},cookie);
+ await s.request('/api/comments','POST',commentData());await s.request('/api/read','POST',{id:'hello'});
+ s.images.set('11111111-1111-1111-1111-111111111111.png',{bytes:new Uint8Array([137,80,78,71,13,10,26,10]),type:'image/png'});
+ const data={id:'hello',version:2,confirm:true};
+ assert.equal((await s.request('/api/post/purge','POST',data,cookie)).status,409);
+ for(const path of ['/api/post/restore','/api/post/purge']){
+ assert.equal((await s.request(path,'POST',data)).status,401);
+ assert.equal((await s.request(path,'GET',undefined,cookie)).status,405);
+ assert.equal((await worker.fetch(new Request(origin+path,{method:'POST',headers:{cookie,origin:'https://evil.example','content-type':'application/json'},body:JSON.stringify(data)}),s.env)).status,403);
+ assert.equal((await worker.fetch(new Request(origin+path,{method:'POST',headers:{cookie,origin,'content-type':'text/plain'},body:JSON.stringify(data)}),s.env)).status,415);
+ }
+ await s.request('/api/post','DELETE',data,cookie);
+ assert.equal((await s.request('/api/post/purge','POST',{id:'hello',version:3},cookie)).status,400);
+ assert.equal((await s.request('/api/post/purge','POST',data,cookie)).status,409);
+ assert.equal((await s.request('/api/post/purge','POST',{...data,version:3},cookie)).status,200);
+ for(const table of ['posts','post_versions','article_comments','article_reads'])assert.equal(s.db.prepare('SELECT count(*) AS n FROM '+table).get().n,0);
+ assert.equal(s.images.size,1);
+ assert.equal((await s.request('/api/post/restore','POST',{id:'hello',version:3},cookie)).status,409);
+ }finally{s.db.close()}
+});
+test('备份保留文章回收站状态，兼容旧备份并拒绝无效日期',async()=>{
+ const s=setup(),other=setup(),legacy=setup(),cookie=await token();try{
+ await s.request('/api/post','PUT',article,cookie);
+ await s.request('/api/post','DELETE',{id:'hello',version:1},cookie);
+ const backup=await (await s.request('/api/backup','GET',undefined,cookie)).json();
+ assert.ok(backup.posts[0].deleted_at);
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.equal((await other.request('/articles/hello/')).status,404);
+ assert.equal(other.db.prepare('SELECT deleted_at FROM posts').get().deleted_at,backup.posts[0].deleted_at);
+ const old=structuredClone(backup);delete old.posts[0].deleted_at;
+ assert.equal((await legacy.request('/api/backup/restore','POST',{...old,confirm:true},cookie)).status,200);
+ assert.equal((await legacy.request('/articles/hello/')).status,200);
+ backup.posts[0].deleted_at='invalid';
+ assert.equal((await s.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,400);
+ }finally{s.db.close();other.db.close();legacy.db.close()}
+});
 test('管理路由拒绝伪造、过期会话与跨站登录，本地模式也需要登录',async()=>{
  const s=setup();
  assert.equal((await s.request('/admin/')).status,302);
@@ -273,7 +353,8 @@ test('历史快照和公开更新时间分离；备份鉴权、验证与缺失�
  assert.equal((await s.request('/api/backup/restore','POST',{...backup,confirm:true,posts:[{...backup.posts[0],id:'../bad'}]},cookie)).status,400);
  const cross=new Request(origin+'/api/backup/restore',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:JSON.stringify({...backup,confirm:true})});assert.equal((await worker.fetch(cross,s.env)).status,403);
  const unchanged=await(await s.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).json();assert.equal(unchanged.changed,0);assert.equal(unchanged.images,0);
- await s.request('/api/post','DELETE',{id:'hello',version:3},cookie);s.images.clear();
+ await s.request('/api/post','DELETE',{id:'hello',version:3},cookie);
+ await s.request('/api/post/purge','POST',{id:'hello',version:4,confirm:true},cookie);s.images.clear();
  assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM post_versions').get().n,0);
  const restore=await s.request('/api/backup/restore','POST',{...backup,confirm:true},cookie);assert.equal(restore.status,200);
  assert.equal(s.db.prepare("SELECT body FROM posts WHERE id='hello'").get().body,'发布正文');assert.equal(s.images.size,1);
@@ -593,3 +674,4 @@ test('文章库评论数包含正常状态原评论和访客回复，排除回�
  const publicList=await(await s.request('/posts.json')).json();assert.ok(publicList.every(p=>p.comment_count===undefined));
  s.db.close();
 });
+

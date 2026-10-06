@@ -1,6 +1,6 @@
 // 登录后可下载的内容备份；不含密码、会话、令牌或限速数据。
 const error=message=>{throw Object.assign(new Error(message),{status:400})};
-const fields=['id','title','category','summary','body','published_at','permalink','version','updated_at','status','draft_title','draft_category','draft_summary','draft_body','read_count','public_updated_at'];
+const fields=['id','title','category','summary','body','published_at','permalink','version','updated_at','status','draft_title','draft_category','draft_summary','draft_body','read_count','public_updated_at','deleted_at'];
 const imageKey=/^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/;
 const iso=v=>typeof v==='string'&&Number.isFinite(Date.parse(v));
 export async function exportBackup(env){
@@ -48,6 +48,7 @@ export async function restoreBackup(env,data){
   if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.id)||p.id.length>70||ids.has(p.id)||p.permalink!=='/articles/'+p.id+'/'||!['draft','published'].includes(p.status)||!iso(p.published_at)||!iso(p.updated_at)||!Number.isSafeInteger(p.version)||p.version<1||!Number.isSafeInteger(p.read_count)||p.read_count<0)error('文章备份无效。');
   ids.add(p.id);
   for(const [f,max] of [['title',160],['category',80],['summary',300],['body',300000]])if(typeof p[f]!=='string'||p[f].length>max||(p['draft_'+f]!==null&&(typeof p['draft_'+f]!=='string'||p['draft_'+f].length>max)))error('文章字段无效。');
+  if(p.deleted_at!=null&&!iso(p.deleted_at))error('文章回收站日期无效。');
   if(p.public_updated_at!==null&&!iso(p.public_updated_at))error('公开日期无效。');
  }
  for(const c of data.categories)if(typeof c.name!=='string'||!c.name.trim()||c.name.length>80||/[\u0000-\u001f\u007f]/.test(c.name))error('分类无效。');
@@ -92,7 +93,7 @@ export async function restoreBackup(env,data){
  let imageCount=0;
  for(const i of images){const result=await env.IMAGES.put(i.key,i.bytes,{httpMetadata:{contentType:i.type},onlyIf:{etagDoesNotMatch:'*'}});if(result)imageCount++}
  const statements=[
- ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>p[f]))),
+ ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>f==='deleted_at'?p[f]??null:p[f]))),
  ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name) VALUES(?) ON CONFLICT DO NOTHING').bind(c.name)),
  ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at)),
  ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at,m.deleted_at??null,m.version??1)),
@@ -102,3 +103,4 @@ export async function restoreBackup(env,data){
  let changed=0;for(let i=0;i<statements.length;i+=50){const result=await env.DB.batch(statements.slice(i,i+50));changed+=result.reduce((sum,r)=>sum+(r.meta.changes||0),0)}
  return {changed,images:imageCount};
 }
+
