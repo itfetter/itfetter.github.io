@@ -494,3 +494,52 @@ test('直接发布回复无需审核，隐藏后幂等重试不重新公开',asy
  assert.equal(s.db.prepare('SELECT COUNT(*) n FROM article_comments').get().n,3);
  s.db.close();
 });
+
+test('评论管理按文章和字面关键词筛选，统计与分页一致',async()=>{
+ const s=setup(),jwt=await token(),now=new Date().toISOString();
+ await s.request('/api/post','PUT',{...article,title:'第一篇'},jwt);
+ await s.request('/api/post','PUT',{...article,slug:'other',title:'第二篇'},jwt);
+ const insert=s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,reply,status,created_at) VALUES(?,?,?,?,?,'approved',?)");
+ for(let i=0;i<23;i++)insert.run(crypto.randomUUID(),'hello','Alice','中文关键字 '+i,'',now);
+ insert.run(crypto.randomUUID(),'other','Bob','普通评论','作者回复 100%_',now);
+ const get=async params=>await(await s.request('/api/admin/comments?'+new URLSearchParams(params),'GET',undefined,jwt)).json();
+ let result=await get({post_id:'hello',q:'中文关键字',page:'2'});
+ assert.equal(result.total,23);assert.equal(result.items.length,3);assert.ok(result.items.every(i=>i.post_id==='hello'));
+ result=await get({q:'alice'});assert.equal(result.total,23);
+ result=await get({q:'%_'});assert.equal(result.total,1);assert.equal(result.items[0].post_id,'other');
+ assert.equal((await get({post_id:'hello',q:'%_'})).total,0);
+ assert.equal((await get({q:"' OR 1=1 --"})).total,0);
+ for(const params of [{post_id:'../secret'},{q:'a'.repeat(121)},{status:'bad'}])assert.equal((await s.request('/api/admin/comments?'+new URLSearchParams(params),'GET',undefined,jwt)).status,400);
+ s.db.close();
+});
+test('评论批量管理保护鉴权、来源、全部版本和状态，冲突整批不写入',async()=>{
+ const s=setup(),jwt=await token(),now=new Date().toISOString();await s.request('/api/post','PUT',article,jwt);
+ const ids=[crypto.randomUUID(),crypto.randomUUID(),crypto.randomUUID()];
+ for(const id of ids)s.db.prepare("INSERT INTO article_comments(id,post_id,name,content,status,created_at) VALUES(?,'hello','访客','评论','approved',?)").run(id,now);
+ const path='/api/admin/comments/bulk',snapshot=ids.slice(0,2).map(id=>({id,version:1})),body={action:'hide',items:snapshot};
+ const versions=()=>s.db.prepare('SELECT id,status,version,deleted_at FROM article_comments ORDER BY id').all();
+ const initial=versions();
+ assert.equal((await s.request(path,'POST',body)).status,401);
+ assert.equal((await worker.fetch(new Request(origin+path,{method:'POST',headers:{origin:'https://evil.example',cookie:jwt,'content-type':'application/json'},body:JSON.stringify(body)}),s.env)).status,403);
+ assert.equal((await worker.fetch(new Request(origin+path,{method:'POST',headers:{origin,cookie:jwt,'content-type':'text/plain'},body:JSON.stringify(body)}),s.env)).status,415);
+ assert.equal((await s.request(path,'GET',undefined,jwt)).status,405);
+ for(const items of [[],[snapshot[0],snapshot[0]],Array.from({length:21},()=>({id:crypto.randomUUID(),version:1})),[{id:ids[0],version:0}],[null]])assert.equal((await s.request(path,'POST',{action:'hide',items},jwt)).status,400);
+ assert.equal((await s.request(path,'POST',{...body,action:'purge'},jwt)).status,400);
+ assert.deepEqual(versions(),initial);
+ assert.equal((await s.request(path,'POST',{...body,items:[snapshot[0],{id:ids[1],version:2}]},jwt)).status,409);assert.deepEqual(versions(),initial);
+ assert.equal((await s.request(path,'POST',{...body,items:[snapshot[0],{id:crypto.randomUUID(),version:1}]},jwt)).status,409);assert.deepEqual(versions(),initial);
+ const send=async(action,version)=>s.request(path,'POST',{action,items:ids.slice(0,2).map(id=>({id,version}))},jwt);
+ assert.equal((await send('hide',1)).status,200);assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM article_comments WHERE status='hidden' AND version=2").get().n,2);
+ assert.equal(s.db.prepare('SELECT version FROM article_comments WHERE id=?').get(ids[2]).version,1);
+ const hidden=versions();assert.equal((await send('trash',1)).status,409);assert.deepEqual(versions(),hidden);
+ assert.equal((await send('approve',2)).status,200);
+ assert.equal((await send('trash',3)).status,200);
+ const trashed=versions();assert.equal((await send('hide',4)).status,409);assert.deepEqual(versions(),trashed);
+ assert.equal((await send('restore',4)).status,200);
+ assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM article_comments WHERE deleted_at IS NULL AND version=5').get().n,2);
+ assert.equal((await(await s.request('/api/comments?post_id=hello')).json()).total,3);
+ // 混合正常/回收站状态同样必须全批失败。
+ await s.request('/api/admin/comments','PATCH',{id:ids[0],version:5,action:'trash'},jwt);
+ const mixed=versions();assert.equal((await send('restore',6)).status,409);assert.deepEqual(versions(),mixed);
+ s.db.close();
+});

@@ -52,9 +52,12 @@ export async function publicComments(env,url){
  return json({items:rows.results,total:count.total,page,pageSize});
 }
 export async function managedComments(env,url){
- const status=url.searchParams.get('status')||'all',page=Number(url.searchParams.get('page')||1);
- if(!['pending','approved','hidden','all','trash'].includes(status)||!Number.isSafeInteger(page)||page<1||page>100000)return json({error:'评论筛选无效。'},400);
- const condition=status==='trash'?'c.deleted_at IS NOT NULL':'c.deleted_at IS NULL'+(status==='all'?'':' AND c.status=?'),args=['trash','all'].includes(status)?[]:[status];
+ const status=url.searchParams.get('status')||'all',page=Number(url.searchParams.get('page')||1),post=url.searchParams.get('post_id')||'',query=(url.searchParams.get('q')||'').trim();
+ if(!['pending','approved','hidden','all','trash'].includes(status)||!Number.isSafeInteger(page)||page<1||page>100000||(post&&!slug(post))||query.length>120)return json({error:'评论筛选无效。'},400);
+ let condition=status==='trash'?'c.deleted_at IS NOT NULL':'c.deleted_at IS NULL'+(status==='all'?'':' AND c.status=?');
+ const args=['trash','all'].includes(status)?[]:[status];
+ if(post){condition+=' AND c.post_id=?';args.push(post)}
+ if(query){condition+=' AND (instr(lower(c.name),lower(?))>0 OR instr(lower(c.content),lower(?))>0 OR instr(lower(c.reply),lower(?))>0)';args.push(query,query,query)}
  const count=await env.DB.prepare('SELECT COUNT(*) AS total FROM article_comments c WHERE '+condition).bind(...args).first();
  const pending=await env.DB.prepare("SELECT COUNT(*) AS total FROM article_comments WHERE status='pending' AND deleted_at IS NULL").first();
  const rows=await env.DB.prepare('SELECT c.*,p.title AS post_title,t.name AS target_name FROM article_comments c LEFT JOIN article_comments t ON t.id=c.target_id JOIN posts p ON p.id=c.post_id WHERE '+condition+' ORDER BY c.created_at DESC,c.id LIMIT 20 OFFSET ?').bind(...args,(page-1)*20).all();
@@ -73,4 +76,15 @@ export async function moderateComment(env,data){
  }
  const result=await env.DB.prepare('UPDATE article_comments SET '+set+',version=version+1 WHERE id=? AND version=? AND '+condition).bind(...args,data.id,data.version).run();
  return result.meta.changes?json({ok:true}):json({error:'评论已变化，请刷新后重试。'},409);
+}
+
+export async function bulkComments(env,data){
+ const items=data?.items,action=data?.action;
+ if(!['approve','hide','trash','restore'].includes(action)||!Array.isArray(items)||!items.length||items.length>20||new Set(items.map(i=>i?.id)).size!==items.length||items.some(i=>!uuid(i?.id)||!Number.isSafeInteger(i.version)||i.version<1))return json({error:'请选择本页有效评论，最多20条。'},400);
+ const condition='deleted_at IS '+(action==='restore'?'NOT NULL':'NULL')+' AND ('+items.map(()=>'(id=? AND version=?)').join(' OR ')+')';
+ const values=items.flatMap(i=>[i.id,i.version]);
+ const set={approve:"status='approved'",hide:"status='hidden'",trash:'deleted_at=?',restore:'deleted_at=NULL'}[action];
+ // 单条条件更新校验全部版本；任意缺失/冲突时整批不写入。
+ const result=await env.DB.prepare('UPDATE article_comments SET '+set+',version=version+1 WHERE '+condition+' AND (SELECT COUNT(*) FROM article_comments WHERE '+condition+')=?').bind(...(action==='trash'?[new Date().toISOString()]:[]),...values,...values,items.length).run();
+ return result.meta.changes===items.length?json({ok:true,changed:result.meta.changes}):json({error:'选中评论已变化，请刷新后重新选择。'},409);
 }

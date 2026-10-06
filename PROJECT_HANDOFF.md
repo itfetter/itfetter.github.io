@@ -1,5 +1,13 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## 最新工作：后台体验及评论管理（2026-10-06）
+
+用户授权修复整站浏览发现的问题。admin/index.html 的编辑器保存栏改为正常文档流，避免窄/矮窗口遮挡标题与正文；save-state改为尚未保存/已保存/有未保存修改，仍无自动保存。评论管理补按文章和状态组合筛选、昵称/正文/作者回复字面搜索、长文3行折叠及本页多选公开/隐藏/移入回收站/恢复。assets/admin-comments.mjs负责控件、锁、确认、分页、选中版本和安全纯文本展示；刷新/筛选/翻页清选择。worker/comments.js增加参数化筛选和bulkComments，worker/index.js新增认证POST /api/admin/comments/bulk；单条SQL检查全部id/version及状态，任何冲突整批失败，不使用逐条部分写入。无需新数据库迁移，无新增依赖。评论回收站仍无永久删除或自动清理。
+
+关联文件：admin/index.html、assets/admin-comments.mjs、worker/comments.js、worker/index.js、worker/test.mjs；README、AGENTS及docs/FEATURE_MAP.md同步当前行为、API、维护规则和定位。worker/test.mjs新增组合筛选/字面关键词/分页，以及批量鉴权、同源、JSON、重复ID、上限、冲突原子性、恢复及未选保留回归。实际本地复用已有Node24和SQLite，筛选/分页、字面%_、版本与状态原子冲突、四种批量操作及未选保留通过，变更模块/后台内联脚本语法检查通过。未安装本地依赖；完整路由回归和构建交由既有云端流程执行，结果待部署后补记。未对真实评论或私密留言执行验收写入。
+
+用户另授权更新两篇公开示例文章的旧发文说明：hello欢迎页及rich-markdown-demo图文示例应说明后台写作、手动保存、D1发布、R2上传和固定自动短名；保留现有正文其他部分、图片位置、文章ID和链接。线上内容独立于_posts旧迁移文件，已通过D1版本/原文/draft_body为空条件更新并逐字回读：hello版本3→4、rich-markdown-demo版本1→2；旧正文快照分别保留在历史版本3/1。ID、permalink、原图片地址与位置保留，未改评论/留言/R2。旧_posts迁移文件继续作为历史资料，未用其覆盖线上文章。
+
 ## 功能定位入口（2026-10-06）
 
 新窗口修改功能前，请阅读 [功能定位与修改地图](docs/FEATURE_MAP.md)：按需求查找页面、后端模块、API、数据库迁移和测试入口，再核对实际代码。本地图记录当前定位，本文中的早期功能记录保留为历史，不能覆盖后续有效规则。

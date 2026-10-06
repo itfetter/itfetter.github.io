@@ -28,7 +28,7 @@
 | 私密联系留言表单 | index.html、front.js | [contact.js](../worker/contact.js)：submitMessage；POST /api/contact；contact_messages/contact_limits | worker/test.mjs；最多3000字、蜜罐、原子限速、超时保留输入；不发送邮件 |
 | 留言折叠、未读数、批量已读、多选、回收站 | admin/index.html：loadMessages、refreshUnread、applyMessageBulk、确认弹窗 | contact.js：listMessages、markMessage、readAllMessages、moveMessage、bulkMessages | worker/test.mjs；id/version、批量最多20条且全批冲突保护；永久清除须确认 |
 | 文章评论、评论回复、回复他人、讨论串分页 | [comments.js](../assets/comments.js)、_layouts/post.html、front.css | [comments.js（服务端）](../worker/comments.js)：submitComment、publicComments、acceptedComment；article_comments/comment_limits | worker/test.mjs；新评论直接公开，原评论20条/页、回复10条/页、root_id/target_id |
-| 后台评论隐藏、重新公开、作者回复、回收站 | [admin-comments.mjs](../assets/admin-comments.mjs)、admin/index.html 的 mountCommentManagement | worker/comments.js：managedComments、moderateComment；GET/PATCH /api/admin/comments | worker/test.mjs；id/version；隐藏/回收根评论后整串不公开；当前无评论永久清除/自动过期 |
+| 后台评论筛选、搜索、多选、折叠、隐藏、回复、回收站 | [admin-comments.mjs](../assets/admin-comments.mjs)、admin/index.html 的 mountCommentManagement | worker/comments.js：managedComments、moderateComment、bulkComments；GET/PATCH /api/admin/comments、POST /api/admin/comments/bulk | worker/test.mjs；状态/post_id/q组合筛选、字面搜索、全部id/version原子校验；隐藏/回收根评论后整串不公开；当前无评论永久清除/自动过期 |
 | 登录、退出、修改密码、会话 | admin/index.html；[auth.js](../worker/auth.js)；[create-admin.mjs](../scripts/create-admin.mjs) | /api/login、/api/logout、/api/me、/api/password；管理员/会话/限速表 | [auth.test.mjs](../worker/auth.test.mjs)、worker/test.mjs；scrypt、同源、HTTPS、会话撤销，不公开注册 |
 | 阅读次数与后台阅读排序 | [read-count.js](../assets/read-count.js)、admin-utils.mjs、文章模板 | [reads.js](../worker/reads.js)：recordRead；POST /api/read；article_reads + posts.read_count | worker/test.mjs；触发器原子累计、小时去重、不改文章 version、不是精确人数 |
 | JSON 内容/图片备份与补回 | admin/index.html 账号设置中的下载/恢复流程 | [backup.js](../worker/backup.js)：exportBackup、restoreBackup；GET /api/backup、POST /api/backup/restore；D1 + R2 | worker/test.mjs；图片 Base64/key、回复关系、仅补缺不覆盖、旧 v1 兼容、容量限制 |
@@ -50,7 +50,7 @@
 | 文章管理 | GET /api/posts；GET/PUT/DELETE /api/post；POST /api/preview、/api/image | 列表、编辑、保存/删除、预览和图片 |
 | 分类与历史 | GET/POST /api/categories；GET /api/history | 分类创建；id 查询版本列表，id/version 查询快照 |
 | 留言管理 | GET/PATCH/DELETE /api/messages；GET /api/messages/count；POST /api/messages/read-all、/api/messages/restore、/api/messages/bulk | 状态、角标、删除/恢复与批量操作 |
-| 评论管理 | GET/PATCH /api/admin/comments | 筛选、隐藏/公开、作者回复、回收站 |
+| 评论管理 | GET/PATCH /api/admin/comments；POST /api/admin/comments/bulk | 状态/文章/关键词筛选、本页批量隐藏/公开/移入回收站/恢复、作者回复 |
 | 内容备份 | GET /api/backup；POST /api/backup/restore | 下载、仅补缺恢复 |
 
 精确参数、状态码与限制以路由及业务模块为准；新增接口需同时更新本表、权限边界与测试。

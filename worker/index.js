@@ -3,7 +3,7 @@ import {publicResponse,notFound} from './public-response.mjs';
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
 import {submitMessage,listMessages,markMessage,unreadMessages,readAllMessages,moveMessage,bulkMessages} from './contact.js';
 import {exportBackup,restoreBackup} from './backup.js';
-import {submitComment,publicComments,managedComments,moderateComment} from './comments.js';
+import {submitComment,publicComments,managedComments,moderateComment,bulkComments} from './comments.js';
 import {recordRead} from './reads.js';
 import { escapeHtml, renderMarkdown, editorBlocks } from './content.js';
 const slug = value => typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 70;
@@ -89,6 +89,11 @@ async function handle(request, env) {
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));
+    }
+    if(path==='/api/admin/comments/bulk'){
+      if(method!=='POST')return fail('请使用 POST。',405);
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return bulkComments(env,await readJson(request,4096));
     }
     if(path==='/api/admin/comments'){
       if(method==='GET')return managedComments(env,url);
