@@ -678,7 +678,7 @@ test('文章库评论数包含正常状态原评论和访客回复，排除回�
 
 test('分类重命名同步公开/草稿/回收站，保留网址历史并防止旧版本覆盖',async()=>{
  const s=setup(),auth=await token();
- await s.request('/api/posts','POST',article,auth);
+ assert.equal((await s.request('/api/post','PUT',article,auth)).status,201);
  s.db.prepare("UPDATE posts SET draft_category=?,draft_body=?,deleted_at=? WHERE id='hello'").run('随笔','草稿','2026-10-01');
  s.db.prepare("INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES('hello',1,'旧标题','随笔','摘要','正文','2026-10-01')").run();
  const result=await s.request('/api/categories','PATCH',{oldName:'随笔',name:'生活记录'},auth);
