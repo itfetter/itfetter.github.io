@@ -130,3 +130,5 @@ UI 修改还需检查手机宽度、键盘、刷新路由、未保存保护；�
 入口：admin/index.html与assets/admin-collections.mjs/css；后端worker/collections.js、worker/index.js；前台assets/collections.css及各导航；备份worker/backup.js；URL assets/admin-route.mjs/public-utils.mjs；测试worker/test.mjs/public.test.mjs/admin.test.mjs。合集页暂不缓存；公开文章及sitemap缓存key已更新，30秒传播规则保留。验收禁止改真实文章/合集，写流程用合成SQLite数据。
 
 上线验证：功能提交ad8782d已推送main，Cloudflare构建10e79a59-7152-4158-bac5-0c1eb6e53b54完成72/72测试、0失败，Worker fc856839-a349-43c8-a9fe-77231d0c6996。生产D1已应用并登记0012，保留3篇原文章与3个原分类（其中1篇原已在回收站）；实际Chrome读取后台资料/文章选择/移动目标及前台目录，无生产写入验收。窄屏390px文档375px无横向溢出；实际页面发现合集正文左右留白与跳转链接样式需调整，已修正并补齐合集未保存离开保护，后续构建验收待核对。无本机依赖安装。
+
+后续验收：修正提交fdb56d1对应Cloudflare构建0482468c-e6ba-4530-9a30-b9f576645294成功，72项回归再次全部通过。公开390px页面实际确认22px侧边距、375px文档宽度、五个栏目均可见；后台三合集资料读取成功，关联文章与目标合集控件可见，刷新保留view=collections。文章内目录及稳定合集网址可用。最后去掉文章模板重复的合集导航；仅静态模板修正，无数据写入。实际排序/移动/删除/上传的生产写验收未执行，由合成SQLite与云端用例覆盖。
