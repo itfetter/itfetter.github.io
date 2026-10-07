@@ -21,7 +21,8 @@ export async function exportBackup(env){
  const history=(await env.DB.prepare('SELECT * FROM post_versions').all()).results;
  const messages=(await env.DB.prepare('SELECT id,name,email,message,status,created_at,deleted_at,version FROM contact_messages').all()).results;
  const comments=(await env.DB.prepare('SELECT * FROM article_comments').all()).results;
- const data={format:'itfetter-content-v1',created_at:new Date().toISOString(),posts,categories,history,messages,comments,images:[]};
+ const memberships=(await env.DB.prepare('SELECT post_id,collection_slug,state,position FROM post_collections').all()).results;
+ const data={memberships,format:'itfetter-content-v1',created_at:new Date().toISOString(),posts,categories,history,messages,comments,images:[]};
  if(posts.length>1000||history.length>5000||messages.length>1000||categories.length>1000||comments.length>1000||JSON.stringify(data).length>4000000)error('内容超过便捷备份上限，请使用 Cloudflare D1 导出。');
  let cursor,total=0;
  do{
@@ -40,6 +41,8 @@ export async function exportBackup(env){
 export async function restoreBackup(env,data){
  if(data?.format!=='itfetter-content-v1'||data.confirm!==true)error('请确认恢复有效的博客内容备份。');
  for(const name of ['posts','categories','history','messages','images'])if(!Array.isArray(data[name]))error('备份结构无效。');
+ const memberships=data.memberships??null;
+ if(memberships!==null&&(!Array.isArray(memberships)||memberships.length>40000))error('合集关联备份无效。');
  const comments=data.comments??[];if(!Array.isArray(comments)||comments.length>1000)error('评论备份无效或超过上限。');
  if(data.posts.length>1000||data.history.length>5000||data.messages.length>1000||data.categories.length>1000||data.images.length>100)error('备份条目超过便捷恢复上限。');
  if(JSON.stringify({...data,images:[]}).length>4000000)error('内容超过便捷恢复上限。');
@@ -61,6 +64,9 @@ export async function restoreBackup(env,data){
   if(c.version!==undefined&&(!Number.isSafeInteger(c.version)||c.version<1))error('合集版本无效。');
  }
  for(const p of data.posts)if(p.collection_order!==undefined&&(!Number.isSafeInteger(p.collection_order)||p.collection_order<0))error('文章合集顺序无效。');
+ const slugs=new Set(data.categories.map(c=>c.slug)),keys=new Set();
+ if(memberships)for(const m of memberships){const key=JSON.stringify([m.post_id,m.collection_slug,m.state]);if(!ids.has(m.post_id)||!slugs.has(m.collection_slug)||!['published','draft'].includes(m.state)||!Number.isSafeInteger(m.position)||m.position<0||keys.has(key))error('合集关联备份无效。');keys.add(key)}
+ for(const h of data.history)if(h.collections_json!=null){let ids;try{ids=JSON.parse(h.collections_json)}catch{error('历史合集无效。')}if(!Array.isArray(ids)||ids.some(s=>typeof s!=='string'||!/^[a-z0-9-]{1,70}$/.test(s)))error('历史合集无效。')}
  for(const h of data.history){if(!ids.has(h.post_id)||!Number.isSafeInteger(h.version)||h.version<1||!iso(h.saved_at))error('历史版本无效。');for(const [f,max] of [['title',160],['category',80],['summary',300],['body',300000]])if(typeof h[f]!=='string'||h[f].length>max)error('历史字段无效。')}
  for(const m of data.messages)if(typeof m.id!=='string'||m.id.length>80||typeof m.name!=='string'||m.name.length>80||typeof m.message!=='string'||m.message.length>3000||typeof m.email!=='string'||m.email.length>254||!['unread','read'].includes(m.status)||!iso(m.created_at)||(m.deleted_at!=null&&!iso(m.deleted_at))||(m.version!==undefined&&(!Number.isSafeInteger(m.version)||m.version<1)))error('留言无效。');
  const commentIds=new Set();
@@ -101,15 +107,21 @@ export async function restoreBackup(env,data){
  // 先补图片，SQL 失败时不删除已有图片；重试安全，跨服务不承诺原子事务。
  let imageCount=0;
  for(const i of images){const result=await env.IMAGES.put(i.key,i.bytes,{httpMetadata:{contentType:i.type},onlyIf:{etagDoesNotMatch:'*'}});if(result)imageCount++}
+ const restoreToken=crypto.randomUUID(),missing=new Set();for(const p of data.posts)if(!await env.DB.prepare('SELECT id FROM posts WHERE id=?').bind(p.id).first())missing.add(p.id);
  const statements=[
- ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>f==='deleted_at'?p[f]??null:f==='collection_order'?p[f]??0:p[f]))),
+ ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+',collection_token) VALUES ('+fields.map(()=>'?').join(',')+',?) ON CONFLICT DO NOTHING').bind(...fields.map(f=>f==='deleted_at'?p[f]??null:f==='collection_order'?p[f]??0:p[f]),restoreToken)),
  ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name,slug,description,cover,sort_mode,hidden,version) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.name,c.slug??('collection-'+crypto.randomUUID()),c.description??'',c.cover??'',c.sort_mode??'newest',c.hidden??0,c.version??1)),
- ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at)),
+ ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at,collections_json) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at,h.collections_json??null)),
  ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at,m.deleted_at??null,m.version??1)),
  ...ordered.map(c=>env.DB.prepare('INSERT INTO article_comments(id,post_id,name,content,status,reply,created_at,replied_at,deleted_at,version,root_id,target_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.id,c.post_id,c.name,c.content,c.status,c.reply,c.created_at,c.replied_at,c.deleted_at,c.version,c.root_id??null,c.target_id??null))
  ];
  // 分批仅追加；现有记录永不覆盖。中途失败可重新提交同一备份。
  let changed=0;for(let i=0;i<statements.length;i+=50){const result=await env.DB.batch(statements.slice(i,i+50));changed+=result.reduce((sum,r)=>sum+(r.meta.changes||0),0)}
+  const relations=memberships??data.posts.flatMap(p=>['published','draft'].flatMap(state=>{if(state==='published'&&p.status!=='published'||state==='draft'&&p.draft_body===null&&p.status!=='draft')return [];const c=data.categories.find(c=>c.name===(state==='draft'?(p.draft_category??p.category):p.category));return c?[{post_id:p.id,collection_slug:c.slug,state,position:p.collection_order??0,legacyName:c.name}]:[]}));
+ const relationWrites=[];for(const m of relations){if(!missing.has(m.post_id))continue;const name=memberships?data.categories.find(c=>c.slug===m.collection_slug)?.name:m.legacyName;const c=await env.DB.prepare('SELECT slug FROM categories WHERE name=?').bind(name).first();if(!c)error('合集恢复名称或网址冲突，请检查备份。');relationWrites.push(env.DB.prepare('INSERT INTO post_collections(post_id,collection_slug,state,position) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM posts WHERE id=? AND collection_token=?) ON CONFLICT DO NOTHING').bind(m.post_id,c.slug,m.state,m.position,m.post_id,restoreToken))}
+ for(let i=0;i<relationWrites.length;i+=50)await env.DB.batch(relationWrites.slice(i,i+50));
  return {changed,images:imageCount};
 }
+
+
 

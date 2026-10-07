@@ -1,3 +1,4 @@
+import {selectedCollections,postCollections,collectionWrites} from './post-collections.js';
 import {manageCollection,reorderCollection,moveCollectionPosts,collectionPage,collectionNavigation,listCollections} from './collections.js';
 import {publicResponse,notFound} from './public-response.mjs';
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
@@ -127,14 +128,14 @@ async function handle(request, env) {
       if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
       return markMessage(env,await readJson(request,2048));
     }
-    if(path==='/api/collections'||path==='/api/collections/order'||path==='/api/collections/move'){
+    if(path==='/api/collections'||path==='/api/collections/order'||path==='/api/collections/move'||path==='/api/collections/members'){
       let data;
       if(method!=='GET'){
         if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为JSON。',415);
         data=await readJson(request,64000);
       }
       if(path==='/api/collections/order'){if(method!=='POST')return fail('请使用POST。',405);return reorderCollection(env,data)}
-      if(path==='/api/collections/move'){if(method!=='POST')return fail('请使用POST。',405);return moveCollectionPosts(env,data)}
+      if(path==='/api/collections/move'||path==='/api/collections/members'){if(method!=='POST')return fail('请使用POST。',405);return moveCollectionPosts(env,{...data,action:path.endsWith('/move')?'move':data.action})}
       return manageCollection(env,method,data,url);
     }
     if(path==='/api/categories'){
@@ -182,11 +183,13 @@ async function handle(request, env) {
     if(path==='/api/history'&&method==='GET'){
       const id=url.searchParams.get('id');if(!slug(id))return fail('文章标识无效。');
       const v=url.searchParams.get('version');
-      if(v!==null){if(!/^[1-9][0-9]*$/.test(v))return fail('版本无效。');const row=await env.DB.prepare('SELECT title,category,summary,body,saved_at,version FROM post_versions WHERE post_id=? AND version=?').bind(id,Number(v)).first();return row?json(row):fail('历史版本不存在。',404)}
+      if(v!==null){if(!/^[1-9][0-9]*$/.test(v))return fail('版本无效。');const row=await env.DB.prepare('SELECT title,category,summary,body,saved_at,version,collections_json FROM post_versions WHERE post_id=? AND version=?').bind(id,Number(v)).first();return row?json(row):fail('历史版本不存在。',404)}
       return json((await env.DB.prepare('SELECT version,title,saved_at FROM post_versions WHERE post_id=? ORDER BY version DESC LIMIT 50').bind(id).all()).results);
     }
     if (path === '/api/me' && method === 'GET') return json({login:user.username});
-    if (path === '/api/posts' && method === 'GET') return json((await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,deleted_at,read_count,(SELECT COUNT(*) FROM article_comments c WHERE c.post_id=posts.id AND c.deleted_at IS NULL) AS comment_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results);
+    if (path === '/api/posts' && method === 'GET') {const rows=(await env.DB.prepare('SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_category,category) AS category,COALESCE(draft_summary,summary) AS summary,published_at,updated_at,permalink,version,status,deleted_at,read_count,(SELECT COUNT(*) FROM article_comments c WHERE c.post_id=posts.id AND c.deleted_at IS NULL) AS comment_count,(draft_body IS NOT NULL) AS has_draft FROM posts ORDER BY updated_at DESC,id').all()).results;
+      const memberships=(await env.DB.prepare("SELECT m.post_id,c.name,c.slug,m.state FROM post_collections m JOIN categories c ON c.slug=m.collection_slug").all()).results;
+      for(const p of rows)p.collections=memberships.filter(m=>m.post_id===p.id&&m.state===(p.has_draft?'draft':'published')).map(({name,slug})=>({name,slug}));return json(rows);}
     if (path === '/api/preview' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       const data=await readJson(request,400000);
@@ -206,27 +209,29 @@ async function handle(request, env) {
       if(post.deleted_at)return fail('文章已移入回收站，请先恢复。',404);
       const editable={...post,has_draft:post.draft_body!==null};
       for(const field of ['title','category','summary','body']){editable[field]=post['draft_'+field]??post[field];delete editable['draft_'+field];}
-      return json(editable);
+      delete editable.collection_token;editable.collections=await postCollections(env,id,post.draft_body!==null);return json(editable);
     }
     if (path === '/api/post' && method === 'PUT') {
       const data = await readJson(request);
       if (data.status !== undefined && !['draft','published'].includes(data.status)) return fail('保存状态无效。');
-      const draft=data.status==='draft'; validate(data,draft);
+      const draft=data.status==='draft'; if(data.collections!==undefined)data.category='合集'; validate(data,draft);
+      const selection=await selectedCollections(env,data,draft),nonce=crypto.randomUUID();data.category=selection.category;
       const now = new Date().toISOString();
       if (data.id) {
         if (!slug(data.id) || !Number.isSafeInteger(data.version) || data.version < 1) return fail('文章标识或版本无效。');
         const sql=draft
-          ? 'UPDATE posts SET draft_title=?,draft_category=?,draft_summary=?,draft_body=?,version=version+1,updated_at=? WHERE id=? AND version=? AND deleted_at IS NULL'
-          : "UPDATE posts SET title=?,category=?,summary=?,body=?,status='published',published_at=CASE WHEN status='draft' THEN ? ELSE published_at END,draft_title=NULL,draft_category=NULL,draft_summary=NULL,draft_body=NULL,version=version+1,updated_at=?,public_updated_at=? WHERE id=? AND version=? AND deleted_at IS NULL";
-        const values=[data.title.trim(),data.category.trim(),data.summary.trim(),data.body,...(draft?[]:[now]),now,...(draft?[]:[now]),data.id,data.version];
-        const result=await env.DB.prepare(sql).bind(...values).run();
+          ? 'UPDATE posts SET draft_title=?,draft_category=?,draft_summary=?,draft_body=?,collection_token=?,version=version+1,updated_at=? WHERE id=? AND version=? AND deleted_at IS NULL'
+          : "UPDATE posts SET title=?,category=?,summary=?,body=?,status='published',published_at=CASE WHEN status='draft' THEN ? ELSE published_at END,draft_title=NULL,draft_category=NULL,draft_summary=NULL,draft_body=NULL,collection_token=?,version=version+1,updated_at=?,public_updated_at=? WHERE id=? AND version=? AND deleted_at IS NULL";
+        const values=[data.title.trim(),data.category.trim(),data.summary.trim(),data.body,...(draft?[]:[now]),nonce,now,...(draft?[]:[now]),data.id,data.version];
+        const results=await env.DB.batch([env.DB.prepare(sql).bind(...values),...collectionWrites(env,data.id,nonce,selection,draft)]),result=results[0];
         if (!result.meta.changes) return fail('文章已被修改或删除，请刷新后重试。',409);
         return json({id:data.id,version:data.version+1,url:url.origin+'/articles/'+data.id+'/',savedAs:draft?'draft':'published'});
       }
       const newSlug = data.slug === undefined || (typeof data.slug === 'string' && !data.slug.trim()) ? 'article-'+crypto.randomUUID() : typeof data.slug === 'string' ? data.slug.trim() : data.slug;
       if (!slug(newSlug)) return fail('网址短名只能用小写英文、数字和连字符。');
-      const result = await env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at,status,draft_title,draft_category,draft_summary,draft_body) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
-        .bind(newSlug,draft?'':data.title.trim(),draft?'':data.category.trim(),draft?'':data.summary.trim(),draft?'':data.body,now,'/articles/'+newSlug+'/',now,draft?'draft':'published',draft?data.title.trim():null,draft?data.category.trim():null,draft?data.summary.trim():null,draft?data.body:null).run();
+      const statement = env.DB.prepare('INSERT INTO posts (id,title,category,summary,body,published_at,permalink,updated_at,status,draft_title,draft_category,draft_summary,draft_body,collection_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING')
+        .bind(newSlug,draft?'':data.title.trim(),draft?'':data.category.trim(),draft?'':data.summary.trim(),draft?'':data.body,now,'/articles/'+newSlug+'/',now,draft?'draft':'published',draft?data.title.trim():null,draft?data.category.trim():null,draft?data.summary.trim():null,draft?data.body:null,nonce);
+      const result=(await env.DB.batch([statement,...collectionWrites(env,newSlug,nonce,selection,draft)]))[0];
       if (!result.meta.changes) return fail('网址短名已被使用。',409);
       return json({id:newSlug,version:1,url:url.origin+'/articles/'+newSlug+'/',savedAs:draft?'draft':'published'},201);
     }
@@ -264,7 +269,8 @@ async function handle(request, env) {
       const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+locations.map(location=>'<url><loc>'+escapeHtml(location)+'</loc></url>').join('')+'</urlset>';
       return new Response(method==='HEAD'?null:xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
     }
-    const data=JSON.stringify(entries.map(publicPost)).replace(/</g,'\\u003c');
+    const relations=(await env.DB.prepare("SELECT m.post_id,c.name,c.slug FROM post_collections m JOIN categories c ON c.slug=m.collection_slug WHERE m.state='published' AND c.hidden=0").all()).results;
+    const data=JSON.stringify(entries.map(p=>({...publicPost(p),collections:relations.filter(m=>m.post_id===p.id).map(({name,slug})=>({name,slug}))}))).replace(/</g,'\\u003c');
     return new Response(method==='HEAD'?null:(path==='/posts.js'?'const posts = '+data+';':data),{headers:{'content-type':path==='/posts.js'?'text/javascript; charset=utf-8':'application/json; charset=utf-8','cache-control':'no-store'}});
   }
   if (path.startsWith('/articles/') && path !== '/articles/' && ['GET','HEAD'].includes(method)) {
@@ -274,11 +280,11 @@ async function handle(request, env) {
     if (!template.ok) throw new Error('缺少文章模板');
     const peers=(await env.DB.prepare("SELECT id,title,category,published_at FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all()).results;
     const at=peers.findIndex(p=>p.id===article.id),link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
-    const related=peers.filter(p=>p.id!==article.id&&p.category===article.category).slice(0,3);
+    const related=(await env.DB.prepare("SELECT DISTINCT p.id,p.title FROM posts p JOIN post_collections m ON m.post_id=p.id JOIN categories c ON c.slug=m.collection_slug WHERE p.id<>? AND p.deleted_at IS NULL AND p.status='published' AND p.published_at<=? AND m.state='published' AND c.hidden=0 AND m.collection_slug IN(SELECT collection_slug FROM post_collections WHERE post_id=? AND state='published') ORDER BY p.published_at DESC,p.id LIMIT 3").bind(article.id,new Date().toISOString(),article.id).all()).results;
     const navigation=await collectionNavigation(env,article)+'<nav class="post-neighbors" aria-label="继续阅读">'+(peers[at+1]?'<div><small>上一篇</small>'+link(peers[at+1])+'</div>':'')+(peers[at-1]?'<div><small>下一篇</small>'+link(peers[at-1])+'</div>':'')+'</nav>'+(related.length?'<section class="post-related"><h2>同合集，继续读</h2>'+related.map(link).join('')+'</section>':'');
     const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
     const dates='<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
-    const replacements = {NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
+    const replacements = {NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml((await env.DB.prepare("SELECT c.name FROM categories c JOIN post_collections m ON c.slug=m.collection_slug WHERE m.post_id=? AND m.state='published' AND c.hidden=0 ORDER BY c.name").bind(article.id).all()).results.map(c=>c.name).join(' · ')),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
     const html = (await template.text()).replace(/@@(NAVIGATION|DATES|ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
     return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   }

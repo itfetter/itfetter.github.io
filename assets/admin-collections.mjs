@@ -29,7 +29,7 @@ export function mountCollections(api,onChanged){
  function renderItems(){
   const root=$('collection-members');root.replaceChildren();$('collection-select-all').checked=false;
   items.forEach((p,index)=>{const row=node('div',undefined,'collection-member');const check=node('input');check.type='checkbox';check.value=p.id;check.setAttribute('aria-label','选择文章：'+p.title);
-   const title=node('div');title.append(node('strong',p.title||'无标题'),node('small',p.status==='draft'?'草稿':p.draft_category&&p.category!==p.draft_category?'已发布 · 草稿计划移入其他合集':'已发布','muted'));
+   const title=node('div');title.append(node('strong',p.title||'无标题'),node('small',p.status==='draft'?'草稿':'已发布','muted'));
    const up=button('↑',()=>move(index,-1)),down=button('↓',()=>move(index,1));up.setAttribute('aria-label','上移：'+p.title);down.setAttribute('aria-label','下移：'+p.title);up.dataset.boundary=String(index===0);down.dataset.boundary=String(index===items.length-1);up.disabled=index===0;down.disabled=index===items.length-1;
    row.append(check,title,up,down);root.append(row);
   });
@@ -52,9 +52,9 @@ export function mountCollections(api,onChanged){
  };
  $('collection-move').onclick=async()=>{
   if(busy||!current)return;if(hasChanges()){say('请先保存合集资料和系列排序，再批量移动文章。');return}const chosen=new Set([...$('collection-members').querySelectorAll('input:checked')].map(c=>c.value)),target=$('collection-move-target').value;
-  if(!chosen.size||!target){say('请勾选文章并选择目标合集。');return}
-  if(!window.confirm('将所选 '+chosen.size+' 篇文章移到目标合集？已发布文章及其草稿都会更新归属，文章网址不变。'))return;
-  lock(true);say('正在移动…');try{await api('/api/collections/move',{method:'POST',body:JSON.stringify({slug:target,items:items.filter(p=>chosen.has(p.id)).map(p=>({id:p.id,version:p.version}))})});await onChanged();orderDirty=false;lock(false);await load();await open(current.slug);say('所选文章已移动。')}catch(e){say(e.message)}finally{lock(false)}
+  const action=$('collection-member-action').value;if(!chosen.size||(action!=='remove'&&!target)){say('请勾选文章并选择目标合集。');return}
+  if(!window.confirm((action==='remove'?'从当前合集移除':action==='add'?'加入目标合集：':'从当前合集移到目标合集：')+chosen.size+' 篇文章？其他合集关联保留，文章和网址不变。'))return;
+  lock(true);say('正在移动…');try{await api('/api/collections/members',{method:'POST',body:JSON.stringify({slug:action==='remove'?current.slug:target,source:current.slug,action,items:items.filter(p=>chosen.has(p.id)).map(p=>({id:p.id,version:p.version}))})});await onChanged();orderDirty=false;lock(false);await load();await open(current.slug);say('合集关联已更新，文章保留。')}catch(e){say(e.message)}finally{lock(false)}
  };
  $('collection-delete').onclick=()=>{if(busy||!current)return;$('collection-delete-text').textContent='删除空合集“'+current.name+'”？有文章（包括回收站）的合集不能删除。';$('collection-delete-modal').showModal();$('collection-delete-cancel').focus()};
  $('collection-delete-cancel').onclick=()=>{if(!busy)$('collection-delete-modal').close()};

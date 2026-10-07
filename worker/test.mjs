@@ -21,6 +21,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0010_comment_threads.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0011_post_trash.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0012_collections.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0013_multi_collections.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -727,7 +728,7 @@ test('合集系列排序和批量移动全量校验版本，冲突不部分修�
  assert.deepEqual(detail.posts.map(p=>p.id),['two','one']);
  assert.equal((await s.request('/api/collections/order','POST',{slug:c.slug,version:c.version,ids:['one','two']},cookie)).status,409);
  assert.equal((await s.request('/api/collections/order','POST',{slug:c.slug,version:detail.version,ids:['two']},cookie)).status,409);
- const stale={slug:target.slug,items:[{id:'one',version:1},{id:'two',version:999}]};
+ const stale={slug:target.slug,source:c.slug,items:[{id:'one',version:1},{id:'two',version:999}]};
  assert.equal((await s.request('/api/collections/move','POST',stale,cookie)).status,409);
  assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM posts WHERE category='课程'").get().n,2);
  assert.equal((await s.request('/api/collections/move','POST',{...stale,items:stale.items.map(p=>({...p,version:1}))},cookie)).status,200);
@@ -763,7 +764,50 @@ test('合集备份保留元信息与顺序并兼容旧备份',async()=>{
  assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
  const restored=other.db.prepare('SELECT * FROM categories WHERE name=?').get(c.name);assert.equal(restored.slug,c.slug);assert.equal(restored.description,'合集简介');
  assert.equal(other.db.prepare("SELECT collection_order FROM posts WHERE id='hello'").get().collection_order,7);
- const old={...backup,categories:backup.categories.map(({name})=>({name})),posts:backup.posts.map(({collection_order,...p})=>p)};
+ const old={...backup,memberships:undefined,categories:backup.categories.map(({name})=>({name})),posts:backup.posts.map(({collection_order,...p})=>p)};
  assert.equal((await s.request('/api/backup/restore','POST',{...old,confirm:true},cookie)).status,200);
+ }finally{s.db.close();other.db.close()}
+});
+
+test('多合集保存草稿隔离公开归属，发布原子替换，排序互不影响',async()=>{
+ const s=setup(),cookie=await token();try{
+ const a=await(await s.request('/api/collections','POST',{name:'A系列'},cookie)).json(),b=await(await s.request('/api/collections','POST',{name:'B系列'},cookie)).json();
+ for(const id of ['one','two'])assert.equal((await s.request('/api/post','PUT',{...article,slug:id,collections:[a.slug,b.slug]},cookie)).status,201);
+ const detail=async c=>(await(await s.request('/api/collections?slug='+c.slug,'GET',undefined,cookie)).json());
+ await s.request('/api/collections/order','POST',{slug:a.slug,version:a.version,ids:['two','one']},cookie);
+ await s.request('/api/collections/order','POST',{slug:b.slug,version:b.version,ids:['one','two']},cookie);
+ assert.deepEqual((await detail(a)).posts.map(p=>p.id),['two','one']);assert.deepEqual((await detail(b)).posts.map(p=>p.id),['one','two']);
+ assert.equal((await s.request('/api/post','PUT',{...article,id:'one',version:1,status:'draft',collections:[b.slug],body:'私密变更'},cookie)).status,200);
+ assert.match(await(await s.request('/collections/'+a.slug+'/')).text(),/articles\/one/);
+ assert.doesNotMatch(await(await s.request('/collections/'+b.slug+'/')).text(),/私密变更/);
+ const edit=await(await s.request('/api/post?id=one','GET',undefined,cookie)).json();assert.deepEqual(edit.collections.map(c=>c.slug),[b.slug]);assert.equal(edit.collection_token,undefined);
+ assert.equal((await s.request('/api/post','PUT',{...article,id:'one',version:1,collections:[a.slug]},cookie)).status,409);
+ assert.equal((await s.request('/api/post','PUT',{...article,id:'one',version:2,collections:[b.slug]},cookie)).status,200);
+ assert.equal((await detail(a)).posts.some(p=>p.id==='one'),false);
+ assert.equal(s.db.prepare("SELECT COUNT(*) n FROM post_collections WHERE post_id='one' AND state='draft'").get().n,0);
+ const history=await(await s.request('/api/history?id=one&version=1','GET',undefined,cookie)).json();assert.deepEqual(JSON.parse(history.collections_json).sort(),[a.slug,b.slug].sort());
+ assert.match(await(await s.request('/articles/two/')).text(),/A系列/);assert.match(await(await s.request('/articles/two/')).text(),/B系列/);
+ }finally{s.db.close()}
+});
+test('多合集加入、移除与移动保留其他关联，整批冲突不写入，备份保留独立顺序',async()=>{
+ const s=setup(),other=setup(),cookie=await token();try{
+ const cs=[];for(const name of ['A','B','C'])cs.push(await(await s.request('/api/collections','POST',{name},cookie)).json());
+ for(const id of ['one','two'])await s.request('/api/post','PUT',{...article,slug:id,collections:[cs[0].slug,cs[1].slug]},cookie);
+ const path='/api/collections/members',items=[{id:'one',version:1},{id:'two',version:999}];
+ assert.equal((await s.request(path,'POST',{slug:cs[2].slug,action:'add',items},cookie)).status,409);
+ assert.equal(s.db.prepare('SELECT COUNT(*) n FROM post_collections WHERE collection_slug=?').get(cs[2].slug).n,0);
+ assert.equal((await s.request(path,'POST',{slug:cs[2].slug,action:'add',items:[items[0]]},cookie)).status,200);
+ assert.equal((await s.request(path,'POST',{slug:cs[0].slug,action:'remove',items:[{id:'one',version:2}]},cookie)).status,200);
+ let rows=s.db.prepare("SELECT collection_slug FROM post_collections WHERE post_id='one'").all();assert.deepEqual(rows.map(x=>x.collection_slug).sort(),[cs[1].slug,cs[2].slug].sort());
+ assert.equal((await s.request(path,'POST',{slug:cs[0].slug,source:cs[1].slug,action:'move',items:[{id:'one',version:3}]},cookie)).status,200);
+ rows=s.db.prepare("SELECT collection_slug FROM post_collections WHERE post_id='one'").all();assert.deepEqual(rows.map(x=>x.collection_slug).sort(),[cs[0].slug,cs[2].slug].sort());
+ assert.equal((await s.request('/articles/one/')).status,200);
+ s.db.prepare("UPDATE post_collections SET position=7 WHERE post_id='one' AND collection_slug=?").run(cs[2].slug);
+ const backup=await(await s.request('/api/backup','GET',undefined,cookie)).json();assert.equal(backup.memberships.length,4);
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.equal(other.db.prepare("SELECT position FROM post_collections WHERE post_id='one' AND collection_slug=?").get(cs[2].slug).position,7);
+ const bad={...backup,memberships:[...backup.memberships,backup.memberships[0]],confirm:true};assert.equal((await s.request('/api/backup/restore','POST',bad,cookie)).status,400);
+ assert.equal((await s.request('/api/post','PUT',{...article,collections:[cs[0].slug,cs[0].slug]},cookie)).status,400);
+ assert.equal((await s.request('/api/post','PUT',{...article,collections:['missing']},cookie)).status,409);
  }finally{s.db.close();other.db.close()}
 });
