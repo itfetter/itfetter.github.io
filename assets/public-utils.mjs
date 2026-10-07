@@ -29,7 +29,7 @@ export function legacyPageUrl(url) {
  if(match){let id;try{id=decodeURIComponent(match[1])}catch{return "/articles/"}
  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)?"/articles/"+encodeURIComponent(id)+"/":"/articles/"}
  if(source.pathname!=="/")return null;
- const destinations={"#articles":"/articles/","#collections":"/articles/","#archive":"/archive/","#about":"/about/","#contact":"/about/#contact"};
+ const destinations={"#articles":"/articles/","#collections":"/collections/","#archive":"/archive/","#about":"/about/","#contact":"/about/#contact"};
  const target=destinations[source.hash];
  return target?(target+(["#articles","#collections"].includes(source.hash)?source.search:"")):null;
 }

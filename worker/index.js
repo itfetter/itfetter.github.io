@@ -1,3 +1,4 @@
+import {manageCollection,reorderCollection,moveCollectionPosts,collectionPage,collectionNavigation,listCollections} from './collections.js';
 import {publicResponse,notFound} from './public-response.mjs';
 // 同源 Cloudflare 博客；后台账号与会话由 D1 管理。
 import { identity, login, logout, secureTransport, changePassword } from './auth.js';
@@ -64,6 +65,10 @@ async function handle(request, env) {
     if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
     return recordRead(request,env,await readJson(request,1024));
   }
+  if(path==='/collections/'||/^\/collections\/[a-z0-9-]+\/$/.test(path)){
+    if(!['GET','HEAD'].includes(method))return fail('请使用GET。',405);
+    return await collectionPage(env,request)||notFound(request);
+  }
   const authPath = path === '/api/login' || path === '/api/logout';
   if (authPath) {
     if (method !== 'POST') return fail('请使用 POST。',405);
@@ -122,6 +127,16 @@ async function handle(request, env) {
       if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
       return markMessage(env,await readJson(request,2048));
     }
+    if(path==='/api/collections'||path==='/api/collections/order'||path==='/api/collections/move'){
+      let data;
+      if(method!=='GET'){
+        if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为JSON。',415);
+        data=await readJson(request,64000);
+      }
+      if(path==='/api/collections/order'){if(method!=='POST')return fail('请使用POST。',405);return reorderCollection(env,data)}
+      if(path==='/api/collections/move'){if(method!=='POST')return fail('请使用POST。',405);return moveCollectionPosts(env,data)}
+      return manageCollection(env,method,data,url);
+    }
     if(path==='/api/categories'){
       if(method==='GET'){
         const {results}=await env.DB.prepare("SELECT name FROM categories UNION SELECT trim(category) AS name FROM posts WHERE trim(category)<>'' UNION SELECT trim(draft_category) AS name FROM posts WHERE trim(draft_category)<>'' ORDER BY name").all();
@@ -147,7 +162,7 @@ async function handle(request, env) {
         try{
           const results=await env.DB.batch([
             env.DB.prepare("INSERT INTO categories(name) SELECT ? WHERE EXISTS(SELECT 1 FROM posts WHERE trim(category)=? OR trim(draft_category)=?) ON CONFLICT DO NOTHING").bind(oldName,oldName,oldName),
-            env.DB.prepare("UPDATE categories SET name=? WHERE name=? AND NOT EXISTS(SELECT 1 FROM posts WHERE trim(category)=? OR trim(draft_category)=?)").bind(name,oldName,name,name),
+            env.DB.prepare("UPDATE categories SET name=?,version=version+1 WHERE name=? AND NOT EXISTS(SELECT 1 FROM posts WHERE trim(category)=? OR trim(draft_category)=?)").bind(name,oldName,name,name),
             env.DB.prepare("UPDATE posts SET category=CASE WHEN trim(category)=? THEN ? ELSE category END,draft_category=CASE WHEN trim(draft_category)=? THEN ? ELSE draft_category END,version=version+1 WHERE (trim(category)=? OR trim(draft_category)=?) AND EXISTS(SELECT 1 FROM categories WHERE name=?) AND NOT EXISTS(SELECT 1 FROM categories WHERE name=?)").bind(oldName,name,oldName,name,oldName,oldName,name,oldName)
           ]);
           if(!results[1].meta.changes)return fail('分类已被修改或名称冲突，请刷新后重试。',409);
@@ -245,7 +260,7 @@ async function handle(request, env) {
     const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,public_updated_at,permalink,read_count FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
     const entries=results.filter(post=>slug(post.id));
     if(path==='/sitemap.xml'){
-      const locations=['https://itfetter.com/','https://itfetter.com/articles/','https://itfetter.com/archive/','https://itfetter.com/about/',...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
+      const locations=['https://itfetter.com/','https://itfetter.com/articles/','https://itfetter.com/archive/','https://itfetter.com/about/','https://itfetter.com/collections/',...(await listCollections(env)).map(c=>'https://itfetter.com/collections/'+c.slug+'/'),...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
       const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+locations.map(location=>'<url><loc>'+escapeHtml(location)+'</loc></url>').join('')+'</urlset>';
       return new Response(method==='HEAD'?null:xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
     }
@@ -260,7 +275,7 @@ async function handle(request, env) {
     const peers=(await env.DB.prepare("SELECT id,title,category,published_at FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all()).results;
     const at=peers.findIndex(p=>p.id===article.id),link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
     const related=peers.filter(p=>p.id!==article.id&&p.category===article.category).slice(0,3);
-    const navigation='<nav class="post-neighbors" aria-label="继续阅读">'+(peers[at+1]?'<div><small>上一篇</small>'+link(peers[at+1])+'</div>':'')+(peers[at-1]?'<div><small>下一篇</small>'+link(peers[at-1])+'</div>':'')+'</nav>'+(related.length?'<section class="post-related"><h2>同分类，继续读</h2>'+related.map(link).join('')+'</section>':'');
+    const navigation=await collectionNavigation(env,article)+'<nav class="post-neighbors" aria-label="继续阅读">'+(peers[at+1]?'<div><small>上一篇</small>'+link(peers[at+1])+'</div>':'')+(peers[at-1]?'<div><small>下一篇</small>'+link(peers[at-1])+'</div>':'')+'</nav>'+(related.length?'<section class="post-related"><h2>同合集，继续读</h2>'+related.map(link).join('')+'</section>':'');
     const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
     const dates='<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
     const replacements = {NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(article.category),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};

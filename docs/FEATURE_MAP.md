@@ -122,3 +122,9 @@ UI 修改还需检查手机宽度、键盘、刷新路由、未保存保护；�
 
 本地图只记录当前入口与限制；构建 ID、部署版本、测试结果、未完成事项放 PROJECT_HANDOFF.md。新增、移动、删除文件、改变职责/接口/迁移/验证入口时，必须在同一次提交同步本地图。
 
+
+## 统一合集（2026-10-07，取代此前分类管理界面）
+分类与系列合并为一个“合集”，每篇文章仍只选一个；原categories和posts.category字段继续使用。后台新增合集管理：新建/改名、500字简介、R2封面、固定slug独立网址、最近/最早发布或手动系列顺序、隐藏入口、勾选批量移动文章（最多50篇）、仅删除空合集。已发布文章按公开合集管理，未发布草稿按草稿合集；移动同时更新公开归属与草稿归属。隐藏仅撤下合集入口与独立页，不隐藏文章；有回收站文章或草稿引用的合集也不能删除，删除空合集默认取消确认。手动排序最多500篇。
+前台/collections/展示有公开文章的可见合集，/collections/<slug>/展示简介、封面、篇数、阅读量、搜索、顺序与10篇分页；独立文章增加合集目录附近章节及上一篇/下一篇。改名保留合集slug、文章网址、正文、日期与历史快照；影响归属的操作推进文章version，旧编辑窗口须刷新。
+新增0012_collections.sql保留原名称并补metadata和posts.collection_order；只新增迁移，不改旧迁移。D1 batch原子改名/排序，版本与完整成员列表检查防止部分更新；移动以单条SQL验证全部文章版本。管理接口延用会话、Origin、JSON保护；公开只读页面只查已发布且到期、非回收站文章，隐私字段不输出。合集元信息与顺序加入原v1备份，旧备份缺字段可恢复，仅补缺不覆盖。封面使用现有认证图片接口，不新增依赖。
+入口：admin/index.html与assets/admin-collections.mjs/css；后端worker/collections.js、worker/index.js；前台assets/collections.css及各导航；备份worker/backup.js；URL assets/admin-route.mjs/public-utils.mjs；测试worker/test.mjs/public.test.mjs/admin.test.mjs。合集页暂不缓存；公开文章及sitemap缓存key已更新，30秒传播规则保留。验收禁止改真实文章/合集，写流程用合成SQLite数据。

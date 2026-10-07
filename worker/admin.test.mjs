@@ -33,7 +33,7 @@ test('草稿状态筛选与公开统计不把未发布文章计入前台',()=>{
 
 import {readAdminRoute,adminRouteURL} from '../assets/admin-route.mjs';
 test('后台刷新恢复栏目及已保存文章，非法路由安全回退',()=>{
- for(const view of ['overview','articles','editor','messages','comments','account']){
+ for(const view of ['overview','articles','editor','messages','comments','account','collections']){
   const url=adminRouteURL('https://itfetter.com/admin/?password=changed',view,null);
   assert.deepEqual(readAdminRoute('https://itfetter.com'+url),{view,id:null});
   assert.equal(url.includes('password'),false);

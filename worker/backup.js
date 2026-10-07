@@ -1,6 +1,6 @@
 // 登录后可下载的内容备份；不含密码、会话、令牌或限速数据。
 const error=message=>{throw Object.assign(new Error(message),{status:400})};
-const fields=['id','title','category','summary','body','published_at','permalink','version','updated_at','status','draft_title','draft_category','draft_summary','draft_body','read_count','public_updated_at','deleted_at'];
+const fields=['id','title','category','summary','body','published_at','permalink','version','updated_at','status','draft_title','draft_category','draft_summary','draft_body','read_count','public_updated_at','deleted_at','collection_order'];
 const imageKey=/^[a-f0-9-]{36}\.(png|jpg|webp|gif)$/;
 const iso=v=>typeof v==='string'&&Number.isFinite(Date.parse(v));
 export async function exportBackup(env){
@@ -17,7 +17,7 @@ export async function exportBackup(env){
  (SELECT COALESCE(SUM(length(content)+length(reply)),0) FROM article_comments) AS chars`).first();
  if(size.posts>1000||size.history>5000||size.messages>1000||size.categories>1000||size.comments>1000||size.chars>4000000)error('内容超过便捷备份上限，请使用 Cloudflare D1 导出。');
  const posts=(await env.DB.prepare('SELECT '+fields.join(',')+' FROM posts').all()).results;
- const categories=(await env.DB.prepare('SELECT name FROM categories').all()).results;
+ const categories=(await env.DB.prepare('SELECT name,slug,description,cover,sort_mode,hidden,version FROM categories').all()).results;
  const history=(await env.DB.prepare('SELECT * FROM post_versions').all()).results;
  const messages=(await env.DB.prepare('SELECT id,name,email,message,status,created_at,deleted_at,version FROM contact_messages').all()).results;
  const comments=(await env.DB.prepare('SELECT * FROM article_comments').all()).results;
@@ -52,6 +52,15 @@ export async function restoreBackup(env,data){
   if(p.public_updated_at!==null&&!iso(p.public_updated_at))error('公开日期无效。');
  }
  for(const c of data.categories)if(typeof c.name!=='string'||!c.name.trim()||c.name.length>80||/[\u0000-\u001f\u007f]/.test(c.name))error('分类无效。');
+ for(const c of data.categories){
+  if(c.slug!==undefined&&(typeof c.slug!=='string'||!/^[a-z0-9-]{1,70}$/.test(c.slug)))error('合集网址无效。');
+  if(c.description!==undefined&&(typeof c.description!=='string'||c.description.length>500))error('合集简介无效。');
+  if(c.cover!==undefined&&(typeof c.cover!=='string'||(c.cover!==''&&!/^\/images\/[a-f0-9-]{36}\.(png|jpg|webp|gif)$/.test(c.cover))))error('合集封面无效。');
+  if(c.sort_mode!==undefined&&!['newest','oldest','manual'].includes(c.sort_mode))error('合集排序无效。');
+  if(c.hidden!==undefined&&![0,1].includes(c.hidden))error('合集状态无效。');
+  if(c.version!==undefined&&(!Number.isSafeInteger(c.version)||c.version<1))error('合集版本无效。');
+ }
+ for(const p of data.posts)if(p.collection_order!==undefined&&(!Number.isSafeInteger(p.collection_order)||p.collection_order<0))error('文章合集顺序无效。');
  for(const h of data.history){if(!ids.has(h.post_id)||!Number.isSafeInteger(h.version)||h.version<1||!iso(h.saved_at))error('历史版本无效。');for(const [f,max] of [['title',160],['category',80],['summary',300],['body',300000]])if(typeof h[f]!=='string'||h[f].length>max)error('历史字段无效。')}
  for(const m of data.messages)if(typeof m.id!=='string'||m.id.length>80||typeof m.name!=='string'||m.name.length>80||typeof m.message!=='string'||m.message.length>3000||typeof m.email!=='string'||m.email.length>254||!['unread','read'].includes(m.status)||!iso(m.created_at)||(m.deleted_at!=null&&!iso(m.deleted_at))||(m.version!==undefined&&(!Number.isSafeInteger(m.version)||m.version<1)))error('留言无效。');
  const commentIds=new Set();
@@ -93,8 +102,8 @@ export async function restoreBackup(env,data){
  let imageCount=0;
  for(const i of images){const result=await env.IMAGES.put(i.key,i.bytes,{httpMetadata:{contentType:i.type},onlyIf:{etagDoesNotMatch:'*'}});if(result)imageCount++}
  const statements=[
- ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>f==='deleted_at'?p[f]??null:p[f]))),
- ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name) VALUES(?) ON CONFLICT DO NOTHING').bind(c.name)),
+ ...data.posts.map(p=>env.DB.prepare('INSERT INTO posts ('+fields.join(',')+') VALUES ('+fields.map(()=>'?').join(',')+') ON CONFLICT DO NOTHING').bind(...fields.map(f=>f==='deleted_at'?p[f]??null:f==='collection_order'?p[f]??0:p[f]))),
+ ...data.categories.map(c=>env.DB.prepare('INSERT INTO categories(name,slug,description,cover,sort_mode,hidden,version) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.name,c.slug??('collection-'+crypto.randomUUID()),c.description??'',c.cover??'',c.sort_mode??'newest',c.hidden??0,c.version??1)),
  ...data.history.map(h=>env.DB.prepare('INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(h.post_id,h.version,h.title,h.category,h.summary,h.body,h.saved_at)),
  ...data.messages.map(m=>env.DB.prepare('INSERT INTO contact_messages(id,name,email,message,status,created_at,deleted_at,version) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(m.id,m.name,m.email,m.message,m.status,m.created_at,m.deleted_at??null,m.version??1)),
  ...ordered.map(c=>env.DB.prepare('INSERT INTO article_comments(id,post_id,name,content,status,reply,created_at,replied_at,deleted_at,version,root_id,target_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.id,c.post_id,c.name,c.content,c.status,c.reply,c.created_at,c.replied_at,c.deleted_at,c.version,c.root_id??null,c.target_id??null))

@@ -1,4 +1,4 @@
-const views=new Set(['overview','articles','editor','messages','comments','account']);
+const views=new Set(['overview','articles','editor','messages','comments','account','collections']);
 const validId=id=>typeof id==='string'&&id.length<=70&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id);
 export function readAdminRoute(value){
  const url=new URL(value),view=url.searchParams.get('view');

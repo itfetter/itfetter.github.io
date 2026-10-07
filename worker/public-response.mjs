@@ -4,7 +4,7 @@ export function publicCacheKey(request) {
  const url=new URL(request.url);
  if(!["GET","HEAD"].includes(request.method)||url.protocol!=="https:")return null;
  if(!["/posts.json","/posts.js","/sitemap.xml","/robots.txt"].includes(url.pathname)&&!/^\/articles\/[a-z0-9]+(?:-[a-z0-9]+)*\/$/.test(url.pathname))return null;
- url.search="?__blog_public_cache=20261006-v4";url.hash="";
+ url.search="?__blog_public_cache=20261007-collections-v1";url.hash="";
  return new Request(url,{method:"GET"});
 }
 function outward(response,method,hit){

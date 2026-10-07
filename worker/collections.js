@@ -1,0 +1,93 @@
+import {escapeHtml} from './content.js';
+const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
+const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status})};
+export const validCollectionName=v=>typeof v==='string'&&!!v.trim()&&v.length<=80&&!/[\u0000-\u001f\u007f]/.test(v);
+export const validCollectionCover=v=>typeof v==='string'&&(v===''||/^\/images\/[a-f0-9-]{36}\.(png|jpg|webp|gif)$/.test(v));
+export const collectionFields='name,slug,description,cover,sort_mode,hidden,version';
+const visible="deleted_at IS NULL AND status='published' AND published_at<=?";
+// 已发布文章只按公开合集管理；未发布草稿按草稿合集，避免同一排序影响两个合集。
+const membership="((status='published' AND category=?) OR (status='draft' AND COALESCE(draft_category,category)=?))";
+function sort(mode){return mode==='manual'?'collection_order ASC,published_at ASC,id':mode==='oldest'?'published_at ASC,id':'published_at DESC,id'}
+export async function listCollections(env,managed=false){
+ const now=new Date().toISOString();
+ const rows=(await env.DB.prepare(`SELECT ${collectionFields},(SELECT COUNT(*) FROM posts WHERE ${visible} AND category=categories.name) AS article_count,(SELECT COALESCE(SUM(read_count),0) FROM posts WHERE ${visible} AND category=categories.name) AS reads,(SELECT MAX(public_updated_at) FROM posts WHERE ${visible} AND category=categories.name) AS updated_at,(SELECT COUNT(*) FROM posts WHERE deleted_at IS NULL AND ((status='published' AND category=categories.name) OR (status='draft' AND COALESCE(draft_category,category)=categories.name))) AS total_count FROM categories ORDER BY name`).bind(now,now,now).all()).results;
+ return managed?rows:rows.filter(c=>!c.hidden&&c.article_count>0).map(({name,slug,description,cover,sort_mode,article_count,reads,updated_at})=>({name,slug,description,cover,sort_mode,article_count,reads,updated_at}));
+}
+export async function manageCollection(env,method,data,url){
+ if(method==='GET'){
+  if(!url.searchParams.get('slug'))return json(await listCollections(env,true));
+  const item=await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE slug=?`).bind(url.searchParams.get('slug')).first();
+  if(!item)fail('合集不存在。',404);
+  const posts=(await env.DB.prepare(`SELECT id,COALESCE(draft_title,title) AS title,category,draft_category,status,version,published_at,collection_order FROM posts WHERE deleted_at IS NULL AND ${membership} ORDER BY ${sort(item.sort_mode)}`).bind(item.name,item.name).all()).results;
+  return json({...item,posts});
+ }
+ if(method==='POST'){
+  if(!validCollectionName(data?.name))fail('合集名称须为1–80个字符。');
+  const result=await env.DB.prepare('INSERT INTO categories(name) VALUES(?) ON CONFLICT DO NOTHING').bind(data.name.trim()).run();
+  if(!result.meta.changes)fail('已有同名合集。',409);
+  return json(await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE name=?`).bind(data.name.trim()).first(),201);
+ }
+ if(method==='DELETE'){
+  if(data?.confirm!==true||!Number.isSafeInteger(data.version))fail('请确认删除空合集。');
+  const result=await env.DB.prepare(`DELETE FROM categories WHERE slug=? AND version=? AND NOT EXISTS(SELECT 1 FROM posts WHERE category=categories.name OR draft_category=categories.name)`).bind(data.slug,data.version).run();
+  if(!result.meta.changes)fail('合集已变化或仍有文章（含回收站），请先移动文章。',409);
+  return json({deleted:true});
+ }
+ if(method!=='PATCH')fail('请使用GET、POST、PATCH或DELETE。',405);
+ if(!validCollectionName(data?.name)||typeof data.description!=='string'||data.description.length>500||!validCollectionCover(data.cover)||!['newest','oldest','manual'].includes(data.sort_mode)||typeof data.hidden!=='boolean'||!Number.isSafeInteger(data.version)||data.version<1)fail('合集名称、简介、封面或版本无效。');
+ const old=await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE slug=?`).bind(data.slug).first();
+ if(!old)fail('合集不存在。',404);
+ const name=data.name.trim(),nonce=crypto.randomUUID();
+ try{
+  const results=await env.DB.batch([
+   env.DB.prepare('UPDATE categories SET name=?,description=?,cover=?,sort_mode=?,hidden=?,version=version+1,mutation_token=? WHERE slug=? AND version=? AND NOT EXISTS(SELECT 1 FROM posts WHERE (trim(category)=? OR trim(draft_category)=?) AND ?<>?)').bind(name,data.description.trim(),data.cover,data.sort_mode,Number(data.hidden),nonce,data.slug,data.version,name,name,name,old.name),
+   env.DB.prepare(`UPDATE posts SET category=CASE WHEN trim(category)=? THEN ? ELSE category END,draft_category=CASE WHEN trim(draft_category)=? THEN ? ELSE draft_category END,version=version+1 WHERE (trim(category)=? OR trim(draft_category)=?) AND ?<>? AND EXISTS(SELECT 1 FROM categories WHERE slug=? AND mutation_token=?)`).bind(old.name,name,old.name,name,old.name,old.name,old.name,name,data.slug,nonce)
+  ]);
+  if(!results[0].meta.changes)fail('合集已被修改或名称重复，请刷新后重试。',409);
+ }catch(e){if(/UNIQUE constraint/.test(String(e)))fail('已有同名合集。',409);throw e}
+ return json(await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE slug=?`).bind(data.slug).first());
+}
+export async function reorderCollection(env,data){
+ if(typeof data?.slug!=='string'||!Number.isSafeInteger(data.version)||data.version<1||!Array.isArray(data.ids)||data.ids.length>500||new Set(data.ids).size!==data.ids.length||data.ids.some(v=>typeof v!=='string'||v.length>70||! /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)))fail('排序数据无效，最多500篇。');
+ const nonce=crypto.randomUUID(),ids=JSON.stringify(data.ids);
+ const results=await env.DB.batch([
+  env.DB.prepare(`UPDATE categories SET sort_mode='manual',version=version+1,mutation_token=? WHERE slug=? AND version=? AND (SELECT COUNT(*) FROM posts WHERE deleted_at IS NULL AND ((status='published' AND category=categories.name) OR (status='draft' AND COALESCE(draft_category,category)=categories.name)))=? AND (SELECT COUNT(*) FROM posts WHERE deleted_at IS NULL AND ((status='published' AND category=categories.name) OR (status='draft' AND COALESCE(draft_category,category)=categories.name)) AND id IN (SELECT value FROM json_each(?)))=?`).bind(nonce,data.slug,data.version,data.ids.length,ids,data.ids.length),
+  env.DB.prepare(`UPDATE posts SET collection_order=(SELECT CAST(key AS INTEGER) FROM json_each(?) WHERE value=posts.id) WHERE id IN (SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM categories WHERE slug=? AND mutation_token=?)`).bind(ids,ids,data.slug,nonce)
+ ]);
+ if(!results[0].meta.changes)fail('合集或文章列表已变化，请刷新后重新排序。',409);
+ return json({version:data.version+1});
+}
+export async function moveCollectionPosts(env,data){
+ if(typeof data?.slug!=='string'||!Array.isArray(data.items)||!data.items.length||data.items.length>50||data.items.some(x=>!x||typeof x.id!=='string'||x.id.length>70||!Number.isSafeInteger(x.version)||x.version<1)||new Set(data.items.map(x=>x.id)).size!==data.items.length)fail('请选择有效文章，单次最多50篇。');
+ const target=await env.DB.prepare('SELECT name FROM categories WHERE slug=?').bind(data.slug).first();if(!target)fail('目标合集不存在。',404);
+ const entries=JSON.stringify(data.items);
+ const result=await env.DB.prepare(`UPDATE posts SET category=CASE WHEN status='published' THEN ? ELSE category END,draft_category=CASE WHEN draft_body IS NOT NULL OR status='draft' THEN ? ELSE draft_category END,version=version+1,collection_order=0 WHERE deleted_at IS NULL AND id IN(SELECT json_extract(value,'$.id') FROM json_each(?)) AND (SELECT COUNT(*) FROM posts p JOIN json_each(?) j ON p.id=json_extract(j.value,'$.id') AND p.version=json_extract(j.value,'$.version') WHERE p.deleted_at IS NULL)=? AND EXISTS(SELECT 1 FROM categories WHERE slug=? AND name=?)`).bind(target.name,target.name,entries,entries,data.items.length,data.slug,target.name).run();
+ if(result.meta.changes!==data.items.length)fail('文章已变化，请刷新后重试。',409);
+ return json({changed:result.meta.changes});
+}
+const href=c=>'/collections/'+encodeURIComponent(c.slug)+'/';
+function layout(title,description,path,body){return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(title)+' — itfetter</title><meta name="description" content="'+escapeHtml(description)+'"><link rel="canonical" href="https://itfetter.com'+path+'"><link rel="stylesheet" href="/assets/site.css"><link rel="stylesheet" href="/assets/collections.css"></head><body><a class="skip-link" href="#main">跳到正文</a><header class="shell topbar"><a class="brand" href="/">itfetter.</a><nav class="nav" aria-label="主导航"><a href="/">首页</a><a href="/articles/">文章</a><a href="/collections/" aria-current="page">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a></nav></header><main id="main" class="shell section">'+body+'</main><footer class="shell footer">© '+new Date().getFullYear()+' itfetter</footer></body></html>'}
+export async function collectionPage(env,request){
+ const url=new URL(request.url),collections=await listCollections(env),slug=url.pathname.split('/')[2];
+ if(!slug){
+  const cards=collections.map(c=>'<a class="collection-card" href="'+href(c)+'">'+(c.cover?'<img src="'+escapeHtml(c.cover)+'" alt="" loading="lazy">':'<div class="collection-cover">'+escapeHtml(c.name.slice(0,1))+'</div>')+'<div class="collection-card-body"><h2>'+escapeHtml(c.name)+'</h2><p>'+escapeHtml(c.description||'这一主题下的记录与思考。')+'</p><small>'+c.article_count+' 篇文章 · '+c.reads+' 次阅读</small></div></a>').join('');
+  return new Response(request.method==='HEAD'?null:layout('文章合集','按主题阅读，按顺序探索。','/collections/','<div class="eyebrow">COLLECTIONS</div><h1 class="page-title">文章合集</h1><p>按主题阅读，按顺序探索。</p><div class="collection-grid">'+(cards||'<p>暂时没有公开合集。</p>')+'</div>'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+ }
+ const c=collections.find(c=>c.slug===slug);if(!c)return null;
+ const order=['newest','oldest','manual'].includes(url.searchParams.get('order'))?url.searchParams.get('order'):c.sort_mode;
+ const query=(url.searchParams.get('q')||'').trim().slice(0,120);
+ const posts=(await env.DB.prepare(`SELECT id,title,summary,published_at,read_count FROM posts WHERE ${visible} AND category=? ORDER BY ${sort(order)}`).bind(new Date().toISOString(),c.name).all()).results.filter(p=>!query||(p.title+' '+p.summary).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+ const pages=Math.max(1,Math.ceil(posts.length/10)),page=Math.max(1,Math.min(pages,Number.parseInt(url.searchParams.get('page'),10)||1));
+ const pageLink=n=>href(c)+'?'+new URLSearchParams({order,q:query,page:String(n)});
+ const body='<a href="/collections/">← 全部合集</a><div class="collection-heading">'+(c.cover?'<img src="'+escapeHtml(c.cover)+'" alt="">':'')+'<div><div class="eyebrow">COLLECTION</div><h1 class="page-title">'+escapeHtml(c.name)+'</h1><p>'+escapeHtml(c.description||'这一主题下的记录与思考。')+'</p><small>'+c.article_count+' 篇文章 · '+c.reads+' 次阅读</small></div></div><form class="collection-search" method="get"><input name="q" maxlength="120" aria-label="搜索合集文章" placeholder="搜索本合集…" value="'+escapeHtml(query)+'"><select name="order" aria-label="文章顺序">'+[['manual','系列顺序'],['newest','最近发布'],['oldest','最早发布']].map(([v,t])=>'<option value="'+v+'"'+(v===order?' selected':'')+'>'+t+'</option>').join('')+'</select><button>查找</button></form><ol class="collection-posts" start="'+((page-1)*10+1)+'">'+posts.slice((page-1)*10,page*10).map(p=>'<li><h2><a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a></h2><p>'+escapeHtml(p.summary)+'</p><small>'+escapeHtml(p.published_at.slice(0,10))+' · '+p.read_count+' 次阅读</small></li>').join('')+'</ol>'+(posts.length?'':'<p>没有匹配的文章。</p>')+'<nav class="collection-pagination" aria-label="合集分页">'+(page>1?'<a href="'+escapeHtml(pageLink(page-1))+'">← 上一页</a>':'')+'<span>'+page+' / '+pages+'</span>'+(page<pages?'<a href="'+escapeHtml(pageLink(page+1))+'">下一页 →</a>':'')+'</nav>';
+ return new Response(request.method==='HEAD'?null:layout(c.name,c.description,href(c),body),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+}
+export async function collectionNavigation(env,article){
+ const c=await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE name=? AND hidden=0`).bind(article.category).first();if(!c)return '';
+ const posts=(await env.DB.prepare(`SELECT id,title FROM posts WHERE ${visible} AND category=? ORDER BY ${sort(c.sort_mode)}`).bind(new Date().toISOString(),c.name).all()).results;
+ const at=posts.findIndex(p=>p.id===article.id);if(at<0)return '';
+ const link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
+ // 长合集不在每篇文章嵌入完整列表，仅显示附近章节与完整目录入口。
+ return '<section class="collection-reading"><h2><a href="'+href(c)+'">'+escapeHtml(c.name)+'</a></h2><p>本合集第 '+(at+1)+' / '+posts.length+' 篇</p><ol start="'+(Math.max(0,at-2)+1)+'">'+posts.slice(Math.max(0,at-2),at+3).map(p=>'<li'+(p.id===article.id?' aria-current="page"':'')+'>'+link(p)+'</li>').join('')+'</ol><nav aria-label="合集继续阅读">'+(posts[at-1]?'<div>合集上一篇：'+link(posts[at-1])+'</div>':'')+(posts[at+1]?'<div>合集下一篇：'+link(posts[at+1])+'</div>':'')+'</nav><a href="'+href(c)+'">查看完整合集 →</a></section>';
+}
+

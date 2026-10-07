@@ -38,7 +38,7 @@ test("留言成功、服务错误、无效响应和请求超时分别处理",asy
 
 test("旧栏目和文章链接迁移，保留列表条件且不劫持新页面章节",()=>{
  assert.equal(legacyPageUrl(origin+"/?category=tech&page=2#articles"),"/articles/?category=tech&page=2");
- assert.equal(legacyPageUrl(origin+"/#collections"),"/articles/");
+ assert.equal(legacyPageUrl(origin+"/#collections"),"/collections/");
  assert.equal(legacyPageUrl(origin+"/#archive"),"/archive/");
  assert.equal(legacyPageUrl(origin+"/#about"),"/about/");
  assert.equal(legacyPageUrl(origin+"/#contact"),"/about/#contact");

@@ -20,6 +20,7 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0009_comments.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0010_comment_threads.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0011_post_trash.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0012_collections.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
@@ -693,4 +694,76 @@ test('分类重命名同步公开/草稿/回收站，保留网址历史并防止
  assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'重复'},auth)).status,409);
  assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'x'.repeat(81)},auth)).status,400);
  assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'未授权'})).status,401);
+});
+
+test('合集管理鉴权、稳定链接、改名同步草稿且保护冲突',async()=>{
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/collections')).status,401);
+ assert.equal((await s.request('/api/collections','POST',{name:'系列'},cookie)).status,201);
+ let c=(await (await s.request('/api/collections','GET',undefined,cookie)).json()).find(x=>x.name==='系列');
+ await s.request('/api/post','PUT',{...article,category:'系列'},cookie);
+ await s.request('/api/post','PUT',{...article,id:'hello',version:1,status:'draft',category:'系列',body:'未发布内容'},cookie);
+ const before=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();
+ const payload={slug:c.slug,version:c.version,name:'系列改名',description:'<script>测试</script>',cover:'',sort_mode:'oldest',hidden:false};
+ assert.equal((await s.request('/api/collections','PATCH',payload,cookie)).status,200);
+ assert.equal((await s.request('/api/collections','PATCH',payload,cookie)).status,409);
+ const after=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();
+ assert.equal(after.category,'系列改名');assert.equal(after.draft_category,'系列改名');assert.equal(after.version,before.version+1);
+ for(const f of ['body','draft_body','published_at','public_updated_at','permalink'])assert.equal(after[f],before[f]);
+ const html=await (await s.request('/collections/'+c.slug+'/')).text();
+ assert.match(html,/系列改名/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/未发布内容/);
+ c=s.db.prepare('SELECT * FROM categories WHERE slug=?').get(c.slug);assert.equal(c.slug,payload.slug);
+ assert.equal((await s.request('/api/collections','DELETE',{slug:c.slug,version:c.version,confirm:true},cookie)).status,409);
+ const request=new Request(origin+'/api/collections',{method:'PATCH',headers:{origin:'https://evil.test',cookie,'content-type':'application/json'},body:JSON.stringify({...payload,version:c.version})});
+ assert.equal((await worker.fetch(request,s.env)).status,403);
+ }finally{s.db.close()}
+});
+test('合集系列排序和批量移动全量校验版本，冲突不部分修改',async()=>{
+ const s=setup(),cookie=await token();try{
+ const c=await (await s.request('/api/collections','POST',{name:'课程'},cookie)).json(),target=await (await s.request('/api/collections','POST',{name:'迁入'},cookie)).json();
+ for(const id of ['one','two'])await s.request('/api/post','PUT',{...article,slug:id,category:'课程',title:id},cookie);
+ assert.equal((await s.request('/api/collections/order','POST',{slug:c.slug,version:c.version,ids:['two','one']},cookie)).status,200);
+ const detail=await (await s.request('/api/collections?slug='+c.slug,'GET',undefined,cookie)).json();
+ assert.deepEqual(detail.posts.map(p=>p.id),['two','one']);
+ assert.equal((await s.request('/api/collections/order','POST',{slug:c.slug,version:c.version,ids:['one','two']},cookie)).status,409);
+ assert.equal((await s.request('/api/collections/order','POST',{slug:c.slug,version:detail.version,ids:['two']},cookie)).status,409);
+ const stale={slug:target.slug,items:[{id:'one',version:1},{id:'two',version:999}]};
+ assert.equal((await s.request('/api/collections/move','POST',stale,cookie)).status,409);
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM posts WHERE category='课程'").get().n,2);
+ assert.equal((await s.request('/api/collections/move','POST',{...stale,items:stale.items.map(p=>({...p,version:1}))},cookie)).status,200);
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM posts WHERE category='迁入'").get().n,2);
+ assert.equal((await s.request('/api/collections','DELETE',{slug:c.slug,version:detail.version,confirm:true},cookie)).status,200);
+ assert.equal((await s.request('/api/collections/move','POST',{slug:target.slug,items:[null]},cookie)).status,400);
+ }finally{s.db.close()}
+});
+test('合集公开入口不泄漏草稿未来回收文章，隐藏入口不隐藏正文',async()=>{
+ const s=setup(),cookie=await token();try{
+ const c=await (await s.request('/api/collections','POST',{name:'公开测试'},cookie)).json();
+ for(const [id,status] of [['public','published'],['draft','draft'],['future','published'],['trash','published']])await s.request('/api/post','PUT',{...article,slug:id,title:id,category:c.name,status},cookie);
+ s.db.prepare("UPDATE posts SET published_at='2999-01-01T00:00:00Z' WHERE id='future'").run();
+ await s.request('/api/post','DELETE',{id:'trash',version:1},cookie);
+ let html=await (await s.request('/collections/'+c.slug+'/')).text();
+ assert.match(html,/\/articles\/public\//);assert.doesNotMatch(html,/\/articles\/(draft|future|trash)\//);
+ assert.match(await (await s.request('/articles/public/')).text(),/查看完整合集/);
+ assert.equal((await s.request('/api/collections','PATCH',{...c,hidden:true},cookie)).status,200);
+ assert.equal((await s.request('/collections/'+c.slug+'/')).status,404);
+ assert.equal((await s.request('/articles/public/')).status,200);
+ assert.doesNotMatch(await (await s.request('/sitemap.xml')).text(),new RegExp(c.slug));
+ assert.equal((await s.request('/collections/','HEAD')).status,200);
+ }finally{s.db.close()}
+});
+test('合集备份保留元信息与顺序并兼容旧备份',async()=>{
+ const s=setup(),other=setup(),cookie=await token();try{
+ const c=await (await s.request('/api/collections','POST',{name:'备份合集'},cookie)).json();
+ await s.request('/api/post','PUT',{...article,category:c.name},cookie);
+ await s.request('/api/collections','PATCH',{...c,description:'合集简介',sort_mode:'manual',hidden:true},cookie);
+ s.db.prepare("UPDATE posts SET collection_order=7 WHERE id='hello'").run();
+ const backup=await (await s.request('/api/backup','GET',undefined,cookie)).json();
+ const entry=backup.categories.find(x=>x.name===c.name);assert.equal(entry.slug,c.slug);assert.equal(entry.description,'合集简介');assert.equal(entry.hidden,1);assert.equal('mutation_token' in entry,false);
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ const restored=other.db.prepare('SELECT * FROM categories WHERE name=?').get(c.name);assert.equal(restored.slug,c.slug);assert.equal(restored.description,'合集简介');
+ assert.equal(other.db.prepare("SELECT collection_order FROM posts WHERE id='hello'").get().collection_order,7);
+ const old={...backup,categories:backup.categories.map(({name})=>({name})),posts:backup.posts.map(({collection_order,...p})=>p)};
+ assert.equal((await s.request('/api/backup/restore','POST',{...old,confirm:true},cookie)).status,200);
+ }finally{s.db.close();other.db.close()}
 });
