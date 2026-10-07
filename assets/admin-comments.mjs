@@ -8,6 +8,7 @@ export function mountCommentManagement(api,articles=()=>[]){
  function sync(){
   const checked=items.filter(item=>selected.has(item.id)).length;
   $('selected').textContent='已选 '+checked+' 条';
+  root.querySelector('.comment-selection').dataset.selected=String(checked>0);
   $('select-all').checked=items.length>0&&checked===items.length;
   $('select-all').indeterminate=checked>0&&checked<items.length;
   $('select-all').disabled=busy||!items.length;
