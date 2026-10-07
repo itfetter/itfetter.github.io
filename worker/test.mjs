@@ -811,3 +811,29 @@ test('多合集加入、移除与移动保留其他关联，整批冲突不写�
  assert.equal((await s.request('/api/post','PUT',{...article,collections:['missing']},cookie)).status,409);
  }finally{s.db.close();other.db.close()}
 });
+
+test('主题起读入口按合集默认顺序且不泄漏非公开文章',async()=>{
+ const s=setup(),cookie=await token();try{
+ for(const [slug,title] of [['first-note','第一篇'],['later-note','第二篇'],['draft-secret','私密草稿']]){
+  assert.equal((await s.request('/api/post','PUT',{...article,slug,title,category:'主题测试',...(slug==='draft-secret'?{status:'draft'}:{})},cookie)).status,201);
+ }
+ const c=s.db.prepare("SELECT slug FROM categories WHERE name='主题测试'").get();
+ s.db.prepare("UPDATE posts SET published_at=? WHERE id=?").run('2020-01-01T00:00:00.000Z','first-note');
+ s.db.prepare("UPDATE posts SET published_at=? WHERE id=?").run('2021-01-01T00:00:00.000Z','later-note');
+ s.db.prepare("UPDATE categories SET sort_mode='oldest' WHERE slug=?").run(c.slug);
+ let html=await (await s.request('/collections/')).text();
+ assert.match(html,/推荐从这里开始/);
+ assert.ok(html.includes('/articles/first-note/'));
+ assert.ok(!html.includes('私密草稿'));
+ s.db.prepare("UPDATE categories SET sort_mode='newest' WHERE slug=?").run(c.slug);
+ html=await (await s.request('/collections/')).text();assert.ok(html.includes('/articles/later-note/'));assert.ok(!html.includes('/articles/first-note/'));
+ s.db.prepare("UPDATE categories SET sort_mode='manual' WHERE slug=?").run(c.slug);
+ s.db.prepare("UPDATE post_collections SET position=CASE WHEN post_id='first-note' THEN 0 ELSE 1 END WHERE collection_slug=?").run(c.slug);
+ html=await (await s.request('/collections/')).text();assert.ok(html.includes('/articles/first-note/'));
+ const detail=await (await s.request('/collections/'+c.slug+'/')).text();assert.match(detail,/主题阅读目录/);assert.match(detail,/从当前目录第一篇读起/);
+ s.db.prepare("UPDATE posts SET deleted_at='2026-01-01' WHERE id='first-note'").run();
+ html=await (await s.request('/collections/')).text();assert.ok(!html.includes('/articles/first-note/'));
+ s.db.prepare("UPDATE categories SET hidden=1 WHERE slug=?").run(c.slug);
+ html=await (await s.request('/collections/')).text();assert.ok(!html.includes('主题测试'));assert.ok(!html.includes('/articles/later-note/'));
+ }finally{s.db.close()}
+});

@@ -40,3 +40,6 @@ html{scroll-padding-top:100px}body{font-family:system-ui,-apple-system,"Noto San
 .comment-reply-context:empty{display:none}
 .comment-item .comment-form{margin-top:1rem}
 @media(max-width:600px){.comment-thread{margin-left:.3rem;padding-left:.7rem}.comment-meta{flex-wrap:wrap}}
+
+/* 文章页以时间浏览为主，合集仅作为收起的筛选条件。 */
+.collection-filter-label{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}.collection-filter-label select{font:inherit;min-height:42px;max-width:260px;padding:10px 32px 10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}.collection-discovery{font-size:13px;color:var(--muted);margin:18px 0 0}.collection-discovery a{color:var(--accent);margin-left:8px}.section-head .muted{margin:12px 0 0}@media(max-width:520px){.collection-filter-label{width:100%}.collection-filter-label select{flex:1;min-width:0;max-width:none}.search-tools{flex-wrap:wrap}.search-tools .search{min-width:160px}.collection-discovery a{display:inline-block}.section-head .muted{display:block}}
