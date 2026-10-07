@@ -27,7 +27,7 @@ function renderList(){
  list.innerHTML=found.length?visible.map((p,i)=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(collectionNames(p).join(" · "))}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p><small class="row-reads">${readMeta(p)}</small></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join(""):'<div class="empty"><strong>暂时没有匹配的文章</strong><p>试试其他关键词，或返回全部文章。</p><button class="button secondary" id="reset-search">清除筛选</button></div>';
  document.getElementById("reset-search")?.addEventListener("click",()=>{search.value="";setFilter("全部")});
 }
-function setFilter(name){filter=name;page=1;for(const b of filters.querySelectorAll("button")){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
+function setFilter(name){filter=name;page=1;if(collectionFilter)collectionFilter.value=name;for(const b of filters?.querySelectorAll("button")||[]){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
 collectionFilter?.addEventListener("change",()=>setFilter(collectionFilter.value));
 filters?.addEventListener("click",e=>{const b=e.target.closest("button[data-filter]");if(b&&filters.contains(b))setFilter(b.dataset.filter)});
 function resetPage(){page=1;renderList()}
