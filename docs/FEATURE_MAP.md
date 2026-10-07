@@ -128,3 +128,5 @@ UI 修改还需检查手机宽度、键盘、刷新路由、未保存保护；�
 前台/collections/展示有公开文章的可见合集，/collections/<slug>/展示简介、封面、篇数、阅读量、搜索、顺序与10篇分页；独立文章增加合集目录附近章节及上一篇/下一篇。改名保留合集slug、文章网址、正文、日期与历史快照；影响归属的操作推进文章version，旧编辑窗口须刷新。
 新增0012_collections.sql保留原名称并补metadata和posts.collection_order；只新增迁移，不改旧迁移。D1 batch原子改名/排序，版本与完整成员列表检查防止部分更新；移动以单条SQL验证全部文章版本。管理接口延用会话、Origin、JSON保护；公开只读页面只查已发布且到期、非回收站文章，隐私字段不输出。合集元信息与顺序加入原v1备份，旧备份缺字段可恢复，仅补缺不覆盖。封面使用现有认证图片接口，不新增依赖。
 入口：admin/index.html与assets/admin-collections.mjs/css；后端worker/collections.js、worker/index.js；前台assets/collections.css及各导航；备份worker/backup.js；URL assets/admin-route.mjs/public-utils.mjs；测试worker/test.mjs/public.test.mjs/admin.test.mjs。合集页暂不缓存；公开文章及sitemap缓存key已更新，30秒传播规则保留。验收禁止改真实文章/合集，写流程用合成SQLite数据。
+
+上线验证：功能提交ad8782d已推送main，Cloudflare构建10e79a59-7152-4158-bac5-0c1eb6e53b54完成72/72测试、0失败，Worker fc856839-a349-43c8-a9fe-77231d0c6996。生产D1已应用并登记0012，保留3篇原文章与3个原分类（其中1篇原已在回收站）；实际Chrome读取后台资料/文章选择/移动目标及前台目录，无生产写入验收。窄屏390px文档375px无横向溢出；实际页面发现合集正文左右留白与跳转链接样式需调整，已修正并补齐合集未保存离开保护，后续构建验收待核对。无本机依赖安装。

@@ -4,6 +4,9 @@ export function mountCollections(api,onChanged){
  const say=text=>{$('collections-notice').textContent=text};
  const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el};
  const button=(text,fn)=>{const b=node('button',text);b.type='button';b.onclick=fn;return b};
+ const metadataDirty=()=>!!current&&($('collection-title').value!==current.name||$('collection-description').value!==current.description||$('collection-cover').value!==current.cover||$('collection-sort').value!==current.sort_mode||$('collection-hidden').checked!==!!current.hidden);
+ const hasChanges=()=>busy||orderDirty||metadataDirty();
+ function canLeave(){if(busy){say('正在处理合集，请稍候。');return false}return !hasChanges()||window.confirm('合集有尚未保存的修改，仍要离开？')}
  function lock(value){busy=value;for(const el of $('collections-panel').querySelectorAll('button,input,textarea,select'))el.disabled=value||el.dataset.boundary==='true'}
  function list(){
   const root=$('collections-list');root.replaceChildren();
@@ -12,7 +15,7 @@ export function mountCollections(api,onChanged){
  }
  async function load(){if(busy)return;const seq=++sequence;say('正在读取合集…');try{const rows=await api('/api/collections');if(seq!==sequence)return;all=rows;list();say('')}catch(e){say(e.message)}}
  async function open(slug){
-  if(busy)return;if(orderDirty&&!window.confirm('排序尚未保存，放弃这次排序？'))return;
+  if(busy)return;if(hasChanges()&&!window.confirm('合集有尚未保存的修改，放弃并打开另一个合集？'))return;
   const seq=++sequence;say('正在读取…');
   try{const c=await api('/api/collections?slug='+encodeURIComponent(slug));if(seq!==sequence)return;current=c;items=c.posts;orderDirty=false;
    $('collection-edit').classList.remove('hidden');$('collection-edit-title').textContent='编辑合集：'+c.name;
@@ -38,17 +41,17 @@ export function mountCollections(api,onChanged){
  $('collections-refresh').onclick=()=>void load();
  $('collection-create-form').onsubmit=async e=>{e.preventDefault();if(busy)return;lock(true);say('正在创建…');try{const c=await api('/api/collections',{method:'POST',body:JSON.stringify({name:$('collection-create-name').value})});$('collection-create-name').value='';await onChanged();lock(false);await load();await open(c.slug)}catch(e){say(e.message)}finally{lock(false)}};
  $('collection-form').onsubmit=async e=>{
-  e.preventDefault();if(busy||!current)return;if(orderDirty){say('请先保存系列排序，再保存合集资料。');return}lock(true);say('正在保存…');
-  try{await api('/api/collections',{method:'PATCH',body:JSON.stringify({slug:current.slug,version:current.version,name:$('collection-title').value,description:$('collection-description').value,cover:$('collection-cover').value,sort_mode:$('collection-sort').value,hidden:$('collection-hidden').checked})});await onChanged();const slug=current.slug;orderDirty=false;lock(false);await load();await open(slug);say('合集已保存。')}
+  e.preventDefault();if(busy||!current)return;lock(true);say('正在保存…');
+  try{current=await api('/api/collections',{method:'PATCH',body:JSON.stringify({slug:current.slug,version:current.version,name:$('collection-title').value,description:$('collection-description').value,cover:$('collection-cover').value,sort_mode:$('collection-sort').value,hidden:$('collection-hidden').checked})});$('collection-title').value=current.name;$('collection-description').value=current.description;$('collection-edit-title').textContent='编辑合集：'+current.name;$('collection-link').classList.toggle('hidden',!!current.hidden);await onChanged();lock(false);await load();say(orderDirty?'合集资料已保存，请继续保存系列排序。':'合集已保存。')}
   catch(e){say(e.message+' 保存结果以刷新后的内容为准，未自动重试。')}finally{lock(false)}
  };
  $('collection-order-save').onclick=async()=>{
-  if(busy||!current)return;lock(true);say('正在保存排序…');
+  if(busy||!current)return;if(metadataDirty()){say('请先保存合集资料，再调整和保存排序。');return}lock(true);say('正在保存排序…');
   try{await api('/api/collections/order',{method:'POST',body:JSON.stringify({slug:current.slug,version:current.version,ids:items.map(p=>p.id)})});orderDirty=false;lock(false);await open(current.slug);say('系列顺序已保存。')}
   catch(e){say(e.message)}finally{lock(false)}
  };
  $('collection-move').onclick=async()=>{
-  if(busy||!current)return;const chosen=new Set([...$('collection-members').querySelectorAll('input:checked')].map(c=>c.value)),target=$('collection-move-target').value;
+  if(busy||!current)return;if(hasChanges()){say('请先保存合集资料和系列排序，再批量移动文章。');return}const chosen=new Set([...$('collection-members').querySelectorAll('input:checked')].map(c=>c.value)),target=$('collection-move-target').value;
   if(!chosen.size||!target){say('请勾选文章并选择目标合集。');return}
   if(!window.confirm('将所选 '+chosen.size+' 篇文章移到目标合集？已发布文章及其草稿都会更新归属，文章网址不变。'))return;
   lock(true);say('正在移动…');try{await api('/api/collections/move',{method:'POST',body:JSON.stringify({slug:target,items:items.filter(p=>chosen.has(p.id)).map(p=>({id:p.id,version:p.version}))})});await onChanged();orderDirty=false;lock(false);await load();await open(current.slug);say('所选文章已移动。')}catch(e){say(e.message)}finally{lock(false)}
@@ -64,6 +67,6 @@ export function mountCollections(api,onChanged){
   if(file.size>5242880||!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)){say('请选择5 MB内的PNG、JPG、WebP或GIF图片。');return}
   lock(true);say('正在上传封面…');try{const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const result=await api('/api/image',{method:'POST',body:JSON.stringify({type:file.type,base64:btoa(binary),alt:'合集封面'})});$('collection-cover').value=result.path;renderCover();say('封面已上传，请保存合集后生效。')}catch(e){say(e.message)}finally{lock(false)}
  };
- return {load};
+ return {load,canLeave,hasChanges};
 }
 

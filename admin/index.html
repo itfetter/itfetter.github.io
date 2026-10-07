@@ -354,7 +354,7 @@ function insert(before,after="",fallback="文字"){const el=fields.body,start=el
 document.querySelectorAll("[data-insert]").forEach(button=>button.onclick=()=>{const kind=button.dataset.insert;if(kind==="heading")insert("\n## ","\n","小标题");if(kind==="bold")insert("**","**","重点");if(kind==="link")insert("[","](https://example.com/)","链接文字");if(kind==="list")insert("\n- ","","列表项目");if(kind==="quote")insert("\n> ","","引用内容");if(kind==="code")insert("\n```\n","\n```\n","代码")});
 for(const field of Object.values(fields))field.addEventListener("input",()=>{dirty=true;editorRevision++;preview()});
 $("new").onclick=()=>{if(discard()){clear();panel("editor");fields.title.focus()}};
-document.querySelectorAll("[data-nav]").forEach(button=>button.onclick=()=>{if(button.dataset.nav==="editor"){$("new").click();return}if(activePanel==="editor"){if(!discard())return;if(dirty)clear()}panel(button.dataset.nav);if(button.dataset.nav==="messages")void loadMessages();if(button.dataset.nav==="comments")void commentManagement.load();if(button.dataset.nav==="collections")void collectionManagement.load()});
+document.querySelectorAll("[data-nav]").forEach(button=>button.onclick=()=>{if(activePanel==="collections"&&!collectionManagement.canLeave())return;if(button.dataset.nav==="editor"){$("new").click();return}if(activePanel==="editor"){if(!discard())return;if(dirty)clear()}panel(button.dataset.nav);if(button.dataset.nav==="messages")void loadMessages();if(button.dataset.nav==="comments")void commentManagement.load();if(button.dataset.nav==="collections")void collectionManagement.load()});
 $("overview-new").onclick=()=> $("new").click();
 $("overview-articles").onclick=()=>panel("articles");
 $("editor-back").onclick=()=>{if(discard()){clear();panel("articles")}};
@@ -443,7 +443,7 @@ fields.body.addEventListener("paste",event=>{
 fields.body.addEventListener("dragover",event=>{if(Array.from(event.dataTransfer?.types||[]).includes("Files"))event.preventDefault()});
 fields.body.addEventListener("drop",event=>{const files=Array.from(event.dataTransfer?.files||[]);if(files.length){event.preventDefault();if(files.every(file=>file.type.startsWith("image/")))void uploadImages(files);else message("这里只能拖入图片文件。",true)}});
 $("logout").onclick=async()=>{if(!discard())return;try{await api("/api/logout",{method:"POST"});dirty=false;location.replace("/admin/login/")}catch(e){message(e.message,true)}};
-window.addEventListener("beforeunload",e=>{if(dirty||uploads||saving){e.preventDefault();e.returnValue=""}});
+window.addEventListener("beforeunload",e=>{if(dirty||uploads||saving||(activePanel==="collections"&&collectionManagement.hasChanges())){e.preventDefault();e.returnValue=""}});
 login().catch(e=>message(e.message,true));
 
 $("history-open").onclick=async()=>{
