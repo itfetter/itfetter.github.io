@@ -675,3 +675,22 @@ test('文章库评论数包含正常状态原评论和访客回复，排除回�
  s.db.close();
 });
 
+
+test('分类重命名同步公开/草稿/回收站，保留网址历史并防止旧版本覆盖',async()=>{
+ const s=setup(),auth=await token();
+ await s.request('/api/posts','POST',article,auth);
+ s.db.prepare("UPDATE posts SET draft_category=?,draft_body=?,deleted_at=? WHERE id='hello'").run('随笔','草稿','2026-10-01');
+ s.db.prepare("INSERT INTO post_versions(post_id,version,title,category,summary,body,saved_at) VALUES('hello',1,'旧标题','随笔','摘要','正文','2026-10-01')").run();
+ const result=await s.request('/api/categories','PATCH',{oldName:'随笔',name:'生活记录'},auth);
+ assert.equal(result.status,200);
+ const row=s.db.prepare("SELECT * FROM posts WHERE id='hello'").get();
+ assert.equal(row.category,'生活记录');assert.equal(row.draft_category,'生活记录');
+ assert.equal(row.permalink,'/articles/hello/');assert.equal(row.version,2);assert.equal(row.deleted_at,'2026-10-01');
+ assert.equal(s.db.prepare("SELECT category FROM post_versions").get().category,'随笔');
+ assert.equal((await s.request('/api/categories','PATCH',{oldName:'随笔',name:'其他'},auth)).status,409);
+ assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'生活记录'},auth)).status,200);
+ s.db.prepare("INSERT INTO categories(name) VALUES('重复')").run();
+ assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'重复'},auth)).status,409);
+ assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'x'.repeat(81)},auth)).status,400);
+ assert.equal((await s.request('/api/categories','PATCH',{oldName:'生活记录',name:'未授权'})).status,401);
+});

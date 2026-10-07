@@ -1,5 +1,12 @@
 # PROJECT_HANDOFF.md — itfetter 个人博客交接
 
+## 分类重命名（2026-10-07）
+
+写文章页面提供“管理分类”：选择分类并保存新名称，认证PATCH /api/categories同步更新posts.category及draft_category（含回收站），推进受影响文章version，保留正文、网址、日期和历史分类快照。重复名称拒绝，不合并；D1 batch事务及唯一约束防止部分更新，旧文章版本不能覆盖更新。编辑已有文章前须先保存未保存修改，重命名后重新读取文章版本。公开缓存最多约30秒传播。无迁移或新增依赖，生产验收不改真实分类。
+
+改动：admin/index.html新增管理弹窗；worker/index.js新增原子重命名；worker/test.mjs覆盖分类同步、历史/链接保留、冲突和鉴权；维护文档同步。验证和部署待云端构建确认。
+
+
 ## 前台独立页面（2026-10-06，当前规则）
 
 首页 / 只展示介绍、最新精选和最近记录；/articles/ 为分类/搜索/排序/每页5篇列表；/archive/ 为按年月归档；/about/ 放介绍、联系邮箱及私密留言。四个页面拥有独立URL、标题、canonical及导航当前状态，手机保留全部栏目。现有 /articles/<id>/ 内容链接不变；旧首页 #articles/#collections/#archive/#about/#contact 和 #post/<id> 继续跳转，旧列表查询参数保留。留言仍私密，不新增公开写接口或修改线上内容。

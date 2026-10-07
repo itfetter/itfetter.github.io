@@ -135,7 +135,29 @@ async function handle(request, env) {
         const result=await env.DB.prepare('INSERT INTO categories (name) VALUES (?) ON CONFLICT DO NOTHING').bind(name).run();
         return json({name,created:result.meta.changes>0},result.meta.changes?201:200);
       }
-      return fail('请使用 GET 或 POST。',405);
+      if(method==='PATCH'){
+        if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+        const data=await readJson(request,2048);
+        const valid=value=>typeof value==='string'&&value.trim()&&value.length<=80&&!/[\u0000-\u001f\u007f]/.test(value);
+        if(!valid(data?.oldName)||!valid(data?.name))return fail('分类名称须为 1–80 个字符，不能包含控制字符。');
+        const oldName=data.oldName.trim(),name=data.name.trim();
+        if(oldName===name)return json({name,unchanged:true});
+        const exists=await env.DB.prepare("SELECT name FROM categories WHERE name=? UNION SELECT category FROM posts WHERE trim(category)=? UNION SELECT draft_category FROM posts WHERE trim(draft_category)=?").bind(name,name,name).first();
+        if(exists)return fail('已有同名分类，请使用其他名称。',409);
+        try{
+          const results=await env.DB.batch([
+            env.DB.prepare("INSERT INTO categories(name) SELECT ? WHERE EXISTS(SELECT 1 FROM posts WHERE trim(category)=? OR trim(draft_category)=?) ON CONFLICT DO NOTHING").bind(oldName,oldName,oldName),
+            env.DB.prepare("UPDATE categories SET name=? WHERE name=? AND NOT EXISTS(SELECT 1 FROM posts WHERE trim(category)=? OR trim(draft_category)=?)").bind(name,oldName,name,name),
+            env.DB.prepare("UPDATE posts SET category=CASE WHEN trim(category)=? THEN ? ELSE category END,draft_category=CASE WHEN trim(draft_category)=? THEN ? ELSE draft_category END,version=version+1 WHERE (trim(category)=? OR trim(draft_category)=?) AND EXISTS(SELECT 1 FROM categories WHERE name=?) AND NOT EXISTS(SELECT 1 FROM categories WHERE name=?)").bind(oldName,name,oldName,name,oldName,oldName,name,oldName)
+          ]);
+          if(!results[1].meta.changes)return fail('分类已被修改或名称冲突，请刷新后重试。',409);
+          return json({name,oldName});
+        }catch(error){
+          if(/UNIQUE constraint failed/.test(String(error)))return fail('已有同名分类，请刷新后重试。',409);
+          throw error;
+        }
+      }
+      return fail('请使用 GET、POST 或 PATCH。',405);
     }
     if(path==='/api/backup'&&method==='GET')return json(await exportBackup(env));
     if(path==='/api/backup/restore'&&method==='POST'){
