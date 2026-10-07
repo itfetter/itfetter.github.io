@@ -885,3 +885,16 @@ test('联系方式备份只补缺，兼容旧备份并拒绝无效邮箱',async(
  assert.equal((await(await other.request('/api/site-settings','GET',undefined,cookie)).json()).contact_email,'existing@example.com');
  }finally{s.db.close();other.db.close()}
 });
+
+ test('文章末尾合集入口去重且只导航相邻文章',async()=>{
+ const {collectionNavigation}=await import('./collections.js');
+ const categories=[{slug:'one',name:'单篇合集',sort_mode:'manual'},{slug:'series',name:'系列合集',sort_mode:'manual'}];
+ const lists={one:[{id:'current',title:'当前文章'}],series:[{id:'before',title:'之前文章'},{id:'current',title:'当前文章'},{id:'after',title:'之后文章'}]};
+ const env={DB:{prepare(sql){return {bind(...args){return {async all(){return {results:sql.includes('FROM categories')?categories:lists[args[0]]}}}}}}}};
+ const html=await collectionNavigation(env,{id:'current'});
+ assert.match(html,/所属合集/);assert.match(html,/单篇合集/);assert.match(html,/系列合集/);
+ assert.doesNotMatch(html,/当前文章|查看完整合集|<ol/);
+ assert.equal((html.match(/class="collection-neighbors"/g)||[]).length,1);
+ assert.match(html,/之前文章/);assert.match(html,/之后文章/);
+ const empty=await collectionNavigation({DB:{prepare(){return {bind(){return {async all(){return {results:[]}}}}}}}},{id:'current'});assert.equal(empty,'');
+ });

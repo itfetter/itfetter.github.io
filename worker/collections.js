@@ -101,12 +101,13 @@ export async function collectionPage(env,request){
 }
 export async function collectionNavigation(env,article){
  const collections=(await env.DB.prepare(`SELECT ${collectionFields} FROM categories WHERE hidden=0 AND slug IN(SELECT collection_slug FROM post_collections WHERE post_id=? AND state='published') ORDER BY name`).bind(article.id).all()).results;
- const sections=[];for(const c of collections){
+ const tags=[],sections=[];for(const c of collections){
  const posts=(await env.DB.prepare(`SELECT id,title,(SELECT position FROM post_collections m WHERE m.post_id=posts.id AND m.collection_slug=? AND m.state='published') AS collection_order FROM posts WHERE ${visible} AND EXISTS(SELECT 1 FROM post_collections m WHERE m.post_id=posts.id AND m.collection_slug=? AND m.state='published') ORDER BY ${sort(c.sort_mode)}`).bind(c.slug,new Date().toISOString(),c.slug).all()).results;
  const at=posts.findIndex(p=>p.id===article.id);if(at<0)continue;
- const link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
- // 长合集不在每篇文章嵌入完整列表，仅显示附近章节与完整目录入口。
- sections.push('<section class="collection-reading"><h2><a href="'+href(c)+'">'+escapeHtml(c.name)+'</a></h2><p>本合集第 '+(at+1)+' / '+posts.length+' 篇</p><ol start="'+(Math.max(0,at-2)+1)+'">'+posts.slice(Math.max(0,at-2),at+3).map(p=>'<li'+(p.id===article.id?' aria-current="page"':'')+'>'+link(p)+'</li>').join('')+'</ol><nav aria-label="合集继续阅读">'+(posts[at-1]?'<div>合集上一篇：'+link(posts[at-1])+'</div>':'')+(posts[at+1]?'<div>合集下一篇：'+link(posts[at+1])+'</div>':'')+'</nav><a href="'+href(c)+'">查看完整合集 →</a></section>');
- }return sections.join('');
+ tags.push('<a class="collection-membership" href="'+href(c)+'">'+escapeHtml(c.name)+'</a>');
+ const link=(p,label)=>'<a href="/articles/'+encodeURIComponent(p.id)+'/"><small>'+label+'</small><span>'+escapeHtml(p.title)+'</span></a>';
+ // 仅显示相邻的其他文章；单篇合集只保留入口，不重复当前标题。
+ if(posts.length>1)sections.push('<nav class="collection-neighbors" aria-label="'+escapeHtml(c.name)+'继续阅读"><div class="collection-neighbors-heading">'+escapeHtml(c.name)+' <small>第 '+(at+1)+' / '+posts.length+' 篇</small></div><div class="collection-neighbors-links">'+(posts[at-1]?link(posts[at-1],'← 上一篇'):'')+(posts[at+1]?link(posts[at+1],'下一篇 →'):'')+'</div></nav>');
+ }
+ return tags.length?'<aside class="article-collections" aria-label="所属合集"><div class="collection-memberships"><span>所属合集</span>'+tags.join('')+'</div>'+sections.join('')+'</aside>':'';
 }
-
