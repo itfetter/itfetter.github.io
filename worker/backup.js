@@ -1,3 +1,4 @@
+import {validContactEmail} from './site-settings.js';
 // 登录后可下载的内容备份；不含密码、会话、令牌或限速数据。
 const error=message=>{throw Object.assign(new Error(message),{status:400})};
 const fields=['id','title','category','summary','body','published_at','permalink','version','updated_at','status','draft_title','draft_category','draft_summary','draft_body','read_count','public_updated_at','deleted_at','collection_order'];
@@ -22,7 +23,8 @@ export async function exportBackup(env){
  const messages=(await env.DB.prepare('SELECT id,name,email,message,status,created_at,deleted_at,version FROM contact_messages').all()).results;
  const comments=(await env.DB.prepare('SELECT * FROM article_comments').all()).results;
  const memberships=(await env.DB.prepare('SELECT post_id,collection_slug,state,position FROM post_collections').all()).results;
- const data={memberships,format:'itfetter-content-v1',created_at:new Date().toISOString(),posts,categories,history,messages,comments,images:[]};
+ const settings=await env.DB.prepare('SELECT contact_email FROM site_settings WHERE id=1').first();
+ const data={settings,memberships,format:'itfetter-content-v1',created_at:new Date().toISOString(),posts,categories,history,messages,comments,images:[]};
  if(posts.length>1000||history.length>5000||messages.length>1000||categories.length>1000||comments.length>1000||JSON.stringify(data).length>4000000)error('内容超过便捷备份上限，请使用 Cloudflare D1 导出。');
  let cursor,total=0;
  do{
@@ -41,6 +43,8 @@ export async function exportBackup(env){
 export async function restoreBackup(env,data){
  if(data?.format!=='itfetter-content-v1'||data.confirm!==true)error('请确认恢复有效的博客内容备份。');
  for(const name of ['posts','categories','history','messages','images'])if(!Array.isArray(data[name]))error('备份结构无效。');
+ const settings=data.settings??null;
+ if(settings!==null&&(!settings||typeof settings!=='object'||Array.isArray(settings)||!validContactEmail(settings.contact_email)))error('联系方式备份无效。');
  const memberships=data.memberships??null;
  if(memberships!==null&&(!Array.isArray(memberships)||memberships.length>40000))error('合集关联备份无效。');
  const comments=data.comments??[];if(!Array.isArray(comments)||comments.length>1000)error('评论备份无效或超过上限。');
@@ -116,6 +120,7 @@ export async function restoreBackup(env,data){
  ...ordered.map(c=>env.DB.prepare('INSERT INTO article_comments(id,post_id,name,content,status,reply,created_at,replied_at,deleted_at,version,root_id,target_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING').bind(c.id,c.post_id,c.name,c.content,c.status,c.reply,c.created_at,c.replied_at,c.deleted_at,c.version,c.root_id??null,c.target_id??null))
  ];
  // 分批仅追加；现有记录永不覆盖。中途失败可重新提交同一备份。
+ if(settings)statements.unshift(env.DB.prepare('INSERT INTO site_settings(id,contact_email,version) VALUES(1,?,1) ON CONFLICT(id) DO NOTHING').bind(settings.contact_email));
  let changed=0;for(let i=0;i<statements.length;i+=50){const result=await env.DB.batch(statements.slice(i,i+50));changed+=result.reduce((sum,r)=>sum+(r.meta.changes||0),0)}
   const relations=memberships??data.posts.flatMap(p=>['published','draft'].flatMap(state=>{if(state==='published'&&p.status!=='published'||state==='draft'&&p.draft_body===null&&p.status!=='draft')return [];const c=data.categories.find(c=>c.name===(state==='draft'?(p.draft_category??p.category):p.category));return c?[{post_id:p.id,collection_slug:c.slug,state,position:p.collection_order??0,legacyName:c.name}]:[]}));
  const relationWrites=[];for(const m of relations){if(!missing.has(m.post_id))continue;const name=memberships?data.categories.find(c=>c.slug===m.collection_slug)?.name:m.legacyName;const c=await env.DB.prepare('SELECT slug FROM categories WHERE name=?').bind(name).first();if(!c)error('合集恢复名称或网址冲突，请检查备份。');relationWrites.push(env.DB.prepare('INSERT INTO post_collections(post_id,collection_slug,state,position) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM posts WHERE id=? AND collection_token=?) ON CONFLICT DO NOTHING').bind(m.post_id,c.slug,m.state,m.position,m.post_id,restoreToken))}

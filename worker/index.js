@@ -1,3 +1,4 @@
+import {readSiteSettings,saveSiteSettings} from './site-settings.js';
 import {selectedCollections,postCollections,collectionWrites} from './post-collections.js';
 import {manageCollection,reorderCollection,moveCollectionPosts,collectionPage,collectionNavigation,listCollections} from './collections.js';
 import {publicResponse,notFound} from './public-response.mjs';
@@ -70,6 +71,15 @@ async function handle(request, env) {
     if(!['GET','HEAD'].includes(method))return fail('请使用GET。',405);
     return await collectionPage(env,request)||notFound(request);
   }
+  if(path==='/about/'){
+    if(!['GET','HEAD'].includes(method))return fail('请使用 GET。',405);
+    const template=await env.ASSETS.fetch(new Request(url.origin+'/about/',{method:'GET'}));
+    if(template.status!==200)return template;
+    const settings=await readSiteSettings(env),email=settings.contact_email;
+    const emailHTML=email?'<a class="contact-email" href="mailto:'+escapeHtml(email)+'">'+escapeHtml(email)+' ↗</a>':'';
+    const html=(await template.text()).replace('@@CONTACT_EMAIL@@',emailHTML).replace('@@CONTACT_CHANNEL@@',email?'<span>01 / 邮件交流</span>':'');
+    return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+  }
   const authPath = path === '/api/login' || path === '/api/logout';
   if (authPath) {
     if (method !== 'POST') return fail('请使用 POST。',405);
@@ -93,6 +103,13 @@ async function handle(request, env) {
       return fail('请登录管理员账号。',401);
     }
     if (!['GET','HEAD'].includes(method) && request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
+    if(path==='/api/site-settings'){
+      if(method==='GET')return json(await readSiteSettings(env));
+      if(method!=='PATCH')return fail('请使用 GET 或 PATCH。',405);
+      if(!secureTransport(request,env))return fail('请使用 HTTPS。',403);
+      if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
+      return json(await saveSiteSettings(env,await readJson(request,2048)));
+    }
     if (path === '/api/password' && method === 'POST') {
       if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
       return changePassword(request,env,await readJson(request,2048));

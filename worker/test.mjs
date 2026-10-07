@@ -22,13 +22,14 @@ function setup(){
  db.exec(readFileSync(new URL('migrations/0011_post_trash.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0012_collections.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('migrations/0013_multi_collections.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('migrations/0014_site_settings.sql',import.meta.url),'utf8'));
  db.prepare('INSERT INTO admin_users VALUES (1,?,?,?)').run('admin','not-used-in-this-test','test-version');
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
  const env={
  DB:{prepare(sql){let values=[];return {bind(...args){values=args;return this},async first(){return db.prepare(sql).get(...values)||null},async all(){return {results:db.prepare(sql).all(...values)}},async run(){const stmt=db.prepare(sql);return /^SELECT\b/i.test(sql.trim())?{results:stmt.all(...values)}:{meta:{changes:stmt.run(...values).changes}}}}}},
  IMAGES:{async list(){return {objects:[...images].map(([key,item])=>({key,size:item.bytes.length})),truncated:false}},async put(key,bytes,options){if(options.onlyIf&&images.has(key))return null;images.set(key,{bytes,type:options.httpMetadata.contentType});return {key}},async get(key){const item=images.get(key);return item&&{arrayBuffer:async()=>item.bytes.buffer.slice(item.bytes.byteOffset,item.bytes.byteOffset+item.bytes.byteLength),httpMetadata:{contentType:item.type},body:item.bytes,httpEtag:'"test"',writeHttpMetadata(headers){headers.set('content-type',item.type)}}}},
- ASSETS:{async fetch(request){const path=new URL(request.url).pathname;return new Response(path==='/article-template.html'?'<title>@@TITLE@@</title>@@DATES@@<article>@@BODY@@</article>@@NAVIGATION@@':path==='/admin/'?'admin':'home')}}};
+ ASSETS:{async fetch(request){const path=new URL(request.url).pathname;return new Response(path==='/article-template.html'?'<title>@@TITLE@@</title>@@DATES@@<article>@@BODY@@</article>@@NAVIGATION@@':path==='/admin/'?'admin':path==='/about/'?readFileSync(new URL('../about/index.html',import.meta.url),'utf8'):'home')}}};
  env.DB.batch=async statements=>{db.exec("BEGIN");try{const results=[];for(const statement of statements)results.push(await statement.run());db.exec("COMMIT");return results}catch(e){db.exec("ROLLBACK");throw e}};
  return {env,db,images,async request(path,method='GET',data,auth){return worker.fetch(new Request(origin+path,{method,headers:{...(auth?{cookie:auth}:{}),...(method!=='GET'?{origin,'content-type':'application/json'}:{})},...(data===undefined?{}:{body:JSON.stringify(data)})}),env)}};
 }
@@ -850,4 +851,37 @@ test('合集关联成功判断不使用D1含触发器写入的changes计数',asy
  assert.equal((await s.request('/api/collections/members','POST',{slug:a.slug,action:'remove',items:[{id:'hello',version:2}]},cookie)).status,409);
  assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM post_collections WHERE post_id='hello' AND collection_slug=?").get(a.slug).n,1);
  }finally{s.db.close()}
+});
+
+test('公开联系方式支持认证保存、版本冲突和留空隐藏',async()=>{
+ const s=setup(),cookie=await token();try{
+ assert.equal((await s.request('/api/site-settings')).status,401);
+ assert.equal((await s.request('/api/site-settings','PATCH',{contact_email:'a@example.com',version:0})).status,401);
+ assert.deepEqual(await(await s.request('/api/site-settings','GET',undefined,cookie)).json(),{contact_email:'Itfetterit@gmail.com',version:0});
+ const cross=await worker.fetch(new Request(origin+'/api/site-settings',{method:'PATCH',headers:{cookie,origin:'https://evil.example','content-type':'application/json'},body:JSON.stringify({contact_email:'a@example.com',version:0})}),s.env);assert.equal(cross.status,403);
+ assert.equal((await s.request('/api/site-settings','PATCH',{contact_email:'hello+notes@example.com',version:0},cookie)).status,200);
+ assert.equal((await s.request('/api/site-settings','PATCH',{contact_email:'stale@example.com',version:0},cookie)).status,409);
+ for(const contact_email of ['javascript:alert(1)','x@example.com\r\nBcc:evil@example.com','.bad@example.com'])assert.equal((await s.request('/api/site-settings','PATCH',{contact_email,version:1},cookie)).status,400);
+ let r=await s.request('/about/');assert.equal(r.headers.get('cache-control'),'no-store');let html=await r.text();assert.match(html,/mailto:hello\+notes@example.com/);assert.ok(!html.includes('@@CONTACT_'));
+ assert.equal(await(await s.request('/about/','HEAD')).text(),'');
+ assert.equal((await s.request('/api/site-settings','PATCH',{contact_email:'',version:1},cookie)).status,200);
+ html=await(await s.request('/about/')).text();assert.ok(!html.includes('class="contact-email"'));assert.ok(!html.includes('mailto:'));assert.match(html,/私密留言/);
+ assert.equal((await s.request('/about/','POST',{})).status,405);
+ }finally{s.db.close()}
+});
+test('联系方式备份只补缺，兼容旧备份并拒绝无效邮箱',async()=>{
+ const s=setup(),other=setup(),cookie=await token();try{
+ await s.request('/api/site-settings','PATCH',{contact_email:'backup@example.com',version:0},cookie);
+ const backup=await(await s.request('/api/backup','GET',undefined,cookie)).json();assert.deepEqual(backup.settings,{contact_email:'backup@example.com'});
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,settings:{contact_email:'bad'},confirm:true},cookie)).status,400);
+ assert.equal(other.db.prepare('SELECT COUNT(*) n FROM site_settings').get().n,0);
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.deepEqual(await(await other.request('/api/site-settings','GET',undefined,cookie)).json(),{contact_email:'backup@example.com',version:1});
+ await other.request('/api/site-settings','PATCH',{contact_email:'existing@example.com',version:1},cookie);
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.equal((await(await other.request('/api/site-settings','GET',undefined,cookie)).json()).contact_email,'existing@example.com');
+ delete backup.settings;
+ assert.equal((await other.request('/api/backup/restore','POST',{...backup,confirm:true},cookie)).status,200);
+ assert.equal((await(await other.request('/api/site-settings','GET',undefined,cookie)).json()).contact_email,'existing@example.com');
+ }finally{s.db.close();other.db.close()}
 });
