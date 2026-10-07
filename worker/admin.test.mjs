@@ -46,3 +46,20 @@ test('后台刷新恢复栏目及已保存文章，非法路由安全回退',()=
  assert.equal(adminRouteURL('https://itfetter.com/admin/','editor','hello'),'/admin/?view=editor&id=hello');
 });
 
+
+import {pageRows,reorderRows,availablePosts,postState} from '../assets/collection-ui.mjs';
+test('合集文章选择排除已加入与回收站；筛选分页不丢失其他排序成员',()=>{
+ const rows=Array.from({length:45},(_,i)=>({id:'p-'+i,title:'文章'+i,summary:i===42?'特殊关键词':'',status:i===2?'draft':'published',published_at:i===3?'2099-01-01':'2020-01-01'}));
+ const before=structuredClone(rows),members=rows.slice(0,2);
+ assert.equal(availablePosts([...rows,{id:'trash',deleted_at:'2026-01-01'}],members).length,43);
+ assert.equal(pageRows(rows,{query:'特殊关键词',page:3}).rows[0].id,'p-42');
+ assert.equal(pageRows(rows,{status:'draft'}).total,1);
+ assert.equal(postState(rows[3]),'scheduled');
+ assert.equal(pageRows(rows,{page:99}).page,3);
+ assert.equal(pageRows([]).pages,1);
+ const moved=reorderRows(rows,'p-44','p-0');
+ assert.equal(moved[0].id,'p-44');assert.equal(moved.length,45);assert.equal(new Set(moved.map(p=>p.id)).size,45);
+ assert.deepEqual(rows,before);assert.deepEqual(reorderRows(rows,'missing','p-0'),rows);
+ assert.equal(adminRouteURL('https://itfetter.com/admin/?view=collections&collection=sample','articles',null).includes('collection='),false);
+ assert.equal(adminRouteURL('https://itfetter.com/admin/?view=collections&collection=sample','collections',null).includes('collection=sample'),true);
+});

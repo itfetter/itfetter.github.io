@@ -1,72 +1,113 @@
-// 统一合集管理；访客/作者字段均用textContent，写请求不自动重试。
+import {pageRows,postState,stateLabel,reorderRows,availablePosts} from './collection-ui.mjs';
+// 内容只通过 textContent 呈现；提交保留原 API 的版本与整批原子校验。
 export function mountCollections(api,onChanged){
- const $=id=>document.getElementById(id);let all=[],current=null,items=[],busy=false,sequence=0,orderDirty=false;
- const say=text=>{$('collections-notice').textContent=text};
- const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el};
- const button=(text,fn)=>{const b=node('button',text);b.type='button';b.onclick=fn;return b};
+ const $=id=>document.getElementById(id),node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el};
+ const button=(text,fn,cls)=>{const b=node('button',text,cls);b.type='button';b.onclick=fn;return b};
+ let all=[],current=null,items=[],original=[],busy=false,orderDirty=false,selected=new Set(),memberPage=1,listPage=1,tab='articles',pickerRows=[],picked=new Set(),pickerPage=1,action='add',dragId=null;
+ const say=(text,id='collections-notice')=>{$(id).textContent=text};
  const metadataDirty=()=>!!current&&($('collection-title').value!==current.name||$('collection-description').value!==current.description||$('collection-cover').value!==current.cover||$('collection-sort').value!==current.sort_mode||$('collection-hidden').checked!==!!current.hidden);
  const hasChanges=()=>busy||orderDirty||metadataDirty();
- function canLeave(){if(busy){say('正在处理合集，请稍候。');return false}return !hasChanges()||window.confirm('合集有尚未保存的修改，仍要离开？')}
- function lock(value){busy=value;for(const el of $('collections-panel').querySelectorAll('button,input,textarea,select'))el.disabled=value||el.dataset.boundary==='true'}
+ function canLeave(){if(busy){say('正在处理，请稍候。');return false}return !hasChanges()||window.confirm('有尚未保存的合集修改，确定放弃并离开？')}
+ function lock(value){busy=value;$('collections-panel').setAttribute('aria-busy',String(value));for(const el of $('collections-panel').querySelectorAll('button,input,textarea,select'))el.disabled=value||el.dataset.boundary==='true';updateControls()}
+ function remember(slug){const url=new URL(location.href);if(slug)url.searchParams.set('collection',slug);else url.searchParams.delete('collection');history.replaceState(null,'',url.pathname+url.search+url.hash)}
+ function paging(id,view,fn){const root=$(id);root.replaceChildren();if(view.pages<=1)return;const prev=button('上一页',()=>fn(view.page-1)),next=button('下一页',()=>fn(view.page+1));prev.dataset.boundary=String(view.page===1);next.dataset.boundary=String(view.page===view.pages);prev.disabled=busy||view.page===1;next.disabled=busy||view.page===view.pages;root.append(prev,node('span',view.page+' / '+view.pages,'muted'),next)}
+ function cover(root,c){root.replaceChildren();if(c.cover){const img=node('img');img.src=c.cover;img.alt='';img.loading='lazy';root.append(img)}else root.append(node('span',c.name.slice(0,1)))}
  function list(){
-  const root=$('collections-list');root.replaceChildren();
-  for(const c of all){const card=node('div',undefined,'collection-admin-card'),text=node('div');text.append(node('strong',c.name),node('p',c.description||'尚未填写简介','muted'),node('small',c.total_count+' 篇文章 · '+c.article_count+' 篇公开 · '+(c.hidden?'入口隐藏':'入口公开'),'muted'));card.append(text,button('管理',()=>void open(c.slug)));root.append(card)}
-  if(!all.length)root.append(node('p','还没有合集，可以先新建一个。'));
+  const root=$('collections-list'),q=$('collections-search').value,status=$('collections-filter').value;
+  const filtered=all.filter(c=>status==='all'||status==='hidden'&&c.hidden||status==='visible'&&!c.hidden||status==='empty'&&!c.total_count),view=pageRows(filtered,{query:q,page:listPage,size:12});listPage=view.page;root.replaceChildren();$('collections-count').textContent=all.length;
+  for(const c of view.rows){const card=button('',()=>void open(c.slug),'collection-admin-card'),image=node('div',undefined,'collection-card-cover');cover(image,c);const body=node('div',undefined,'collection-card-body'),top=node('div',undefined,'collection-card-top');top.append(node('strong',c.name),node('span',c.hidden?'入口隐藏':'入口公开','collection-badge'+(c.hidden?' is-hidden':'')));body.append(top,node('p',c.description||'为这个主题添加简介，告诉读者从哪里开始。','muted'),node('div',c.total_count+' 篇文章 · '+c.article_count+' 篇公开','collection-card-stats'),node('span','管理文章 →','collection-card-link'));card.append(image,body);root.append(card)}
+  if(!view.total){const empty=node('div',undefined,'collection-empty');empty.append(node('strong',all.length?'没有符合条件的合集':'用一个合集开始整理文章'),node('p',all.length?'换个关键词，或清除筛选再试。':'为一个主题起个名字，再从文章库选几篇加入。','muted'),button(all.length?'清除筛选':'＋ 新建合集',()=>{if(all.length){$('collections-search').value='';$('collections-filter').value='all';list()}else showCreate()}));root.append(empty)}
+  paging('collections-pages',view,p=>{listPage=p;list()});
  }
- async function load(){if(busy)return;const seq=++sequence;say('正在读取合集…');try{const rows=await api('/api/collections');if(seq!==sequence)return;all=rows;list();say('')}catch(e){say(e.message)}}
- async function open(slug){
-  if(busy)return;if(hasChanges()&&!window.confirm('合集有尚未保存的修改，放弃并打开另一个合集？'))return;
-  const seq=++sequence;say('正在读取…');
-  try{const c=await api('/api/collections?slug='+encodeURIComponent(slug));if(seq!==sequence)return;current=c;items=c.posts;orderDirty=false;
-   $('collection-edit').classList.remove('hidden');$('collection-edit-title').textContent='编辑合集：'+c.name;
-   $('collection-title').value=c.name;$('collection-description').value=c.description;$('collection-cover').value=c.cover;$('collection-sort').value=c.sort_mode;$('collection-hidden').checked=!!c.hidden;
-   $('collection-link').href='/collections/'+c.slug+'/';$('collection-link').textContent='查看合集 ↗';$('collection-link').classList.toggle('hidden',!!c.hidden);
-   const target=$('collection-move-target');target.replaceChildren(new Option('选择目标合集',''));for(const row of all)if(row.slug!==slug)target.add(new Option(row.name,row.slug));
-   renderItems();renderCover();say('');
-  }catch(e){say(e.message)}
+ function display(detail){$('collections-overview').classList.toggle('hidden',detail);$('collection-edit').classList.toggle('hidden',!detail)}
+ async function load(){
+  if(!canLeave())return;const saved=current?.slug??new URL(location.href).searchParams.get('collection');lock(true);say('正在读取合集…');
+  try{all=await api('/api/collections');list();if(saved&&all.some(c=>c.slug===saved))await readDetail(saved);else{current=null;display(false);remember(null)}say('')}catch(e){say(e.message)}finally{lock(false)}
  }
- function renderCover(){const img=$('collection-cover-preview'),path=$('collection-cover').value;img.classList.toggle('hidden',!path);if(path)img.src=path;else img.removeAttribute('src')}
+ async function readDetail(slug){
+  const c=await api('/api/collections?slug='+encodeURIComponent(slug));current=c;items=c.posts;original=items.map(p=>({...p}));orderDirty=false;selected.clear();memberPage=1;$('collection-member-search').value='';$('collection-member-filter').value='all';
+  $('collection-title').value=c.name;$('collection-description').value=c.description;$('collection-cover').value=c.cover;$('collection-sort').value=c.sort_mode;$('collection-hidden').checked=!!c.hidden;
+  $('collection-edit-title').textContent=c.name;$('collection-detail-summary').textContent=c.description||'还没有简介，可以在合集设置中补充。';$('collection-detail-stats').textContent=items.length+' 篇文章 · '+(c.hidden?'入口隐藏':'入口公开');cover($('collection-detail-cover'),c);
+  $('collection-link').href='/collections/'+c.slug+'/';$('collection-link').classList.toggle('hidden',!!c.hidden);
+  $('collection-sort-hint').textContent=(c.sort_mode==='manual'?'当前按手动阅读顺序排列。':c.sort_mode==='oldest'?'当前按最早发布优先排列。':'当前按最近发布优先排列。')+' 拖动排序手柄或用 ↑ ↓ 调整，保存后改为手动顺序。';
+  renderCover();renderItems();display(true);showTab(tab);remember(slug);
+ }
+ async function open(slug){if(!canLeave())return;lock(true);say('正在打开合集…');try{await readDetail(slug);say('');$('collection-edit-title').focus()}catch(e){say(e.message)}finally{lock(false)}}
+ function showTab(value){tab=value;for(const t of ['articles','settings']){$('collection-'+t+'-tab').setAttribute('aria-selected',String(t===value));$('collection-'+t+'-tab').tabIndex=t===value?0:-1;$('collection-'+t+'-panel').classList.toggle('hidden',t!==value)}}
+ function renderCover(){const path=$('collection-cover').value,img=$('collection-cover-preview');img.classList.toggle('hidden',!path);$('collection-cover-empty').classList.toggle('hidden',!!path);if(path)img.src=path;else img.removeAttribute('src');updateControls()}
+ const memberView=()=>pageRows(items,{query:$('collection-member-search').value,status:$('collection-member-filter').value,page:memberPage});
+ const filteredOrder=()=>$('collection-member-search').value.trim()!==''||$('collection-member-filter').value!=='all';
+ function updateControls(){
+  $('collection-settings-save').disabled=busy||!metadataDirty();$('collection-settings-cancel').disabled=busy||!metadataDirty();$('collection-settings-state').textContent=metadataDirty()?'有未保存的设置':'所有设置已保存';$('collection-cover-clear').disabled=busy||!$('collection-cover').value;
+  $('collection-order-bar').classList.toggle('hidden',!orderDirty);$('collection-order-save').disabled=busy||!orderDirty;$('collection-order-cancel').disabled=busy||!orderDirty;
+  $('collection-order-state').textContent='阅读顺序尚未保存 · 保存后按此顺序展示';
+  $('collection-bulk').classList.toggle('hidden',!selected.size);$('collection-selected-count').textContent='已选 '+selected.size+' 篇';
+  const rows=memberView().rows,checked=rows.filter(p=>selected.has(p.id)).length;$('collection-select-all').checked=!!rows.length&&checked===rows.length;$('collection-select-all').indeterminate=checked>0&&checked<rows.length;$('collection-select-all').disabled=busy||!rows.length;
+  for(const b of $('collection-members').querySelectorAll('[data-reorder]'))b.disabled=busy||filteredOrder()||b.dataset.boundary==='true';
+  $('collection-picker-submit').textContent='添加 '+picked.size+' 篇文章';$('collection-picker-submit').disabled=busy||!picked.size;
+  $('collection-picker-selected').textContent='已选 '+picked.size+' 篇 · 每次最多50篇';
+  const view=pageRows(pickerRows,{query:$('collection-picker-search').value,status:$('collection-picker-filter').value,page:pickerPage}),n=view.rows.filter(p=>picked.has(p.id)).length;$('collection-picker-all').checked=!!view.rows.length&&n===view.rows.length;$('collection-picker-all').indeterminate=n>0&&n<view.rows.length;$('collection-picker-all').disabled=busy||!view.rows.length;
+ }
  function renderItems(){
-  const root=$('collection-members');root.replaceChildren();$('collection-select-all').checked=false;
-  items.forEach((p,index)=>{const row=node('div',undefined,'collection-member');const check=node('input');check.type='checkbox';check.value=p.id;check.setAttribute('aria-label','选择文章：'+p.title);
-   const title=node('div');title.append(node('strong',p.title||'无标题'),node('small',p.status==='draft'?'草稿':'已发布','muted'));
-   const up=button('↑',()=>move(index,-1)),down=button('↓',()=>move(index,1));up.setAttribute('aria-label','上移：'+p.title);down.setAttribute('aria-label','下移：'+p.title);up.dataset.boundary=String(index===0);down.dataset.boundary=String(index===items.length-1);up.disabled=index===0;down.disabled=index===items.length-1;
-   row.append(check,title,up,down);root.append(row);
-  });
-  if(!items.length)root.append(node('p','这个合集还没有文章。','muted'));
-  $('collection-order-state').textContent=orderDirty?'顺序有修改，请保存排序。':'↑ ↓ 调整顺序，保存后用于系列阅读。';
+  const root=$('collection-members'),view=memberView();memberPage=view.page;root.replaceChildren();$('collection-member-count').textContent=view.total+' 篇'+(filteredOrder()?'符合筛选 · 清除筛选后可排序':' · 可拖动手柄排序');
+  for(const p of view.rows){
+   const index=items.findIndex(x=>x.id===p.id),row=node('div',undefined,'collection-member'),check=node('input');check.type='checkbox';check.checked=selected.has(p.id);check.setAttribute('aria-label','选择文章：'+p.title);check.onchange=()=>{if(check.checked)selected.add(p.id);else selected.delete(p.id);updateControls()};
+   const handle=node('span','⠿','collection-drag-handle');handle.draggable=!filteredOrder();handle.title='拖动调整阅读顺序，也可使用右侧上下移按钮';handle.setAttribute('aria-hidden','true');handle.ondragstart=e=>{if(busy||filteredOrder()){e.preventDefault();return}dragId=p.id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',p.id)};handle.ondragend=()=>{dragId=null;for(const el of root.children)el.classList.remove('is-drag-target')};
+   row.ondragover=e=>{if(dragId&&!busy&&!filteredOrder()){e.preventDefault();e.dataTransfer.dropEffect='move';row.classList.add('is-drag-target')}};row.ondragleave=()=>row.classList.remove('is-drag-target');row.ondrop=e=>{e.preventDefault();if(dragId&&!busy&&!filteredOrder())reorder(dragId,p.id);dragId=null};
+   const text=node('div',undefined,'collection-member-body'),title=node('a',p.title||'无标题','collection-member-title');title.href='/admin/?view=editor&id='+encodeURIComponent(p.id);text.append(title,node('small',stateLabel[postState(p)]+' · '+(p.published_at?new Date(p.published_at).toLocaleDateString('zh-CN'):'尚未发布'),'muted'));
+   const tools=node('div',undefined,'collection-member-tools');for(const [label,step] of [['↑',-1],['↓',1]]){const b=button(label,()=>{const to=index+step;if(items[to])reorder(p.id,items[to].id)});b.dataset.reorder='true';b.dataset.boundary=String(index+step<0||index+step>=items.length);b.setAttribute('aria-label',(step<0?'上移：':'下移：')+p.title);tools.append(b)}row.append(check,handle,node('span',String(index+1).padStart(2,'0'),'collection-position'),text,tools);root.append(row);
+  }
+  if(!view.total){const empty=node('div',undefined,'collection-empty');empty.append(node('strong',items.length?'没有找到文章':'合集还没有文章'),node('p',items.length?'试试其他关键词，或清除筛选。':'从文章库挑选内容，文章可以同时加入多个合集。','muted'),button(items.length?'清除筛选':'＋ 添加文章',()=>{if(items.length){$('collection-member-search').value='';$('collection-member-filter').value='all';renderItems()}else void openPicker()}));root.append(empty)}
+  paging('collection-member-pages',view,p=>{memberPage=p;selected.clear();renderItems()});updateControls();
  }
- function move(index,step){if(busy||index+step<0||index+step>=items.length)return;[items[index],items[index+step]]=[items[index+step],items[index]];orderDirty=true;renderItems()}
- $('collection-select-all').onchange=()=>{for(const c of $('collection-members').querySelectorAll('input[type=checkbox]'))c.checked=$('collection-select-all').checked};
- $('collections-refresh').onclick=()=>void load();
- $('collection-create-form').onsubmit=async e=>{e.preventDefault();if(busy)return;lock(true);say('正在创建…');try{const c=await api('/api/collections',{method:'POST',body:JSON.stringify({name:$('collection-create-name').value})});$('collection-create-name').value='';await onChanged();lock(false);await load();await open(c.slug)}catch(e){say(e.message)}finally{lock(false)}};
- $('collection-form').onsubmit=async e=>{
-  e.preventDefault();if(busy||!current)return;lock(true);say('正在保存…');
-  try{current=await api('/api/collections',{method:'PATCH',body:JSON.stringify({slug:current.slug,version:current.version,name:$('collection-title').value,description:$('collection-description').value,cover:$('collection-cover').value,sort_mode:$('collection-sort').value,hidden:$('collection-hidden').checked})});$('collection-title').value=current.name;$('collection-description').value=current.description;$('collection-edit-title').textContent='编辑合集：'+current.name;$('collection-link').classList.toggle('hidden',!!current.hidden);await onChanged();lock(false);await load();say(orderDirty?'合集资料已保存，请继续保存系列排序。':'合集已保存。')}
-  catch(e){say(e.message+' 保存结果以刷新后的内容为准，未自动重试。')}finally{lock(false)}
- };
- $('collection-order-save').onclick=async()=>{
-  if(busy||!current)return;if(metadataDirty()){say('请先保存合集资料，再调整和保存排序。');return}lock(true);say('正在保存排序…');
-  try{await api('/api/collections/order',{method:'POST',body:JSON.stringify({slug:current.slug,version:current.version,ids:items.map(p=>p.id)})});orderDirty=false;lock(false);await open(current.slug);say('系列顺序已保存。')}
-  catch(e){say(e.message)}finally{lock(false)}
- };
- $('collection-move').onclick=async()=>{
-  if(busy||!current)return;if(hasChanges()){say('请先保存合集资料和系列排序，再批量移动文章。');return}const chosen=new Set([...$('collection-members').querySelectorAll('input:checked')].map(c=>c.value)),target=$('collection-move-target').value;
-  const action=$('collection-member-action').value;if(!chosen.size||(action!=='remove'&&!target)){say('请勾选文章并选择目标合集。');return}
-  if(!window.confirm((action==='remove'?'从当前合集移除':action==='add'?'加入目标合集：':'从当前合集移到目标合集：')+chosen.size+' 篇文章？其他合集关联保留，文章和网址不变。'))return;
-  lock(true);say('正在移动…');try{await api('/api/collections/members',{method:'POST',body:JSON.stringify({slug:action==='remove'?current.slug:target,source:current.slug,action,items:items.filter(p=>chosen.has(p.id)).map(p=>({id:p.id,version:p.version}))})});await onChanged();orderDirty=false;lock(false);await load();await open(current.slug);say('合集关联已更新，文章保留。')}catch(e){say(e.message)}finally{lock(false)}
- };
- $('collection-delete').onclick=()=>{if(busy||!current)return;$('collection-delete-text').textContent='删除空合集“'+current.name+'”？有文章（包括回收站）的合集不能删除。';$('collection-delete-modal').showModal();$('collection-delete-cancel').focus()};
- $('collection-delete-cancel').onclick=()=>{if(!busy)$('collection-delete-modal').close()};
- $('collection-delete-modal').addEventListener('cancel',e=>{if(busy)e.preventDefault()});
- $('collection-delete-confirm').onclick=async()=>{if(busy||!current)return;lock(true);$('collection-delete-confirm').disabled=true;try{await api('/api/collections',{method:'DELETE',body:JSON.stringify({slug:current.slug,version:current.version,confirm:true})});current=null;items=[];orderDirty=false;$('collection-edit').classList.add('hidden');$('collection-delete-modal').close();await onChanged();lock(false);await load();say('空合集已删除。')}catch(e){$('collection-delete-modal').close();say(e.message)}finally{lock(false);$('collection-delete-confirm').disabled=false}};
- $('collection-cover-upload').onclick=()=>{if(!busy)$('collection-cover-file').click()};
- $('collection-cover-clear').onclick=()=>{if(busy)return;$('collection-cover').value='';renderCover()};
- $('collection-cover-file').onchange=async()=>{
-  const file=$('collection-cover-file').files[0];$('collection-cover-file').value='';if(!file||busy)return;
-  if(file.size>5242880||!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)){say('请选择5 MB内的PNG、JPG、WebP或GIF图片。');return}
-  lock(true);say('正在上传封面…');try{const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const result=await api('/api/image',{method:'POST',body:JSON.stringify({type:file.type,base64:btoa(binary),alt:'合集封面'})});$('collection-cover').value=result.path;renderCover();say('封面已上传，请保存合集后生效。')}catch(e){say(e.message)}finally{lock(false)}
- };
+ function reorder(source,target){if(busy||filteredOrder()||source===target)return;items=reorderRows(items,source,target);orderDirty=items.some((p,i)=>p.id!==original[i]?.id);memberPage=Math.floor(items.findIndex(p=>p.id===source)/20)+1;renderItems();const row=[...$('collection-members').querySelectorAll('.collection-member')].find(el=>el.querySelector('a')?.href.endsWith('id='+encodeURIComponent(source)));row?.querySelector('[data-reorder]')?.focus()}
+ function cleanBeforeMembership(){if(busy)return false;if(orderDirty||metadataDirty()){say('请先保存或放弃当前修改，再调整文章归属。');return false}return true}
+ function showCreate(){if(!canLeave())return;$('collection-create-name').value='';say('','collection-create-notice');$('collection-create-modal').showModal();$('collection-create-name').focus()}
+ async function openPicker(){
+  if(!current||!cleanBeforeMembership())return;picked.clear();pickerRows=[];pickerPage=1;$('collection-picker-search').value='';$('collection-picker-filter').value='all';$('collection-picker-subtitle').textContent='加入「'+current.name+'」 · 已在本合集的文章不会重复显示';say('正在读取文章库…','collection-picker-notice');$('collection-picker-modal').showModal();renderPicker();lock(true);
+  try{pickerRows=availablePosts(await api('/api/posts'),items);renderPicker();say('','collection-picker-notice')}catch(e){say(e.message+' 请关闭后重新打开。','collection-picker-notice')}finally{lock(false);$('collection-picker-search').focus()}
+ }
+ function renderPicker(){
+  const view=pageRows(pickerRows,{query:$('collection-picker-search').value,status:$('collection-picker-filter').value,page:pickerPage});pickerPage=view.page;const root=$('collection-picker-list');root.replaceChildren();$('collection-picker-count').textContent=view.total+' 篇可添加';
+  for(const p of view.rows){const label=node('label',undefined,'collection-picker-row'),check=node('input');check.type='checkbox';check.checked=picked.has(p.id);check.onchange=()=>{if(check.checked&&picked.size>=50){check.checked=false;say('每次最多添加50篇，请先添加已选文章。','collection-picker-notice');return}if(check.checked)picked.add(p.id);else picked.delete(p.id);say('','collection-picker-notice');updateControls()};const body=node('span');body.append(node('strong',p.title||'无标题'),node('small',stateLabel[postState(p)]+' · '+(p.collections?.map(c=>c.name).join('、')||'未加入合集'),'muted'));label.append(check,body);root.append(label)}
+  if(!view.total)root.append(node('p',pickerRows.length?'没有符合筛选的文章。':'文章库里暂时没有可添加的文章，或所有文章都已在本合集。','collection-empty muted'));
+  paging('collection-picker-pages',view,p=>{pickerPage=p;renderPicker()});updateControls();
+ }
+ async function changed(){await onChanged();all=await api('/api/collections');list();await readDetail(current.slug)}
+ function close(id){if(!busy)$(id).close()}
+ for(const id of ['collection-create-modal','collection-picker-modal','collection-action-modal','collection-delete-modal'])$(id).addEventListener('cancel',e=>{if(busy)e.preventDefault()});
+ $('collections-search').oninput=()=>{listPage=1;list()};$('collections-filter').onchange=()=>{listPage=1;list()};
+ $('collections-refresh').onclick=()=>void load();$('collection-detail-refresh').onclick=()=>void load();$('collection-create-open').onclick=showCreate;
+ $('collection-back').onclick=()=>{if(!canLeave())return;current=null;orderDirty=false;selected.clear();display(false);remember(null);list();say('');$('collections-search').focus()};
+ for(const t of ['articles','settings']){$('collection-'+t+'-tab').onclick=()=>showTab(t);$('collection-'+t+'-tab').onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?'articles':e.key==='End'?'settings':t==='articles'?'settings':'articles';showTab(next);$('collection-'+next+'-tab').focus()}}}
+ for(const id of ['collection-title','collection-description','collection-sort','collection-hidden'])$(id).addEventListener('input',updateControls);
+ $('collection-settings-cancel').onclick=()=>{if(busy||!current)return;$('collection-title').value=current.name;$('collection-description').value=current.description;$('collection-cover').value=current.cover;$('collection-sort').value=current.sort_mode;$('collection-hidden').checked=!!current.hidden;renderCover();say('已放弃未保存的设置。')};
+ for(const id of ['collection-member-search','collection-member-filter'])$(id).addEventListener(id.endsWith('search')?'input':'change',()=>{memberPage=1;selected.clear();renderItems()});
+ $('collection-select-all').onchange=()=>{for(const p of memberView().rows)if($('collection-select-all').checked)selected.add(p.id);else selected.delete(p.id);renderItems()};
+ $('collection-selection-clear').onclick=()=>{selected.clear();renderItems()};
+ $('collection-order-cancel').onclick=()=>{items=original.map(p=>({...p}));orderDirty=false;renderItems();say('已恢复保存前的阅读顺序。')};
+ $('collection-order-save').onclick=async()=>{if(busy||!current||!orderDirty)return;if(metadataDirty()){say('请先保存合集设置，再保存阅读顺序。');return}lock(true);say('正在保存阅读顺序…');try{await api('/api/collections/order',{method:'POST',body:JSON.stringify({slug:current.slug,version:current.version,ids:items.map(p=>p.id)})});await readDetail(current.slug);say('阅读顺序已保存，前台将按此顺序展示。')}catch(e){say(e.message)}finally{lock(false)}};
+ $('collection-form').onsubmit=async e=>{e.preventDefault();if(busy||!current)return;lock(true);say('正在保存设置…');try{current=await api('/api/collections',{method:'PATCH',body:JSON.stringify({slug:current.slug,version:current.version,name:$('collection-title').value,description:$('collection-description').value,cover:$('collection-cover').value,sort_mode:$('collection-sort').value,hidden:$('collection-hidden').checked})});$('collection-title').value=current.name;$('collection-description').value=current.description;$('collection-edit-title').textContent=current.name;$('collection-detail-summary').textContent=current.description||'还没有简介，可以在合集设置中补充。';$('collection-link').classList.toggle('hidden',!!current.hidden);cover($('collection-detail-cover'),current);await onChanged();all=await api('/api/collections');list();if(!orderDirty)await readDetail(current.slug);say(orderDirty?'设置已保存，请继续保存阅读顺序。':'合集设置已保存。')}catch(e){say(e.message+' 未自动重试，请确认保存结果。')}finally{lock(false)}};
+ $('collection-create-cancel').onclick=() =>close('collection-create-modal');$('collection-create-dismiss').onclick=()=>close('collection-create-modal');
+ $('collection-create-form').onsubmit=async e=>{e.preventDefault();if(busy)return;lock(true);say('正在创建…','collection-create-notice');try{const c=await api('/api/collections',{method:'POST',body:JSON.stringify({name:$('collection-create-name').value})});$('collection-create-modal').close();await onChanged();all=await api('/api/collections');list();tab='articles';await readDetail(c.slug);say('合集已创建。接下来从文章库挑选内容。');lock(false);await openPicker()}catch(e){say(e.message,$('collection-create-modal').open?'collection-create-notice':'collections-notice')}finally{lock(false)}};
+ $('collection-add-open').onclick=()=>void openPicker();$('collection-picker-close').onclick=()=>close('collection-picker-modal');$('collection-picker-cancel').onclick=()=>close('collection-picker-modal');
+ for(const id of ['collection-picker-search','collection-picker-filter'])$(id).addEventListener(id.endsWith('search')?'input':'change',()=>{pickerPage=1;renderPicker()});
+ $('collection-picker-all').onchange=()=>{const rows=pageRows(pickerRows,{query:$('collection-picker-search').value,status:$('collection-picker-filter').value,page:pickerPage}).rows;if($('collection-picker-all').checked){const next=new Set([...picked,...rows.map(p=>p.id)]);if(next.size>50){say('全选后会超过50篇，请减少选择。','collection-picker-notice');updateControls();return}picked=next}else for(const p of rows)picked.delete(p.id);renderPicker()};
+ $('collection-picker-submit').onclick=async()=>{if(busy||!picked.size||!current)return;lock(true);say('正在添加文章…','collection-picker-notice');try{await api('/api/collections/members',{method:'POST',body:JSON.stringify({slug:current.slug,action:'add',items:pickerRows.filter(p=>picked.has(p.id)).map(p=>({id:p.id,version:p.version}))})});$('collection-picker-modal').close();await changed();say('文章已加入合集，原有其他合集归属保留。')}catch(e){say(e.message+' 未自动重试；请刷新确认结果后再选择。',$('collection-picker-modal').open?'collection-picker-notice':'collections-notice')}finally{lock(false)}};
+ function showAction(value){
+  if(!selected.size||!current||!cleanBeforeMembership())return;action=value;const target=$('collection-move-target');target.replaceChildren(new Option('请选择目标合集',''));for(const c of all)if(c.slug!==current.slug)target.add(new Option(c.name,c.slug));
+  $('collection-action-title').textContent=(value==='remove'?'移出本合集':value==='move'?'移到其他合集':'加入其他合集')+' · '+selected.size+' 篇';
+  $('collection-action-description').textContent=value==='remove'?'仅取消这些文章与「'+current.name+'」的关联。文章仍在文章库，其他合集归属保留。':value==='move'?'从当前合集移出并加入目标合集，其他合集归属保留。':'保留当前合集归属，同时加入你选择的目标合集。';
+  $('collection-action-target').classList.toggle('hidden',value==='remove');$('collection-action-submit').textContent=value==='remove'?'确认移出':value==='move'?'确认移动':'确认加入';say('','collection-action-notice');$('collection-action-modal').showModal();$('collection-action-cancel').focus();
+ }
+ for(const value of ['add','move','remove'])$('collection-bulk-'+value).onclick=()=>showAction(value);
+ $('collection-action-cancel').onclick=()=>close('collection-action-modal');
+ $('collection-action-submit').onclick=async()=>{if(busy||!current||!selected.size)return;const target=$('collection-move-target').value;if(action!=='remove'&&!target){say('请选择目标合集。','collection-action-notice');$('collection-move-target').focus();return}lock(true);say('正在更新文章归属…','collection-action-notice');try{await api('/api/collections/members',{method:'POST',body:JSON.stringify({slug:action==='remove'?current.slug:target,source:current.slug,action,items:items.filter(p=>selected.has(p.id)).map(p=>({id:p.id,version:p.version}))})});$('collection-action-modal').close();await changed();say('已更新所选文章的合集归属，文章内容保持不变。')}catch(e){say(e.message,$('collection-action-modal').open?'collection-action-notice':'collections-notice')}finally{lock(false)}};
+ $('collection-delete').onclick=()=>{if(!cleanBeforeMembership())return;$('collection-delete-text').textContent='删除空合集「'+current.name+'」？有文章（包括回收站）的合集不能删除。';say('','collection-delete-notice');$('collection-delete-modal').showModal();$('collection-delete-cancel').focus()};
+ $('collection-delete-cancel').onclick=()=>close('collection-delete-modal');
+ $('collection-delete-confirm').onclick=async()=>{if(busy||!current)return;lock(true);try{await api('/api/collections',{method:'DELETE',body:JSON.stringify({slug:current.slug,version:current.version,confirm:true})});current=null;items=[];orderDirty=false;$('collection-delete-modal').close();display(false);remember(null);await onChanged();all=await api('/api/collections');list();say('空合集已删除。')}catch(e){say(e.message,$('collection-delete-modal').open?'collection-delete-notice':'collections-notice')}finally{lock(false)}};
+ $('collection-cover-upload').onclick=()=>{if(!busy)$('collection-cover-file').click()};$('collection-cover-clear').onclick=()=>{if(busy)return;$('collection-cover').value='';renderCover()};
+ $('collection-cover-file').onchange=async()=>{const file=$('collection-cover-file').files[0];$('collection-cover-file').value='';if(!file||busy)return;if(file.size>5242880||!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)){say('请选择5 MB内的 PNG、JPG、WebP 或 GIF 图片。');return}lock(true);say('正在上传封面…');try{const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const result=await api('/api/image',{method:'POST',body:JSON.stringify({type:file.type,base64:btoa(binary),alt:'合集封面'})});$('collection-cover').value=result.path;renderCover();say('封面已上传，请保存设置后生效。')}catch(e){say(e.message)}finally{lock(false)}};
  return {load,canLeave,hasChanges};
 }
 

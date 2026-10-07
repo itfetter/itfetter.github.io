@@ -10,5 +10,6 @@ export function readAdminRoute(value){
 export function adminRouteURL(value,view,id){
  const url=new URL(value);url.searchParams.set('view',views.has(view)?view:'overview');
  if(view==='editor'&&validId(id))url.searchParams.set('id',id);else url.searchParams.delete('id');
+ if(view!=='collections')url.searchParams.delete('collection');
  url.searchParams.delete('password');return url.pathname+url.search+url.hash;
 }
