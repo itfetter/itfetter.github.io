@@ -43,3 +43,135 @@ html{scroll-padding-top:100px}body{font-family:system-ui,-apple-system,"Noto San
 
 /* 文章页以时间浏览为主，合集仅作为收起的筛选条件。 */
 .collection-filter-label{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}.collection-filter-label select{font:inherit;min-height:42px;max-width:260px;padding:10px 32px 10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}.collection-discovery{font-size:13px;color:var(--muted);margin:18px 0 0}.collection-discovery a{color:var(--accent);margin-left:8px}.section-head .muted{margin:12px 0 0}@media(max-width:520px){.collection-filter-label{width:100%}.collection-filter-label select{flex:1;min-width:0;max-width:none}.search-tools{flex-wrap:wrap}.search-tools .search{min-width:160px}.collection-discovery a{display:inline-block}.section-head .muted{display:block}}
+
+/* 2026-10：统一前台阅读布局，所有规则仅作用于公开页面。 */
+:root{--muted:#626b63}
+body{font-size:16px;-webkit-font-smoothing:antialiased}
+.shell{max-width:1160px;padding-left:32px;padding-right:32px}
+.topbar{height:76px;gap:24px}
+.nav{gap:6px;font-size:14px}
+.nav a{padding:9px 14px;border-radius:9px;white-space:nowrap}
+.nav a:hover{background:#eaece4}
+.topbar .nav a[aria-current=page]{background:#e7ede4;color:#294d3f}
+.section,.collections-main{padding-top:48px;padding-bottom:64px}
+.section-head{margin-bottom:24px;align-items:center}
+.section-head .page-title,.collections-main .page-title{font-size:clamp(30px,3.5vw,40px);letter-spacing:-.04em}
+.section-head .muted,.collection-intro p{font-size:15px;line-height:1.8}
+.small-link:after{content:none}
+.hero{padding-top:60px;padding-bottom:52px;gap:56px;grid-template-columns:1.2fr .8fr}
+.hero h1{font-size:clamp(42px,5vw,64px);line-height:1.2}
+.hero .lede{max-width:540px;line-height:1.9;font-size:17px}
+.hero-art{min-height:320px;border-radius:64px 18px 18px 18px;box-shadow:10px 12px 0 #eae8de}
+.art-card .glyph{font-size:130px}
+.journal-strip{padding-top:20px;padding-bottom:24px;font-size:14px}
+.journal-strip div span{font-size:21px}
+.section-head h2{font-size:30px}
+.featured{min-height:260px;grid-template-columns:.6fr 1.4fr}
+.featured-text{padding:30px}
+.featured h3{font-size:26px;line-height:1.5}
+.featured p{font-size:15px}
+.featured-visual{padding:26px}
+.featured-visual span{font-size:52px}
+.article-controls{margin:24px 0 12px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;align-items:center;gap:16px}
+.search-tools{flex:1;justify-content:flex-end;min-width:0}
+.search-tools .search{width:min(100%,360px);min-width:0;min-height:44px;font-size:14px;margin:0}
+.search-tools select,.collection-filter-label select{min-height:44px;font-size:14px}
+.search:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid #315146;outline-offset:3px}
+.collection-discovery{margin:12px 0;font-size:14px}
+.results-note{font-size:14px;margin:22px 0 14px}
+.article-list{border:0;display:grid;gap:14px}
+.article-row{grid-template-columns:92px minmax(0,1fr) 44px;gap:20px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:24px;align-items:start}
+.article-row:hover{background:#fff; border-color:#bbc8b8}
+.article-row time{font-size:13px;padding-top:4px}
+.article-row h3{font-size:22px;line-height:1.55;margin:9px 0}
+.article-row p{font-size:15px;line-height:1.85}
+.row-category{font-size:12px;color:#9c462e}
+.row-reads{font-size:12px;margin-top:12px}
+.row-arrow{align-self:center}
+.archive-section{grid-template-columns:1fr 1.5fr;gap:48px;border-top:0}
+.archive-month{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 24px;margin-bottom:14px}
+.archive-month summary{font-size:21px;line-height:1.5}
+.archive-month a{font-size:15px;line-height:1.8;border-top:1px solid #e8e9e1;margin-top:12px;padding:12px 0 0}
+.archive-month a:first-of-type{margin-top:16px}
+.about-inner{padding-top:52px;padding-bottom:52px;gap:56px}
+.about p{font-size:16px}
+.contact-section{padding-top:48px;padding-bottom:64px;gap:40px}
+.contact-form{box-shadow:none}
+.contact-form label{font-size:14px}
+.contact-form input,.contact-form textarea{font-size:16px}
+.contact-email{font-size:20px}
+.footer{font-size:13px}
+.footer-links{gap:18px}
+.post-page .post-topbar{max-width:1160px;position:sticky;top:0;z-index:20;min-height:76px;padding:16px 32px;background:#f5f3eef5;backdrop-filter:blur(16px);gap:20px}
+.post-page main{max-width:860px;margin:32px auto 64px;padding:36px 48px 48px;background:#fffefa;border:1px solid #deded6;border-radius:18px}
+.post-page main>h1{font-size:clamp(28px,3.5vw,42px);line-height:1.5;overflow-wrap:anywhere}
+.post-page .meta{font-size:13px;line-height:1.9;color:#8f452f;overflow-wrap:anywhere}
+.post-page .summary{font-size:17px;line-height:1.9;color:#626b63}
+.post-page main>article{font-size:17px;line-height:1.95;overflow-wrap:anywhere}
+.post-page main>article :is(h1,h2,h3,h4,h5,h6){line-height:1.5;color:#1f332d}
+.post-page main>article h2{font-size:26px;margin:40px 0 16px}
+.post-page main>article h3{font-size:22px;margin:32px 0 12px}
+.post-page main>article p{margin:0 0 22px}
+.post-page main>article li{margin:8px 0}
+.post-page main>article :is(ul,ol){padding-left:1.5em}
+.post-page main>article pre{font-size:14px;line-height:1.8;overflow-wrap:normal}
+.post-page main>article :not(pre)>code{background:#edf0e8;padding:2px 5px;border-radius:4px;font-size:.9em}
+.post-page .reading-tools{background:#f0f3eb;border-color:#dce3d5;font-size:14px}
+.post-page .comment-form{padding:20px;background:#f1f4ec;border-radius:12px}
+.post-page .comment-form .comment-trap{padding:0}
+.post-page .comment-item{padding:24px 0}
+.post-page .comment-text{font-size:16px;line-height:1.9}
+.post-page .comment-muted{color:#626b63}
+@media(max-width:1000px){
+ .article-controls{flex-direction:row;flex-wrap:wrap}
+ .hero{gap:32px}
+}
+@media(max-width:700px){
+ .shell{padding-left:20px;padding-right:20px}
+ .topbar{height:auto;min-height:106px;flex-direction:column;align-items:flex-start;gap:12px;padding-top:16px;padding-bottom:12px}
+ .topbar .nav{width:100%;gap:3px;justify-content:space-between;flex-wrap:nowrap;font-size:13px}
+ .nav a{padding:8px 9px}
+ .hero{grid-template-columns:1fr;padding-top:36px;padding-bottom:36px;gap:28px}
+ .hero h1{font-size:44px}
+ .hero .lede{font-size:16px}
+ .hero-art{display:none}
+ .art-card .glyph{font-size:92px}
+ .journal-strip{font-size:13px}
+ .section,.collections-main{padding-top:32px;padding-bottom:44px}
+ .section-head{flex-wrap:wrap;gap:12px}
+ .section-head .page-title{font-size:30px}
+ .section-head h2{font-size:26px}
+ .small-link{font-size:13px}
+ .featured{grid-template-columns:1fr}
+ .featured-visual{min-height:130px;padding:20px 24px}
+ .featured-visual span{font-size:38px;margin:10px 0}
+ .featured-text{padding:24px}
+ .featured h3{font-size:23px}
+ .article-controls{padding:14px;gap:12px;flex-direction:column;align-items:stretch}
+ .collection-filter-label{width:100%;font-size:14px}
+ .collection-filter-label select{flex:1;max-width:none;min-width:0}
+ .search-tools{width:100%;flex-wrap:nowrap}
+ .search-tools .search{flex:1;width:0;font-size:16px}
+ .search-tools select{max-width:116px}
+ .article-row{grid-template-columns:minmax(0,1fr);padding:20px;gap:10px}
+ .article-row time{grid-column:1/-1;padding-top:0}
+ .article-row h3{font-size:20px}
+ .article-row p{font-size:15px}
+ .article-row .row-arrow{display:none}
+ .archive-section{grid-template-columns:1fr;gap:16px}
+ .archive-month{padding:18px 20px}
+ .archive-month a{gap:12px}
+ .about-inner{grid-template-columns:1fr;gap:18px;padding-top:36px;padding-bottom:36px}
+ .contact-section{grid-template-columns:1fr;gap:24px}
+ .contact-form{padding:22px}
+ .post-page .post-topbar{flex-wrap:wrap;gap:10px 16px;padding:14px 20px;font-size:13px;position:static}
+ .post-page .post-topbar>a:first-child{flex-basis:100%;margin:0}
+ .post-page main{margin:20px 12px 36px;padding:24px 20px 32px;border-radius:14px}
+ .post-page main>article{font-size:16px;line-height:1.95}
+ .post-page main>article h2{font-size:24px}
+ .post-page main>article h3{font-size:21px}
+ .post-page main>article pre{font-size:13px;padding:16px}
+ .post-page .summary{font-size:16px}
+ .post-page .comment-form{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){.article-row{transition:none}}
