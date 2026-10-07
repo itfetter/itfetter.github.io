@@ -26,7 +26,7 @@ function setup(){
  db.prepare('INSERT INTO admin_sessions VALUES (?,1,?,?)').run(digest(sessionToken),'test-version',Math.floor(Date.now()/1000)+3600);
  const images=new Map();
  const env={
- DB:{prepare(sql){let values=[];return {bind(...args){values=args;return this},async first(){return db.prepare(sql).get(...values)||null},async all(){return {results:db.prepare(sql).all(...values)}},async run(){return {meta:{changes:db.prepare(sql).run(...values).changes}}}}}},
+ DB:{prepare(sql){let values=[];return {bind(...args){values=args;return this},async first(){return db.prepare(sql).get(...values)||null},async all(){return {results:db.prepare(sql).all(...values)}},async run(){const stmt=db.prepare(sql);return /^SELECT\b/i.test(sql.trim())?{results:stmt.all(...values)}:{meta:{changes:stmt.run(...values).changes}}}}}},
  IMAGES:{async list(){return {objects:[...images].map(([key,item])=>({key,size:item.bytes.length})),truncated:false}},async put(key,bytes,options){if(options.onlyIf&&images.has(key))return null;images.set(key,{bytes,type:options.httpMetadata.contentType});return {key}},async get(key){const item=images.get(key);return item&&{arrayBuffer:async()=>item.bytes.buffer.slice(item.bytes.byteOffset,item.bytes.byteOffset+item.bytes.byteLength),httpMetadata:{contentType:item.type},body:item.bytes,httpEtag:'"test"',writeHttpMetadata(headers){headers.set('content-type',item.type)}}}},
  ASSETS:{async fetch(request){const path=new URL(request.url).pathname;return new Response(path==='/article-template.html'?'<title>@@TITLE@@</title>@@DATES@@<article>@@BODY@@</article>@@NAVIGATION@@':path==='/admin/'?'admin':'home')}}};
  env.DB.batch=async statements=>{db.exec("BEGIN");try{const results=[];for(const statement of statements)results.push(await statement.run());db.exec("COMMIT");return results}catch(e){db.exec("ROLLBACK");throw e}};
@@ -835,5 +835,19 @@ test('主题起读入口按合集默认顺序且不泄漏非公开文章',async(
  html=await (await s.request('/collections/')).text();assert.ok(!html.includes('/articles/first-note/'));
  s.db.prepare("UPDATE categories SET hidden=1 WHERE slug=?").run(c.slug);
  html=await (await s.request('/collections/')).text();assert.ok(!html.includes('主题测试'));assert.ok(!html.includes('/articles/later-note/'));
+ }finally{s.db.close()}
+});
+
+test('合集关联成功判断不使用D1含触发器写入的changes计数',async()=>{
+ const s=setup(),cookie=await token();try{
+ const a=await (await s.request('/api/collections','POST',{name:'来源'},cookie)).json(),b=await (await s.request('/api/collections','POST',{name:'目标'},cookie)).json();
+ await s.request('/api/post','PUT',{...article,collections:[a.slug]},cookie);
+ const batch=s.env.DB.batch;s.env.DB.batch=async statements=>{const r=await batch(statements);if(r[0].meta)r[0].meta.changes+=3;return r};
+ assert.equal((await s.request('/api/collections/members','POST',{slug:b.slug,action:'add',items:[{id:'hello',version:1}]},cookie)).status,200);
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM post_collections WHERE post_id='hello' AND state='published'").get().n,2);
+ assert.equal((await s.request('/api/collections/members','POST',{slug:b.slug,action:'remove',items:[{id:'hello',version:2}]},cookie)).status,200);
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM post_collections WHERE post_id='hello' AND collection_slug=?").get(b.slug).n,0);
+ assert.equal((await s.request('/api/collections/members','POST',{slug:a.slug,action:'remove',items:[{id:'hello',version:2}]},cookie)).status,409);
+ assert.equal(s.db.prepare("SELECT COUNT(*) AS n FROM post_collections WHERE post_id='hello' AND collection_slug=?").get(a.slug).n,1);
  }finally{s.db.close()}
 });

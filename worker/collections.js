@@ -70,9 +70,11 @@ export async function moveCollectionPosts(env,data){
  if(action!=='remove')for(const state of ['published','draft'])stmts.push(env.DB.prepare(`INSERT INTO post_collections(post_id,collection_slug,state) SELECT id,?,? FROM posts WHERE collection_token=? AND ${state==='published'?"status='published'":"(draft_body IS NOT NULL OR status='draft')"} ON CONFLICT DO NOTHING`).bind(data.slug,state,nonce));
  // 保留首个名称兼容旧列表与旧客户端；其他关联始终保留。
  stmts.push(env.DB.prepare("UPDATE posts SET category=COALESCE((SELECT c.name FROM post_collections m JOIN categories c ON c.slug=m.collection_slug WHERE m.post_id=posts.id AND m.state='published' ORDER BY c.name LIMIT 1),''),draft_category=CASE WHEN draft_body IS NOT NULL THEN COALESCE((SELECT c.name FROM post_collections m JOIN categories c ON c.slug=m.collection_slug WHERE m.post_id=posts.id AND m.state='draft' ORDER BY c.name LIMIT 1),'') ELSE draft_category END WHERE collection_token=?").bind(nonce));
+ stmts.push(env.DB.prepare('SELECT COUNT(*) AS changed FROM posts WHERE collection_token=?').bind(nonce));
  const results=await env.DB.batch(stmts);
- if(results[0].meta.changes!==data.items.length)fail('文章或合集已变化，请刷新后重试。',409);
- return json({changed:results[0].meta.changes});
+ const changed=Number(results.at(-1).results[0].changed);
+ if(changed!==data.items.length)fail('文章或合集已变化，请刷新后重试。',409);
+ return json({changed});
 }
 const href=c=>'/collections/'+encodeURIComponent(c.slug)+'/';
 function layout(title,description,path,body){return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(title)+' — itfetter</title><meta name="description" content="'+escapeHtml(description)+'"><link rel="canonical" href="https://itfetter.com'+path+'"><link rel="stylesheet" href="/assets/site.css"><link rel="stylesheet" href="/assets/collections.css"></head><body><a class="skip-link" href="#main">跳到正文</a><header class="shell topbar"><a class="brand" href="/">itfetter.</a><nav class="nav" aria-label="主导航"><a href="/">首页</a><a href="/articles/">文章</a><a href="/collections/" aria-current="page">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a></nav></header><main id="main" class="shell collections-main">'+body+'</main><footer class="shell footer">© '+new Date().getFullYear()+' itfetter</footer></body></html>'}
