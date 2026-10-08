@@ -1,3 +1,6 @@
+## 归档页布局入口（2026-10-08）
+archive/index.html负责介绍和archive-list容器，assets/front.js生成年月分组；assets/front.css的archive-section统一桌面/手机单列，上方介绍、下方年月文章列表。月份折叠与文章排序逻辑不变；浏览器验证上下几何位置和展开链接。
+
 ## 体验优化入口（2026-10-08）
 
 | 功能 | 源码入口 | 回归入口 |

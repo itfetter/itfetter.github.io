@@ -1,3 +1,6 @@
+## 归档纵向布局（2026-10-08）
+归档页桌面和手机均用单列：标题介绍在上，年份/月分组及文章在下。assets/front.css的archive-section用align-content:start，防止最小高度撑开分组留白；不改时间排序、默认展开或文章数据。
+
 ## 第一轮最终上线结果（2026-10-08）
 最终功能提交a8e9e48已推送main并部署，Cloudflare Build 163428a2-906f-4174-826f-01f9c469ee2a完成84/84测试、0失败；Worker 099e01b0-ff08-4526-8339-deee8d1677ac。Chrome已验证空评论分页实际display=none与刷新可用，编辑器/搜索/空列表只读验收通过。无生产内容写入，详见PROJECT_HANDOFF.md。
 
