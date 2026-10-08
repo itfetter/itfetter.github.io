@@ -24,5 +24,3 @@
 .archive-section .page-title{font-size:30px;line-height:1.5;margin:20px 0}
 .about .page-title{font-size:37px;line-height:1.4;letter-spacing:-.055em;margin:18px 0 0}
 @media(max-width:620px){.section-head .page-title{font-size:27px}.about .page-title{font-size:30px}}
-
-.comments-pagination[hidden]{display:none}

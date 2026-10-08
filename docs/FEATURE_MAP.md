@@ -5,7 +5,7 @@
 | 发布缺项清单、设置状态、字段定位和折叠写作帮助 | admin/index.html；assets/admin-utils.mjs 的 publishChecklist；assets/document-editor.mjs；admin-studio.css | worker/admin.test.mjs；document.test.mjs |
 | 合集搜索自动更新、取消旧请求、清除和无脚本GET兜底 | worker/collections.js 的 collectionPage；assets/collection-search.js；collections.css | worker/public.test.mjs；worker/test.mjs 的公开合集隔离用例 |
 | 后台评论自动搜索和读取期间查询排队；空批量栏/单页分页 | assets/admin-comments.mjs 的 load/search/sync；admin-studio.css | worker/admin.test.mjs |
-| 前台单页评论导航；留言回收站文案与空列表 | assets/comments.js；site.css；admin/index.html 的 loadMessages | 浏览器只读验收 |
+| 前台单页评论导航；留言回收站文案与空列表 | assets/comments.js；front.css；admin/index.html 的 loadMessages | 浏览器只读验收 |
 | 公开缓存版本 | worker/public-response.mjs | worker/public.test.mjs |
 
 无需迁移或API改动，保留鉴权、版本和公开/草稿隔离。本文对应新行为；后文旧查找/重复说明仅作历史。

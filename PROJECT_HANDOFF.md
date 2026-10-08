@@ -1,10 +1,14 @@
+## 前台评论分页样式修正（2026-10-08）
+
+补充线上DOM验收发现文章模板仅加载front.css，未加载site.css：hidden属性为true但计算样式仍为flex。将隐藏规则从site.css移动到实际加载的assets/front.css，修正空/单页评论仍显示分页的问题。JS、评论数据及提交逻辑不变；无数据库写入。维护地图同步为真实样式入口。先前功能提交83项测试和部署已通过，本修正的提交与Cloudflare构建待实际验证；不得把仅检查hidden属性当作可见性验收。
+
 ## 第一轮前后台体验优化（2026-10-08）
 
 目标：减少编辑器重复说明、明确发布缺项、统一搜索反馈、精简空列表控件及留言软删除文案。
 - admin/index.html、assets/admin-utils.mjs：文章设置显示待补清单，发布定位首个缺项；写作帮助折叠，保留保存快捷键、Markdown与全部原有锁和版本保护。
 - assets/document-editor.mjs、admin-studio.css：缩短就绪提示及帮助布局；空留言批量栏和单页导航隐藏；软删除按钮及对话框统一移入回收站。
 - worker/collections.js、assets/collection-search.js、collections.css：保留GET搜索兜底，350ms延迟更新公开结果、清除搜索、加载/失败反馈、中文输入和旧请求隔离；单页目录不显示分页。
-- assets/admin-comments.mjs、comments.js、site.css：后台评论搜索自动更新及读取中的最新查询排队；空/筛选为空区分，清除按钮状态和单页导航简化；前台空评论保留表单与刷新。
+- assets/admin-comments.mjs、comments.js、front.css：后台评论搜索自动更新及读取中的最新查询排队；空/筛选为空区分，清除按钮状态和单页导航简化；前台空评论保留表单与刷新。
 - worker/public-response.mjs：更新公开缓存版本；无数据库迁移、权限变化或真实内容写入。
 验证：本地现有Node执行admin/document/public/heading/auth/visual共38项，全部通过；新增发布缺项无损读取、评论读取中新搜索排队、合集迟到请求/失败重试回归。后台内联脚本、新模块及Worker语法、git diff --check通过；未安装依赖。worker/test.mjs追加合集搜索公开隔离与无脚本表单/单页断言，本机缺Markdown依赖，完整SQLite/Markdown/构建由现有Cloudflare流水线验证。
 上线验收：功能提交 a8a20b224c211d7634ebf0a36e6c20314a5eb8db 已推送 main；Cloudflare Build 52d4f35c-e26b-475f-aeb4-5634bcec5f7d 成功，83/83 完整测试通过，静态构建与部署成功，Worker a7e9fbab-53c0-4580-a892-25708bf9414d。
