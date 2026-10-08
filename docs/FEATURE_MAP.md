@@ -1,3 +1,6 @@
+## 可视化写作模式入口（2026-10-08）
+admin/index.html的setEditorView统一visual/split/write/preview切换，clear/openPost复位visual；主按钮为可视化写作，其他模式放在editor-advanced内，return-visual从只读发布预览返回可编辑正文。assets/document-editor.mjs仍提供连续wysiwyg、区块和选字菜单、无损Markdown同步；assets/admin-studio.css布局次要模式菜单与只读提示。回归入口worker/document.test.mjs、admin.test.mjs及浏览器未保存验收；API和数据库不变。
+
 ## 归档页布局入口（2026-10-08）
 archive/index.html负责介绍和archive-list容器，assets/front.js生成年月分组；assets/front.css的archive-section统一桌面/手机单列，上方介绍、下方年月文章列表。月份折叠与文章排序逻辑不变；浏览器验证上下几何位置和展开链接。
 

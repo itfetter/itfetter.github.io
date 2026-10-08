@@ -73,3 +73,9 @@ html{scroll-padding-bottom:150px}body{font-size:14px}
 .writing-help summary{cursor:pointer;width:fit-content}
 .writing-help p{line-height:1.7;margin:8px 0;max-width:70ch}
 #article-settings-state{font-size:12px;white-space:normal}
+
+.editor-tabs{display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px}
+.editor-advanced summary{cursor:pointer;padding:9px 12px;font-size:13px;color:var(--muted);border-radius:8px}
+.editor-advanced[open] summary{background:#f5f7f2}
+.editor-advanced-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.preview-readonly-note{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:8px 0 18px;font-size:13px}

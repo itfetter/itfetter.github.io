@@ -213,7 +213,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
      editor=new Constructor(root,{
       cdn:CDN,lang:"zh_CN",i18n:window.VditorI18n,mode:"wysiwyg",
       cache:{enable:false},value:getBody(),height:"auto",minHeight:520,
-      placeholder:"从这里开始写作… 输入 # 加空格创建标题，- 加空格创建列表。",
+      placeholder:"点击这里，开始写正文…",
       toolbar:["headings","bold","italic","strike","link","|","list","ordered-list","check","outdent","indent","|","quote","code","inline-code","table","upload","|","undo","redo","insert-after"].map(item=>typeof item==="string"&&item!=="|"?{name:item,tipPosition:"s"}:item),
       toolbarConfig:{pin:false},outline:{enable:false},link:{isOpen:false},image:{isPreview:false},
       preview:{maxWidth:860,hljs:{enable:false},markdown:{sanitize:true,codeBlockPreview:false,mathBlockPreview:false},theme:{current:"light",path:CDN+"/dist/css/content-theme"}},
