@@ -97,7 +97,7 @@ export function mountCommentManagement(api,articles=()=>[]){
    $('page').textContent=page+' / '+pages;$('page').parentElement.hidden=pages<=1;
    locked(false);$('notice').textContent='';return true;
   }catch(error){items=[];list.replaceChildren(node('p','评论未能加载，请刷新重试。','muted'));locked(false);$('prev').disabled=$('next').disabled=true;$('notice').textContent=error.message;return false}
-  finally{if(pendingSearch){pendingSearch=false;queueMicrotask(()=>{query=$('search').value.trim();page=1;void load()})}}
+  finally{if(pendingSearch&&!busy){pendingSearch=false;queueMicrotask(()=>{query=$('search').value.trim();page=1;void load()})}}
  }
  const resetPage=()=>{page=1;void load()};
  $('filter').onchange=resetPage;$('article').onchange=resetPage;$('refresh').onclick=()=>void load();

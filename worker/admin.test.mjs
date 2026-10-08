@@ -99,3 +99,16 @@ test('评论读取期间的新搜索排队更新，空列表隐藏批量和单�
   assert.equal(fixture.get('clear').disabled,false);assert.match(fixture.get('list').children[0].textContent,/清除筛选/);
  }finally{fixture.restore()}
 });
+test('评论总页数收缩并重新读取时不提前消费最新搜索',async()=>{
+ const fixture=commentFixture(),requests=[],respond=[],tick=()=>new Promise(resolve=>setImmediate(resolve));
+ try{
+  const management=mountCommentManagement(url=>{requests.push(url);return new Promise(resolve=>respond.push(resolve))});
+  const initial=management.load();respond.shift()({items:[],total:41,pageSize:20,pending:0});await initial;
+  fixture.get('next').onclick();fixture.get('search').value='最后查询';fixture.get('search-form').onsubmit({preventDefault(){}});
+  respond.shift()({items:[],total:0,pageSize:20,pending:0});await tick();
+  assert.equal(requests.length,3);assert.equal(new URL(requests[2],'https://example.com').searchParams.get('page'),'1');
+  respond.shift()({items:[],total:0,pageSize:20,pending:0});await tick();
+  assert.equal(requests.length,4);assert.equal(new URL(requests[3],'https://example.com').searchParams.get('q'),'最后查询');
+  respond.shift()({items:[],total:0,pageSize:20,pending:0});await tick();
+ }finally{fixture.restore()}
+});
