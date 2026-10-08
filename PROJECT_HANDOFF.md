@@ -1,3 +1,14 @@
+## 第一轮前后台体验优化（2026-10-08）
+
+目标：减少编辑器重复说明、明确发布缺项、统一搜索反馈、精简空列表控件及留言软删除文案。
+- admin/index.html、assets/admin-utils.mjs：文章设置显示待补清单，发布定位首个缺项；写作帮助折叠，保留保存快捷键、Markdown与全部原有锁和版本保护。
+- assets/document-editor.mjs、admin-studio.css：缩短就绪提示及帮助布局；空留言批量栏和单页导航隐藏；软删除按钮及对话框统一移入回收站。
+- worker/collections.js、assets/collection-search.js、collections.css：保留GET搜索兜底，350ms延迟更新公开结果、清除搜索、加载/失败反馈、中文输入和旧请求隔离；单页目录不显示分页。
+- assets/admin-comments.mjs、comments.js、site.css：后台评论搜索自动更新及读取中的最新查询排队；空/筛选为空区分，清除按钮状态和单页导航简化；前台空评论保留表单与刷新。
+- worker/public-response.mjs：更新公开缓存版本；无数据库迁移、权限变化或真实内容写入。
+验证：本地现有Node执行admin/document/public/heading/auth/visual共38项，全部通过；新增发布缺项无损读取、评论读取中新搜索排队、合集迟到请求/失败重试回归。后台内联脚本、新模块及Worker语法、git diff --check通过；未安装依赖。worker/test.mjs追加合集搜索公开隔离与无脚本表单/单页断言，本机缺Markdown依赖，完整SQLite/Markdown/构建由现有Cloudflare流水线验证。
+当前阶段：代码与四份文档已修改；功能提交、推送、完整云端构建、部署及线上只读浏览器验收尚待执行，不能把本地通过视作上线成功。后续记录实际构建与提交。第二轮长文目录、首页/文章页导航统一等未纳入此次改动。
+
 
 ## 文章末尾合集导航精简（2026-10-07）
 将重复的合集目录卡片改为一行所属合集标签。单篇合集仅显示入口；多篇合集只显示各自默认顺序的上一篇/下一篇，不列出当前文章。保留公开过滤与独立顺序，无数据迁移。源码 worker/collections.js、assets/collections.css；worker/test.mjs 验证单篇/多篇/无合集渲染。当前本地执行环境启动失败，验证使用现有 Cloudflare 构建，无依赖安装。

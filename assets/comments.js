@@ -51,8 +51,8 @@ if(root){
    resetTarget();list.replaceChildren();
    for(const item of data.items)list.append(render(item));
    if(!data.items.length)list.append(el('p','还没有公开评论，欢迎留下你的想法。','comment-muted'));
-   pager.textContent=page+' / '+pages+' · '+data.total+' 条公开评论';prev.disabled=page<=1;next.disabled=page>=pages;
-  }catch(error){resetTarget();list.replaceChildren(el('p','评论加载失败，请点击“刷新评论”重试。','comment-muted'));pager.textContent='加载失败'}
+   pager.textContent=page+' / '+pages+' · '+data.total+' 条公开评论';pager.parentElement.hidden=pages<=1;prev.disabled=page<=1;next.disabled=page>=pages;
+  }catch(error){resetTarget();list.replaceChildren(el('p','评论加载失败，请点击“刷新评论”重试。','comment-muted'));pager.textContent='加载失败';pager.parentElement.hidden=false}
   finally{loading=false;refresh.disabled=false;list.removeAttribute('aria-busy')}
  }
  refresh.onclick=()=>void load();prev.onclick=()=>{page--;void load()};next.onclick=()=>{page++;void load()};

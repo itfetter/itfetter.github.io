@@ -49,3 +49,30 @@ test("旧栏目和文章链接迁移，保留列表条件且不劫持新页面�
  const state={category:"随笔",query:"hello",sort:"reads",page:2};
  const href=listStateUrl(origin+"/articles/",state);assert.deepEqual(readListState(origin+href),state);assert.match(href,/^\/articles\/\?/);
 });
+
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+test('合集搜索忽略迟到结果，失败保留列表并允许手动重试',async()=>{
+ const listeners=new Map(),requests=[],pending=[],input={value:''},order={value:'newest'},clear={hidden:true},status={textContent:''};
+ let displayed='原始列表';
+ const result={setAttribute(){},removeAttribute(){},replaceWith(next){displayed=next.name},querySelectorAll(){return []}};
+ const guide={replaceWith(){}};
+ const form={elements:{q:input,order},querySelector:s=>s==='.collection-clear'?clear:status,addEventListener:(event,fn)=>listeners.set('form:'+event,fn)};
+ for(const [name,element] of [['input',input],['order',order],['clear',clear]])element.addEventListener=(event,fn)=>listeners.set(name+':'+event,fn);
+ const location={href:origin+'/collections/example/'};
+ runInNewContext(readFileSync(new URL('../assets/collection-search.js',import.meta.url),'utf8'),{
+  document:{querySelector:s=>s==='.collection-search'?form:s==='.collection-guide'?guide:result},location,
+  window:{addEventListener(){}},URL,AbortController,setTimeout,clearTimeout,
+  history:{replaceState(a,b,url){location.href=String(url)}},
+  fetch(url){requests.push(String(url));return new Promise(resolve=>pending.push(resolve))},
+  DOMParser:class{parseFromString(name){return {querySelector:s=>s==='[data-collection-results]'?{name,querySelectorAll:()=>[{}]}:guide}}}
+ });
+ const submit=()=>listeners.get('form:submit')({preventDefault(){}}),tick=()=>new Promise(resolve=>setImmediate(resolve));
+ input.value='旧搜索';submit();input.value='新搜索';submit();
+ pending[1]({ok:true,text:async()=>'新结果'});await tick();
+ pending[0]({ok:true,text:async()=>'旧结果'});await tick();
+ assert.equal(displayed,'新结果');assert.equal(new URL(location.href).searchParams.get('q'),'新搜索');assert.equal(clear.hidden,false);
+ input.value='失败搜索';submit();pending[2]({ok:false});await tick();
+ assert.equal(displayed,'新结果');assert.match(status.textContent,/重试/);
+ submit();assert.equal(requests.length,4);pending[3]({ok:true,text:async()=>'重试结果'});await tick();assert.equal(displayed,'重试结果');
+});

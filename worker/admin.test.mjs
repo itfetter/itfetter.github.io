@@ -63,3 +63,39 @@ test('合集文章选择排除已加入与回收站；筛选分页不丢失其�
  assert.equal(adminRouteURL('https://itfetter.com/admin/?view=collections&collection=sample','articles',null).includes('collection='),false);
  assert.equal(adminRouteURL('https://itfetter.com/admin/?view=collections&collection=sample','collections',null).includes('collection=sample'),true);
 });
+
+import {publishChecklist} from '../assets/admin-utils.mjs';
+import {mountCommentManagement} from '../assets/admin-comments.mjs';
+test('发布检查按页面顺序指出缺项，草稿字段保持原样',()=>{
+ const draft={title:'  ',collections:[],summary:' ',body:'\n'};
+ const before=structuredClone(draft);
+ assert.deepEqual(publishChecklist(draft).map(x=>x.id),['title','collections','summary','body']);
+ assert.deepEqual(draft,before);
+ assert.deepEqual(publishChecklist({title:'标题',collections:['one'],summary:'摘要',body:'正文'}),[]);
+ assert.deepEqual(publishChecklist({title:'标题',collections:['one'],summary:'',body:'正文'}).map(x=>x.id),['summary']);
+});
+function commentFixture(){
+ const elements=new Map();
+ const node=()=>({value:'',disabled:false,hidden:false,textContent:'',dataset:{},children:[],parentElement:{hidden:false},classList:{toggle(){}},replaceChildren(...children){this.children=children},append(child){this.children.push(child)},add(){},addEventListener(){}});
+ const selection=node(),root={querySelector:()=>selection,querySelectorAll:()=>[...elements.values()]};
+ const document={querySelector:()=>root,getElementById:id=>{if(!elements.has(id))elements.set(id,node());return elements.get(id)},createElement:()=>node()};
+ const previous={document:globalThis.document,Option:globalThis.Option};
+ globalThis.document=document;globalThis.Option=function(text,value){this.text=text;this.value=value};
+ document.getElementById('comment-filter').value='all';
+ return {get:id=>document.getElementById('comment-'+id),selection,restore(){Object.assign(globalThis,previous)}};
+}
+test('评论读取期间的新搜索排队更新，空列表隐藏批量和单页导航',async()=>{
+ const fixture=commentFixture(),requests=[],respond=[];
+ try{
+  const management=mountCommentManagement(url=>{requests.push(url);return new Promise(resolve=>respond.push(resolve))});
+  const reading=management.load();
+  assert.equal(fixture.get('search').disabled,false);
+  fixture.get('search').value='新关键词';fixture.get('search-form').onsubmit({preventDefault(){}});
+  respond.shift()({items:[],total:0,pageSize:20,pending:0});await reading;
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(requests.length,2);assert.match(requests[1],/q=/);assert.equal(new URL(requests[1],'https://example.com').searchParams.get('q'),'新关键词');
+  respond.shift()({items:[],total:0,pageSize:20,pending:0});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(fixture.selection.hidden,true);assert.equal(fixture.get('page').parentElement.hidden,true);
+  assert.equal(fixture.get('clear').disabled,false);assert.match(fixture.get('list').children[0].textContent,/清除筛选/);
+ }finally{fixture.restore()}
+});

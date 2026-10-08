@@ -221,7 +221,7 @@ export function createDocumentEditor({root,getBody,onChange,onState,onImage,load
       customWysiwygToolbar:(_type,panel)=>syncNativePanel(panel),
       input:()=>{if(!globalThis.document?.activeElement?.closest(".blog-document-menu"))closeBlockTools();if(alive(n)&&ready)flush()},
       after:()=>{clearTimeout(timeout);if(!alive(n)){resolve();return}
-       ready=true;mountBlockHandle();display=getBody();syncing=true;try{editor.setValue(display,true);baseline=editor.getValue()}finally{syncing=false}lock();onState("文档编辑 · 悬停左侧打开区块菜单，选中文字设置格式 · 修改后请保存草稿","ready");resolve();
+       ready=true;mountBlockHandle();display=getBody();syncing=true;try{editor.setValue(display,true);baseline=editor.getValue()}finally{syncing=false}lock();onState("选中文字设置格式 · 支持粘贴或拖入图片","ready");resolve();
       }
      });
     });

@@ -1,11 +1,13 @@
 export function mountCommentManagement(api,articles=()=>[]){
  const root=document.querySelector('[data-panel="comments"]'),$=id=>document.getElementById('comment-'+id),list=$('list');
- let page=1,pages=1,busy=false,confirming=false,items=[],query='',observer;
+ let page=1,pages=1,busy=false,confirming=false,items=[],query='',observer,searchTimer,pendingSearch=false;
  const selected=new Map(),statusNames={pending:'待审核',approved:'已公开',hidden:'已隐藏'};
  const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
  const date=value=>new Date(value).toLocaleString('zh-CN');
  const trash=()=>$('filter').value==='trash';
  function sync(){
+  root.querySelector('.comment-selection').hidden=!items.length;
+  $('clear').disabled=busy||!(query||$('search').value||$('article').value||$('filter').value!=='all');
   const checked=items.filter(item=>selected.has(item.id)).length;
   $('selected').textContent='已选 '+checked+' 条';
   root.querySelector('.comment-selection').dataset.selected=String(checked>0);
@@ -57,7 +59,7 @@ export function mountCommentManagement(api,articles=()=>[]){
  }
  async function load(){
   if(busy||confirming)return false;
-  locked(true);$('notice').textContent='正在加载评论…';selected.clear();
+  locked(true);$('search').disabled=false;$('notice').textContent='正在加载评论…';selected.clear();
   try{
    renderArticles();
    const params=new URLSearchParams({status:$('filter').value,page:String(page)});
@@ -90,16 +92,21 @@ export function mountCommentManagement(api,articles=()=>[]){
     list.append(card);observer?.observe(content);
     requestAnimationFrame(()=>{if(content.isConnected&&content.classList.contains('collapsed'))expand.hidden=content.scrollHeight<=content.clientHeight+1});
    }
-   if(!items.length)list.append(node('p','当前没有符合条件的评论。','muted'));
+   if(!items.length)list.append(node('p',query||$('article').value||$('filter').value!=='all'?'没有符合筛选的评论，可清除筛选查看全部。':'还没有访客评论。','muted'));
    $('count').textContent=data.total+' 条符合筛选 · 全站 '+data.pending+' 条历史待审核';
-   $('page').textContent=page+' / '+pages;
+   $('page').textContent=page+' / '+pages;$('page').parentElement.hidden=pages<=1;
    locked(false);$('notice').textContent='';return true;
   }catch(error){items=[];list.replaceChildren(node('p','评论未能加载，请刷新重试。','muted'));locked(false);$('prev').disabled=$('next').disabled=true;$('notice').textContent=error.message;return false}
+  finally{if(pendingSearch){pendingSearch=false;queueMicrotask(()=>{query=$('search').value.trim();page=1;void load()})}}
  }
  const resetPage=()=>{page=1;void load()};
  $('filter').onchange=resetPage;$('article').onchange=resetPage;$('refresh').onclick=()=>void load();
- $('search-form').onsubmit=event=>{event.preventDefault();if(busy)return;query=$('search').value.trim();resetPage()};
- $('clear').onclick=()=>{query='';$('search').value='';$('article').value='';$('filter').value='all';resetPage()};
+ const search=()=>{clearTimeout(searchTimer);if(busy){pendingSearch=true;return}query=$('search').value.trim();resetPage()};
+ $('search').oninput=event=>{clearTimeout(searchTimer);if(event.isComposing)return;searchTimer=setTimeout(search,350);$('clear').disabled=busy};
+ $('search').addEventListener('compositionstart',()=>clearTimeout(searchTimer));
+ $('search').addEventListener('compositionend',()=>{searchTimer=setTimeout(search,350)});
+ $('search-form').onsubmit=event=>{event.preventDefault();search()};
+ $('clear').onclick=()=>{clearTimeout(searchTimer);pendingSearch=false;query='';$('search').value='';$('article').value='';$('filter').value='all';resetPage()};
  $('prev').onclick=()=>{if(!busy&&page>1){page--;void load()}};$('next').onclick=()=>{if(!busy&&page<pages){page++;void load()}};
  $('select-all').onchange=()=>{selected.clear();if($('select-all').checked)for(const item of items)selected.set(item.id,item.version);list.querySelectorAll('input[type=checkbox]').forEach(n=>n.checked=$('select-all').checked);sync()};
  for(const action of ['approve','hide','trash','restore','purge'])$('bulk-'+action).onclick=()=>void bulk(action);

@@ -66,3 +66,10 @@ html{scroll-padding-bottom:150px}body{font-size:14px}
  .message-bulk,.comment-selection{padding:10px;gap:8px}.comment-filters{grid-template-columns:1fr 1fr}.comment-filters>label{grid-column:1/-1}.pagination{gap:12px;flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+/* 空列表保留筛选和刷新入口，隐藏批量操作及无意义的分页。 */
+[data-panel] [hidden]{display:none!important}
+.writing-help{font-size:13px;color:var(--muted);margin:8px 0 14px}
+.writing-help summary{cursor:pointer;width:fit-content}
+.writing-help p{line-height:1.7;margin:8px 0;max-width:70ch}
+#article-settings-state{font-size:12px;white-space:normal}

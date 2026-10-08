@@ -746,6 +746,9 @@ test('合集公开入口不泄漏草稿未来回收文章，隐藏入口不隐�
  await s.request('/api/post','DELETE',{id:'trash',version:1},cookie);
  let html=await (await s.request('/collections/'+c.slug+'/')).text();
  assert.match(html,/\/articles\/public\//);assert.doesNotMatch(html,/\/articles\/(draft|future|trash)\//);
+ assert.match(html,/method="get"/);assert.match(html,/collection-search.js/);assert.match(html,/data-collection-results/);assert.doesNotMatch(html,/aria-label="合集分页"/);
+ const emptySearch=await(await s.request('/collections/'+c.slug+'/?q=missing&order=oldest')).text();
+ assert.doesNotMatch(emptySearch,/\/articles\/public\//);assert.match(emptySearch,/没有匹配的文章/);assert.match(emptySearch,/清除搜索/);assert.doesNotMatch(emptySearch,/aria-label="合集分页"/);
  assert.match(await (await s.request('/articles/public/')).text(),/所属合集/);
  assert.equal((await s.request('/api/collections','PATCH',{...c,hidden:true},cookie)).status,200);
  assert.equal((await s.request('/collections/'+c.slug+'/')).status,404);

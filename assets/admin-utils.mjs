@@ -14,3 +14,11 @@ export function postStats(posts,now=new Date().toISOString()) {
  categories:new Set(posts.flatMap(p=>p.collections?.map(c=>c.name)||[p.category]).filter(Boolean)).size};
 }
 
+
+// 发布校验只读取字段，不修改草稿或公开内容；顺序对应编辑页面。
+export function publishChecklist(data){
+ return [{id:'title',label:'标题',ready:!!data.title?.trim()},
+  {id:'collections',label:'合集',ready:Array.isArray(data.collections)&&data.collections.length>0},
+  {id:'summary',label:'摘要',ready:!!data.summary?.trim()},
+  {id:'body',label:'正文',ready:!!data.body?.trim()}].filter(item=>!item.ready);
+}
