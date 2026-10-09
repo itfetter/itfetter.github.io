@@ -112,3 +112,16 @@ test('评论总页数收缩并重新读取时不提前消费最新搜索',async(
   respond.shift()({items:[],total:0,pageSize:20,pending:0});await tick();
  }finally{fixture.restore()}
 });
+
+import {editorSaveState} from '../assets/editor-save-state.mjs';
+test('保存提示覆盖修改、失败重试和草稿发布转换',()=>{
+ assert.equal(editorSaveState(), '尚未保存');
+ const current={status:'published',has_draft:false};
+ assert.equal(editorSaveState({current}), '已保存并发布');
+ assert.equal(editorSaveState({current,dirty:true}), '有未保存的修改');
+ assert.equal(editorSaveState({current,dirty:true,failed:true}), '保存失败 · 请重试');
+ assert.equal(editorSaveState({current,dirty:true,failed:true,saving:true}), '正在保存草稿…');
+ assert.equal(editorSaveState({current:{...current,has_draft:true}}), '草稿已保存');
+ assert.equal(editorSaveState({current:{status:'draft'}}), '草稿已保存');
+ assert.equal(editorSaveState({saving:true,kind:'published'}), '正在发布…');
+});

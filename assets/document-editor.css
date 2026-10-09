@@ -1,5 +1,5 @@
 /* 文档画布与主题：不影响前台 */
-#visual-body.vditor{--border-color:#e2e8e1;--toolbar-background:#f8faf7;--textarea-background-color:#fff;--textarea-text-color:#25332c;--panel-background-color:#fff;border-radius:12px;overflow:visible;max-width:1080px;margin:auto}
+#visual-body.vditor{--border-color:#e2e8e1;--toolbar-background:#f8faf7;--textarea-background-color:#fff;--textarea-text-color:#25332c;--panel-background-color:#fff;border-radius:12px;overflow:visible;max-width:920px;margin:auto}
 #visual-body>.vditor-toolbar{display:none!important}
 #visual-body .vditor-toolbar button{min-height:30px;padding:4px;border:0;background:transparent;border-radius:5px}
 #visual-body .vditor-toolbar .vditor-menu{padding:0 4px}
@@ -10,12 +10,12 @@
 #visual-body .vditor-reset blockquote{border-left:3px solid #c67848;color:#758079}
 #visual-body .vditor-reset pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 ui-monospace,Consolas,monospace;tab-size:4}
 #visual-body .vditor-content{min-height:520px}
-#visual-body .vditor-wysiwyg>.vditor-reset{padding:32px max(20px,calc((100% - 860px)/2))!important;min-height:520px}
+#visual-body .vditor-wysiwyg>.vditor-reset{padding:32px max(20px,calc((100% - 720px)/2))!important;min-height:520px}
 @media(max-width:700px){#visual-body .vditor-reset{font-size:15px}#visual-body .vditor-wysiwyg>.vditor-reset{padding:18px 14px!important}#visual-body .vditor-toolbar{top:0}#visual-body .vditor-panel{max-width:calc(100vw - 32px)}}
 
 
 /* 无常驻顶部工具栏：原引擎工具移入按需浮出的菜单，事件和选区沿用原实现。 */
-#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:max(64px,calc((100% - 860px)/2))!important}
+#visual-body .vditor-wysiwyg>.vditor-reset{padding-left:max(64px,calc((100% - 720px)/2))!important}
 #visual-body .vditor-panel--none{display:none!important}
 #visual-body .blog-block-handle{position:fixed;z-index:6;width:46px;height:28px;min-height:28px;padding:0 3px;border:1px solid #dce4db;border-radius:6px;background:#fff;color:#758079;font-size:12px;line-height:1;cursor:pointer;box-shadow:0 2px 5px #25332c08}
 #visual-body .blog-block-handle[hidden],#visual-body .blog-document-menu[hidden]{display:none!important}
