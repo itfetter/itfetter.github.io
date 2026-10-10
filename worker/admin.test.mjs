@@ -125,3 +125,22 @@ test('保存提示覆盖修改、失败重试和草稿发布转换',()=>{
  assert.equal(editorSaveState({current:{status:'draft'}}), '草稿已保存');
  assert.equal(editorSaveState({saving:true,kind:'published'}), '正在发布…');
 });
+
+import {createDraftAutosave} from '../assets/draft-autosave.mjs';
+test('自动保存默认关闭、首次手动保存前不写入、空闲合并且不并发',async()=>{
+ let eligible=false,calls=0,pending,clock=0,delay;const queue=new Map();let id=0;
+ const auto=createDraftAutosave({ready:()=>eligible,save:async()=>{calls++;await new Promise(r=>pending=r);eligible=false},now:()=>clock,setTimer:(fn,ms)=>{delay=ms;queue.set(++id,fn);return id},clearTimer:id=>queue.delete(id)});
+ auto.changed();assert.equal(queue.size,0);auto.setEnabled(true);auto.changed();assert.equal(queue.size,0);
+ eligible=true;auto.changed();clock=1000;auto.changed();assert.equal(queue.size,1);assert.equal(delay,3000);
+ const run=[...queue.values()][0];queue.clear();const saving=run();assert.equal(calls,1);auto.changed();assert.equal(calls,1);pending();await saving;
+ auto.setEnabled(false);assert.equal(queue.size,0);
+});
+test('自动保存写入失败暂停，输入不触发重试，用户重新开启才恢复',async()=>{
+ let task,calls=0,paused=0;const auto=createDraftAutosave({ready:()=>true,save:async()=>{calls++;throw Object.assign(Error('conflict'),{status:409})},onPause:()=>paused++,setTimer:fn=>(task=fn,1),clearTimer:()=>task=null});
+ auto.setEnabled(true);const run=task;task=null;await run();assert.equal(auto.paused,true);assert.equal(paused,1);auto.changed();assert.equal(calls,1);assert.equal(task,null);
+ auto.setEnabled(true);assert.equal(auto.paused,false);assert.equal(typeof task,'function');auto.setEnabled(false);
+});
+test('连续输入最多等待30秒，关闭选项取消计划',()=>{
+ let clock=0,delay;const auto=createDraftAutosave({ready:()=>true,save:async()=>{},now:()=>clock,setTimer:(_fn,ms)=>(delay=ms,1),clearTimer:()=>{}});
+ auto.setEnabled(true);clock=29000;auto.changed();assert.equal(delay,1000);clock=31000;auto.changed();assert.equal(delay,0);auto.setEnabled(false);
+});

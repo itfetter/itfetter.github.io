@@ -88,3 +88,5 @@ body.editor-focus[data-panel="editor"] .writing-help{display:none}
 #editor-focus[aria-pressed="true"]{background:#edf3eb;border-color:#9db89f}
 .editor[data-view="visual"] .visual-column{min-width:0;width:100%;max-width:920px;margin-inline:auto}
 @media(max-width:700px){body.editor-focus[data-panel="editor"] .workspace{padding:12px}.editor-footer #save-state{overflow-wrap:anywhere}}
+
+.auto-draft-option{flex-wrap:wrap;gap:6px;font-size:13px;margin:0}.auto-draft-option input{width:18px;height:18px;min-height:0;margin:0;padding:0;flex:none}.auto-draft-option small{flex-basis:100%;font-size:11px}
