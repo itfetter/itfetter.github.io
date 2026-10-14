@@ -177,3 +177,50 @@ body{font-size:16px;-webkit-font-smoothing:antialiased}
 @media(prefers-reduced-motion:reduce){.article-row{transition:none}}
 
 .comments-pagination[hidden]{display:none}
+/* 评论区：独立于正文排版，紧凑元信息与固定层级。 */
+.post-page .article-comments{margin-top:32px;padding-top:28px;line-height:1.6}
+.post-page .comments-heading h2{font-size:24px;line-height:1.5;margin:0}
+.comments-heading [data-comments-count]{font-size:13px;font-weight:400;color:#626b63}
+.post-page .comments-intro{margin:8px 0 20px}
+.post-page .comment-form{padding:18px;gap:12px;background:#f1f4ec;border:1px solid #dce3d5;margin:0 0 24px}
+.post-page .comment-form textarea{min-height:112px;line-height:1.7;background:#fffefa}
+.comment-compose-bottom{display:flex;align-items:flex-end;gap:12px;min-width:0}
+.comment-compose-bottom label{flex:1;max-width:280px;min-width:0}
+.comment-compose-bottom [data-comment-length]{margin-left:auto;white-space:nowrap;padding-bottom:12px}
+.comment-compose-bottom button{flex-shrink:0}
+.post-page .comment-form p{margin:0;font-size:12px;line-height:1.6}
+.post-page .comment-form [data-comment-notice]:empty{display:none}
+[data-comment-notice][data-state=error]{color:#a44432}
+[data-comment-notice][data-state=success]{color:#234737}
+.post-page .comment-item{position:relative;padding:20px 0 20px 50px;border-bottom:1px solid #e2e5dc}
+.comment-avatar{position:absolute;top:20px;left:0;width:36px;height:36px;display:grid;place-items:center;background:#e9eee4;color:#315146;border:1px solid #dce3d5;border-radius:50%;font-size:15px;font-weight:650}
+.post-page .comment-meta{gap:8px 12px;line-height:1.5;font-size:14px}
+.post-page .comment-meta strong{font-size:14px;color:#234737}
+.post-page .comment-meta time{font-size:12px;color:#626b63;font-weight:400}
+.post-page .comment-meta span{font-size:12px;color:#626b63}
+.post-page .comment-text{margin:8px 0;font-size:15px;line-height:1.75}
+.post-page .comment-actions{gap:8px;line-height:1.4}
+.post-page .comment-actions button{min-height:32px;padding:4px 0;color:#315146;font-size:13px}
+.post-page .comment-item>button,.post-page .comment-thread>button{font-size:13px;color:#315146}
+.post-page .comment-thread{margin:10px 0 0;padding-left:14px;border-color:#dce3d5}
+.post-page .comment-thread-item{padding:14px 0 14px 40px}
+.comment-thread-item .comment-avatar{top:14px;width:28px;height:28px;font-size:12px}
+.post-page .comment-item .comment-form{margin:12px 0 0;padding:14px}
+.comment-reply-context{background:#e5ecdf;padding:8px 10px;border-radius:6px;font-size:13px;overflow-wrap:anywhere}
+.post-page .comment-reply-context button{min-height:32px;white-space:nowrap;border:0;background:transparent;padding:4px}
+.comment-empty{text-align:center;margin:0;padding:28px 12px;color:#626b63;font-size:14px;border-bottom:1px solid #e2e5dc}
+.article-comments [hidden]{display:none!important}
+@media(max-width:620px){
+ .post-page .comments-heading h2{font-size:21px}
+ .comments-heading [data-comments-count]{display:block}
+ .comment-compose-bottom{flex-wrap:wrap}
+ .comment-compose-bottom label{flex-basis:100%;max-width:none}
+ .comment-compose-bottom [data-comment-length]{margin-left:0;flex:1;padding-bottom:0}
+ .post-page .comment-item{padding-left:42px}
+ .comment-avatar{width:30px;height:30px}
+ .post-page .comment-thread-item{padding-left:34px}
+ .post-page .comment-thread{padding-left:8px}
+ .post-page .comment-item .comment-form{margin-left:-42px}
+ .post-page .comment-thread-item .comment-form{margin-left:-34px}
+ .comment-reply-context{gap:6px}
+}

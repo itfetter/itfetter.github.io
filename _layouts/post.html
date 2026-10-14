@@ -31,16 +31,16 @@
     <p class="summary">{{ page.summary | escape }}</p>
     <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/about/#contact">有想法？和我聊聊 ↗</a></div>
     <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
-      <div class="comments-heading"><h2 id="comments-heading">文章评论</h2><button type="button" data-comments-refresh>刷新评论</button></div>
-      <p class="comment-muted">点击“回复”可以回复其他访客，评论与回复提交后直接公开 · 昵称由访客填写，未经身份验证</p>
-      <div data-comments-list aria-live="polite"><p>正在加载评论…</p></div>
-      <div class="comments-pagination"><button type="button" data-comments-prev disabled aria-label="上一页评论">←</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">→</button></div>
+      <div class="comments-heading"><h2 id="comments-heading">评论与讨论 <span data-comments-count></span></h2><button type="button" data-comments-refresh>刷新评论</button></div>
+      <p class="comment-muted comments-intro">有问题、补充或不同的想法？欢迎一起交流。</p>
       <form class="comment-form">
-        <label>昵称<input name="name" maxlength="80" required autocomplete="nickname" placeholder="怎么称呼你"></label>
-        <label>评论<textarea name="content" maxlength="3000" required rows="5" placeholder="留下你的想法，最多3000字。请勿填写密码或其他私密信息。"></textarea></label>
+        <label>留下你的想法<textarea name="content" maxlength="3000" required rows="4" placeholder="围绕这篇文章，聊聊你的想法…" aria-describedby="comment-policy"></textarea></label>
+        <div class="comment-compose-bottom"><label>昵称<input name="name" maxlength="80" required autocomplete="nickname" placeholder="怎么称呼你"></label><span class="comment-muted" data-comment-length>0 / 3000</span><button type="submit">发表评论</button></div>
         <label class="comment-trap" aria-hidden="true">网站<input name="website" tabindex="-1" autocomplete="off"></label>
-        <button type="submit">提交评论</button><p data-comment-notice role="status"></p>
+        <p id="comment-policy" class="comment-muted">提交后公开显示 · 昵称由访客自填 · 请勿填写私密信息</p><p data-comment-notice role="status" aria-live="polite"></p>
       </form>
+      <div data-comments-list aria-live="polite"><p class="comment-empty">正在加载讨论…</p></div>
+      <div class="comments-pagination" hidden><button type="button" data-comments-prev disabled aria-label="上一页评论">←</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">→</button></div>
       <noscript>请启用 JavaScript 查看和提交评论。</noscript>
     </section>
   </main>

@@ -1,3 +1,10 @@
+
+## 评论区体验升级（2026-10-15）
+
+公开评论采用输入框在前、讨论列表在后的布局；昵称与时间同行，文字头像仅作装饰，不代表认证身份。回复维持固定缩进，取消或刷新保留输入；字符计数、提交与错误状态明确。提交期间昵称和正文只读，避免成功回调清除新输入；失败不自动重试，手动同内容重试继续复用UUID。刷新失败保留现有讨论。评论仍直接公开、按原顺序分页，作者回复仅使用原后端回复字段；不改数据结构、安全校验、限速或真实评论。
+
+入口：_layouts/post.html（表单与讨论结构）、assets/comments.js（渲染/回复/提交）、assets/front.css（隔离评论布局与手机样式）；worker/comments-ui.test.mjs 为无依赖模拟DOM交互回归，加入现有云端测试命令。
+
 ## 可视化写作模式入口（2026-10-08）
 admin/index.html的setEditorView统一visual/split/write/preview切换，clear/openPost复位visual；主按钮为可视化写作，其他模式放在editor-advanced内，return-visual从只读发布预览返回可编辑正文。assets/document-editor.mjs仍提供连续wysiwyg、区块和选字菜单、无损Markdown同步；assets/admin-studio.css布局次要模式菜单与只读提示。回归入口worker/document.test.mjs、admin.test.mjs及浏览器未保存验收；API和数据库不变。
 
