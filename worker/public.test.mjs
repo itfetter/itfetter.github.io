@@ -65,7 +65,7 @@ test('合集搜索忽略迟到结果，失败保留列表并允许手动重试',
   window:{addEventListener(){}},URL,AbortController,setTimeout,clearTimeout,
   history:{replaceState(a,b,url){location.href=String(url)}},
   fetch(url){requests.push(String(url));return new Promise(resolve=>pending.push(resolve))},
-  DOMParser:class{parseFromString(name){return {querySelector:s=>s==='[data-collection-results]'?{name,querySelectorAll:()=>[{}]}:guide}}}
+  DOMParser:class{parseFromString(name){return {querySelector:s=>s==='[data-collection-results]'?{name,setAttribute(){},querySelectorAll:()=>name==='空结果'?[]:[{}]}:guide}}}
  });
  const submit=()=>listeners.get('form:submit')({preventDefault(){}}),tick=()=>new Promise(resolve=>setImmediate(resolve));
  input.value='旧搜索';submit();input.value='新搜索';submit();
@@ -75,4 +75,6 @@ test('合集搜索忽略迟到结果，失败保留列表并允许手动重试',
  input.value='失败搜索';submit();pending[2]({ok:false});await tick();
  assert.equal(displayed,'新结果');assert.match(status.textContent,/重试/);
  submit();assert.equal(requests.length,4);pending[3]({ok:true,text:async()=>'重试结果'});await tick();assert.equal(displayed,'重试结果');
+ input.value='没有匹配';submit();pending[4]({ok:true,text:async()=>'空结果'});await tick();
+ assert.equal(displayed,'空结果');assert.equal(status.textContent,'');assert.equal(clear.hidden,false);
 });

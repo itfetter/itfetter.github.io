@@ -224,3 +224,15 @@ body{font-size:16px;-webkit-font-smoothing:antialiased}
  .post-page .comment-thread-item .comment-form{margin-left:-34px}
  .comment-reply-context{gap:6px}
 }
+
+/* 阅读中的目录入口，与回到顶部分开，照顾手机安全区域。 */
+.reading-toc-trigger{position:fixed;right:24px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:26;min-height:44px;padding:9px 13px;border:1px solid #bbc6b6;border-radius:22px;background:#fffefa;color:#264b3a;font:600 14px/1.4 system-ui;box-shadow:0 4px 18px #1f332d14;cursor:pointer}
+.reading-toc-trigger[hidden]{display:none}
+.reading-toc-dialog{box-sizing:border-box;width:min(520px,calc(100vw - 32px));max-height:75vh;max-height:75dvh;padding:0;border:1px solid #d2dbcd;border-radius:16px;background:#fffefa;color:#243b30;box-shadow:0 20px 80px #14251d33}
+.reading-toc-dialog::backdrop{background:#17271e66}
+.reading-toc-header{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 18px;background:#fffefa;border-bottom:1px solid #e2e5dc}
+.reading-toc-header button{font:inherit;font-size:14px;min-height:44px;padding:8px 14px;border:1px solid #d0d9cf;border-radius:8px;color:#264b3a;background:#fff;cursor:pointer}
+.reading-toc-dialog nav{display:grid;padding:10px 14px 16px}
+.reading-toc-dialog nav a{padding:11px 10px 11px calc(10px + var(--toc-depth,0)*14px);font:15px/1.6 system-ui;color:#315146;text-decoration:none;overflow-wrap:anywhere;border-radius:8px}
+.reading-toc-dialog nav a:hover,.reading-toc-dialog nav a[aria-current=location]{background:#eaf0e4;color:#254b38}
+@media(max-width:620px){.post-page .comment-form input,.post-page .comment-form textarea{font-size:16px}.reading-toc-trigger{right:16px}}

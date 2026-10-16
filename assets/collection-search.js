@@ -16,11 +16,11 @@
    const documentResult=new DOMParser().parseFromString(await response.text(),'text/html'),next=documentResult.querySelector('[data-collection-results]');
    if(!next)throw new Error('搜索失败');
    if(current!==sequence)return;
-   results.replaceWith(next);
+   next.setAttribute('aria-live','polite');results.replaceWith(next);
    document.querySelector('.collection-guide').replaceWith(documentResult.querySelector('.collection-guide'));
    clear.hidden=!target.searchParams.get('q');const clearURL=new URL(target);clearURL.searchParams.delete('q');clearURL.searchParams.delete('page');clear.href=clearURL.href;
    history.replaceState(null,'',target);
-   status.textContent=next.querySelectorAll('.collection-posts li').length?'搜索结果已更新':'没有匹配的文章，请试试其他关键词。';
+   status.textContent=next.querySelectorAll('.collection-posts li').length?'搜索结果已更新':'';
   }catch(error){if(current===sequence&&error.name!=='AbortError')status.textContent='搜索未能完成，请点击搜索重试。'}
   finally{if(current===sequence)document.querySelector('[data-collection-results]').removeAttribute('aria-busy')}
  }
