@@ -1,3 +1,5 @@
+上线验收：功能提交 cd540940798dcb3d76307212659075c36b8f9f7d；Cloudflare Build cce7607b-088e-46e3-bbbf-a1c13f9c57a4 完成 91/91 测试，0 失败；Worker f02e5ff4-9e84-4dba-9d11-05157cf76c70。Chrome 线上确认首页新文案与精选文章、阅读页新样式及 390px 无横向溢出、合集新布局；未提交评论或修改文章。截图保存在工作区 outputs/editorial-live-home.png 与 editorial-live-reading-mobile.png。
+
 ## 前台杂志式视觉设计（2026-10-16）
 
 公开页面新增 assets/editorial.css，统一纸色、深绿与赭色、系统衬线标题、细线列表和紧凑合集。首页改为文字主视觉与精选文章；阅读页收窄画布，长标题均衡换行；归档、关于页沿用同一视觉。仅参考 Astro 博客与 Medium 的布局思路，不迁移框架、后台或部署。
