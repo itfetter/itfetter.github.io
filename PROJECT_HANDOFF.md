@@ -1,3 +1,11 @@
+## 前台杂志式视觉设计（2026-10-16）
+
+公开页面新增 assets/editorial.css，统一纸色、深绿与赭色、系统衬线标题、细线列表和紧凑合集。首页改为文字主视觉与精选文章；阅读页收窄画布，长标题均衡换行；归档、关于页沿用同一视觉。仅参考 Astro 博客与 Medium 的布局思路，不迁移框架、后台或部署。
+
+入口为 index.html、articles/index.html、archive/index.html、about/index.html、_layouts/post.html、worker/collections.js 的样式链接；assets/front.js 仅调整精选区装饰内容。无新增依赖、远程字体、数据迁移或生产内容写入；搜索、评论、目录和现有管理功能沿用。
+
+验证：本地 13 项测试通过，脚本语法与差异检查通过；Chrome 桌面及 390px 预览检查首页、文章、合集、归档、关于和评论回复。320px 尺寸覆盖未生效，未计为已验证；完整回归交由现有云端 CI。
+
 ## 前台阅读细节（2026-10-16）
 
 手机620px以下评论昵称和正文输入统一16px。assets/reading-tools.js新增阅读中固定目录按钮（滚动450px后显示），通过原生dialog打开章节列表，沿用heading-links.mjs生成的稳定地址、标题层级和章节焦点；支持关闭、Esc、遮罩点击，重新初始化清理旧控件，无标题时不创建入口。assets/front.css负责弹层、独立滚动和与回到顶部分开的位置，兼顾手机安全区域。
