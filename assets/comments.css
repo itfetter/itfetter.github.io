@@ -1,0 +1,92 @@
+/* 公开讨论区。输入、主评论与回复保持清楚的视觉层级。 */
+.post-page .article-comments{border-top:1px solid #dce2d4;margin-top:40px;padding-top:32px;overflow-wrap:anywhere}
+.comments-kicker{font:650 10px/1.5 system-ui;letter-spacing:.15em;color:#708362;margin-bottom:8px}
+.post-page .comments-heading{align-items:center;gap:16px}
+.post-page .comments-heading h2{font:700 26px/1.5 system-ui,"Noto Sans SC",sans-serif;letter-spacing:-.04em;display:flex;align-items:center;gap:12px}
+.comments-heading [data-comments-count]{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:27px;padding:2px 9px;border-radius:9px;background:#eaf0e0;color:#50663c;font:650 13px/1.5 system-ui;letter-spacing:0}
+.comments-heading [data-comments-count]:empty{display:none}
+.post-page .comments-heading [data-comments-refresh]{background:transparent;border:1px solid #d7dfce;border-radius:22px;min-height:40px;padding:8px 13px;color:#4e6145;font-size:12px;white-space:nowrap}
+.comments-heading [data-comments-refresh]>span{font-size:17px;vertical-align:-1px;margin-right:4px}
+.post-page .comments-intro{font-size:14px;line-height:1.8;color:#697660;margin:12px 0 24px}
+.post-page .comment-form{border:1px solid #d8e1ce;border-radius:16px;background:#f4f7ed;padding:24px;gap:16px;margin:0 0 30px;box-shadow:0 4px 16px #30442604;min-width:0}
+.comment-compose-title{display:flex;align-items:center;gap:12px}
+.comment-compose-title>span{font:30px/1 Georgia;color:#7f965b;flex-shrink:0}
+.comment-compose-title strong{font-size:15px;color:#30482f}
+.post-page .comment-compose-title p{font-size:12px;color:#77816e;margin:3px 0 0}
+.post-page .comment-form label{font-size:12px;color:#58684e;gap:8px}
+.post-page .comment-form input,.post-page .comment-form textarea{background:#fffefa;border:1px solid #d8e0ce;border-radius:9px;padding:12px 14px;color:#263e2d;box-shadow:none;transition:border-color .15s ease}
+.post-page .comment-form textarea{min-height:124px;font-size:15px;line-height:1.8}
+.post-page .comment-form input{font-size:14px;min-height:44px}
+.post-page .comment-form input:focus,.post-page .comment-form textarea:focus{border-color:#7b9464;outline:2px solid #78945930;outline-offset:2px}
+.post-page .comment-form [type=submit]{background:#294832;border:1px solid #294832;border-radius:24px;min-height:44px;padding:9px 21px;font-size:13px;font-weight:650}
+.post-page .comment-form [type=submit]:hover{background:#3c5d3b}
+.comment-compose-bottom{gap:14px;align-items:flex-end}
+.comment-compose-bottom label{max-width:250px}
+.comment-compose-bottom [data-comment-length]{font-size:11px;color:#78856e;padding-bottom:13px}
+.post-page .comment-form #comment-policy{font-size:11px;color:#7c8673;line-height:1.7}
+.post-page .comment-form [data-comment-notice]{font-size:12px;padding:10px 12px;background:#edf1e5;border-radius:7px}
+.post-page .comment-form [data-comment-notice][data-state=error]{background:#fbede6;color:#a34730}
+.post-page .comment-form [data-comment-notice][data-state=success]{background:#e7efde;color:#3a6337}
+.discussion-label{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 16px}
+.discussion-label h3{font:650 15px/1.5 system-ui;margin:0;color:#3e5438}
+.discussion-label>span{font-size:11px;color:#808a78}
+.post-page [data-comments-list]{scroll-margin-top:100px;outline:none}
+.post-page [data-comments-list]:focus-visible{outline:2px solid #789459;outline-offset:5px}
+.post-page .comment-item{position:relative;margin:0 0 16px;padding:22px 20px 20px 70px;border:1px solid #e0e5d8;border-radius:14px;background:#fffefa;min-width:0}
+.post-page .comment-avatar{left:20px;top:22px;width:36px;height:36px;border:0;border-radius:12px;background:#e5edd8;color:#526d37;font-size:15px}
+.comment-avatar[data-tone="1"]{background:#f1e6d9;color:#936b45}
+.comment-avatar[data-tone="2"]{background:#e1ebe8;color:#4d7164}
+.comment-avatar[data-tone="3"]{background:#e9e5ef;color:#76638b}
+.post-page .comment-meta{align-items:center;gap:5px 12px;line-height:1.6}
+.post-page .comment-meta strong{font-size:14px;font-weight:650;max-width:100%;color:#2b4735;overflow-wrap:anywhere}
+.post-page .comment-meta time{font-size:11px;color:#858e7c}
+.post-page .comment-meta .comment-target{font-size:11px;color:#70805e;flex-basis:100%;line-height:1.6}
+.post-page .comment-text{font-size:15px;line-height:1.9;color:#4c5c45;margin:11px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.post-page .comment-actions{margin-top:4px}
+.post-page .comment-actions button{display:inline-flex;min-height:36px;padding:5px 10px;margin-left:-10px;border-radius:8px;font-size:12px;color:#6c7c5d}
+.post-page .comment-actions button:hover{background:#f0f4e8;color:#35512c}
+.post-page .comment-thread-toggle{border:1px solid #dde5d1;border-radius:18px;background:#f3f6ed;padding:6px 12px;min-height:34px;color:#536c3d;font-size:12px}
+.post-page .comment-thread-toggle:hover{background:#e8eedf}
+.post-page .comment-thread{margin:12px 0 0;padding:4px 0 0 14px;border-left:2px solid #e1e9d7;background:transparent;border-radius:0}
+.post-page .comment-thread-item{border:0;border-bottom:1px solid #e7ecdf;border-radius:0;background:transparent;box-shadow:none;margin:0;padding:15px 0 14px 38px}
+.post-page .comment-thread-item:last-child{border-bottom:0}
+.post-page .comment-thread-item .comment-avatar{left:0;top:15px;width:27px;height:27px;border-radius:9px;font-size:12px}
+.post-page .comment-thread-item .comment-text{font-size:14px;margin:8px 0;line-height:1.85}
+.post-page .comment-thread-more,.post-page .comment-thread-close{min-height:36px;padding:7px 9px;font-size:12px;color:#6c7e59;border-radius:7px}
+.post-page .comment-thread-more:hover,.post-page .comment-thread-close:hover{background:#edf2e4}
+.post-page .comment-thread-notice{font-size:12px;color:#a14c33;background:#fcf0e8;padding:10px 12px;border-radius:7px;margin:10px 0 0}
+.comment-thread-notice:empty{display:none}
+.post-page .comment-reply{background:#edf3e5;border:0;border-radius:10px;padding:14px 16px;margin-top:12px}
+.post-page .comment-reply>strong{display:inline-flex;align-items:center;color:#4f6c3c;font-size:11px;background:#dde8cf;padding:2px 7px;border-radius:5px}
+.post-page .comment-reply .comment-text{font-size:14px;margin:8px 0 0}
+.post-page .comment-item .comment-form{margin:12px 0 0;padding:16px;border-radius:10px}
+.comment-item .comment-compose-title{display:none}
+.post-page .comment-reply-context{background:#e5edda;border:0;border-radius:7px;padding:8px 11px;font-size:12px;gap:10px}
+.post-page .comment-reply-context>span{min-width:0;overflow-wrap:anywhere}
+.post-page .comment-reply-context button{color:#637451;min-height:32px;padding:4px 0;font-size:12px}
+.post-page .comment-empty{border:1px dashed #d9e2cd;border-radius:12px;background:#f7f9f2;padding:32px 18px;font-size:14px;line-height:1.8;color:#788769}
+.post-page .comments-pagination{border-top:1px solid #e0e6d6;padding-top:20px;margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.post-page .comments-pagination button{font-size:12px;border:1px solid #dce4d1;border-radius:20px;min-height:40px;padding:7px 14px;background:#fffefa;color:#587146;white-space:nowrap}
+.post-page .comments-pagination span{font-size:11px;color:#79876d;text-align:center}
+@media(max-width:620px){
+ .post-page .article-comments{padding-top:26px;margin-top:30px}
+ .post-page .comments-heading h2{font-size:23px;gap:9px}.comments-heading [data-comments-count]{display:inline-flex;font-size:12px;min-width:27px;min-height:25px}
+ .post-page .comments-intro{font-size:13px;margin-bottom:20px}
+ .post-page .comment-form{padding:18px 16px;border-radius:13px;gap:14px}
+ .comment-compose-title{gap:10px}.comment-compose-title strong{font-size:14px}.post-page .comment-compose-title p{font-size:11px}
+ .post-page .comment-form input,.post-page .comment-form textarea{font-size:16px}
+ .post-page .comment-form textarea{min-height:124px}.comment-compose-bottom label{max-width:none}
+ .comment-compose-bottom [data-comment-length]{padding:0;align-self:center}
+ .post-page .comment-item{padding:18px 14px 15px 52px;border-radius:12px;margin-bottom:12px}
+ .post-page .comment-avatar{left:12px;top:18px;width:29px;height:29px;border-radius:10px;font-size:13px}
+ .post-page .comment-meta{gap:3px 9px}.post-page .comment-meta strong{font-size:13px}.post-page .comment-meta time{font-size:10px}
+ .post-page .comment-text{font-size:14px;line-height:1.85;margin:9px 0}
+ .post-page .comment-thread{margin-left:-38px;padding-left:10px;margin-top:12px}
+ .post-page .comment-thread-item{padding:14px 0 12px 36px;margin:0;border-radius:0}
+ .post-page .comment-thread-item .comment-avatar{top:14px;left:0;width:26px;height:26px;font-size:11px}
+ .post-page .comment-item .comment-form{margin-left:-38px;padding:12px}
+ .post-page .comment-thread-item .comment-form{margin-left:-36px}
+ .discussion-label>span{font-size:10px}.post-page [data-comments-list]{scroll-margin-top:22px}
+ .post-page .comments-pagination{justify-content:center;flex-wrap:wrap;gap:10px}.post-page .comments-pagination span{order:3;flex-basis:100%}
+}
+@media(prefers-reduced-motion:reduce){.post-page .comment-form input,.post-page .comment-form textarea{transition:none}}

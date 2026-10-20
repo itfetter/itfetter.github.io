@@ -14,29 +14,31 @@ if(root){
  }
  function render(item,isReply=false){
   const card=el('div',undefined,isReply?'comment-item comment-thread-item':'comment-item'),head=el('div',undefined,'comment-meta');
-  card.dataset.commentId=item.id;const avatar=el('span',Array.from(item.name||'访')[0],'comment-avatar');avatar.setAttribute('aria-hidden','true');
+  card.dataset.commentId=item.id;card.setAttribute('role','article');const avatar=el('span',Array.from(item.name||'访')[0],'comment-avatar');avatar.setAttribute('aria-hidden','true');avatar.dataset.tone=String(Array.from(item.name||'访')[0].codePointAt(0)%4);
   head.append(el('strong',item.name));const timestamp=el('time',date(item.created_at));timestamp.dateTime=item.created_at;head.append(timestamp);
-  if(isReply)head.append(el('span','回复 '+(item.target_name||'已隐藏的访客')));
+  if(isReply)head.append(el('span','回复 '+(item.target_name||'已隐藏的访客'),'comment-target'));
   card.append(avatar,head,el('p',item.content,'comment-text'));
   const actions=el('div',undefined,'comment-actions'),button=el('button','回复');button.type='button';button.onclick=()=>replyTo(item,card);
   button.setAttribute('aria-label','回复 '+item.name);actions.append(button);card.append(actions);
   if(item.reply){const author=el('div',undefined,'comment-reply');author.append(el('strong','作者回复'),el('p',item.reply,'comment-text'));card.append(author)}
   if(!isReply&&item.reply_count){
+   const threadNotice=el('p',undefined,'comment-thread-notice');threadNotice.setAttribute('role','status');
    const thread=el('div',undefined,'comment-thread'),toggle=el('button','展开 '+item.reply_count+' 条回复'),more=el('button','查看更多回复'),rows=el('div',undefined,'comment-thread-rows'),close=el('button','收起回复');
    for(const b of [toggle,more,close])b.type='button';
+   toggle.className='comment-thread-toggle';more.className='comment-thread-more';close.className='comment-thread-close';toggle.setAttribute('aria-expanded','false');
    let nextPage=1,busy=false;
    async function loadReplies(){
-    if(busy)return;busy=true;more.disabled=toggle.disabled=true;
+    if(busy)return;busy=true;more.disabled=toggle.disabled=true;threadNotice.textContent='';more.textContent='正在加载…';
     try{
      const data=await request('/api/comments?post_id='+encodeURIComponent(id)+'&root_id='+item.id+'&page='+nextPage);
      for(const reply of data.items)if(!list.querySelector('[data-comment-id="'+reply.id+'"]'))rows.append(render(reply,true));nextPage++;more.hidden=(nextPage-1)*data.pageSize>=data.total;
-     thread.hidden=false;toggle.hidden=true;
-    }catch(error){notice.textContent=error.message}
-    finally{busy=false;more.disabled=toggle.disabled=false}
+     thread.hidden=false;toggle.hidden=true;toggle.setAttribute('aria-expanded','true');
+    }catch(error){threadNotice.textContent='回复暂时无法加载，已有讨论已保留。请再点击展开或查看更多重试。'}
+    finally{busy=false;more.disabled=toggle.disabled=false;more.textContent='查看更多回复'}
    }
    toggle.onclick=()=>void loadReplies();more.onclick=()=>void loadReplies();
-   close.onclick=()=>{if(submit.disabled)return;if(thread.contains(form))resetTarget();rows.replaceChildren();nextPage=1;thread.hidden=true;toggle.hidden=false};
-   thread.hidden=true;thread.append(rows,more,close);card.append(toggle,thread);
+   close.onclick=()=>{if(submit.disabled)return;if(thread.contains(form))resetTarget();rows.replaceChildren();nextPage=1;thread.hidden=true;toggle.hidden=false;toggle.setAttribute('aria-expanded','false');threadNotice.textContent=''};
+   thread.hidden=true;thread.append(rows,more,close);card.append(toggle,threadNotice,thread);
   }
   return card;
  }
@@ -45,21 +47,22 @@ if(root){
   const response=await fetch(url,{...options,signal:AbortSignal.timeout(15000)});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'操作失败，请重试。');return data;
  }
- async function load(){
+ async function load(moveFocus=false){
   if(loading||submit.disabled)return;loading=true;prev.disabled=next.disabled=refresh.disabled=true;list.setAttribute('aria-busy','true');
   try{
    const data=await request('/api/comments?post_id='+encodeURIComponent(id)+'&page='+page);
    const pages=Math.max(1,Math.ceil(data.total/data.pageSize));
-   if(page>pages){page=pages;loading=false;return load()}
+   if(page>pages){page=pages;loading=false;return load(moveFocus)}
    resetTarget();list.replaceChildren();
    for(const item of data.items)list.append(render(item));
-   count.textContent=data.total?'· '+data.total+' 个讨论':'';
+   count.textContent=String(data.total);
    if(!data.items.length)list.append(el('p','还没有评论，来分享第一个想法吧。','comment-empty'));
    pager.textContent=page+' / '+pages+' · '+data.total+' 条公开评论';pager.parentElement.hidden=pages<=1;prev.disabled=page<=1;next.disabled=page>=pages;
+   if(moveFocus){list.focus({preventScroll:true});list.scrollIntoView({block:'start',behavior:'instant'})}
   }catch(error){notice.textContent='评论加载失败，已有内容和输入已保留，请点击“刷新评论”重试。';if(!list.querySelector('.comment-item'))list.replaceChildren(el('p','暂时无法加载讨论，请稍后刷新。','comment-empty'))}
   finally{loading=false;refresh.disabled=false;list.removeAttribute('aria-busy')}
  }
- refresh.onclick=()=>void load();prev.onclick=()=>{page--;void load()};next.onclick=()=>{page++;void load()};
+ refresh.onclick=()=>void load();prev.onclick=()=>{if(loading||submit.disabled)return;page--;void load(true)};next.onclick=()=>{if(loading||submit.disabled)return;page++;void load(true)};
  form.onsubmit=async event=>{
   event.preventDefault();if(submit.disabled)return;
   const name=form.elements.name.value.trim(),content=form.elements.content.value.trim();

@@ -22,7 +22,7 @@
     @media(max-width:620px){.article-body pre,article pre{font-size:12px}.article-body th,.article-body td,article th,article td{padding:10px 12px}}
   </style>
 <link rel="stylesheet" href="/assets/front.css">
-<link rel="stylesheet" href="/assets/collections.css"><link rel="stylesheet" href="/assets/editorial.css"></head>
+<link rel="stylesheet" href="/assets/collections.css"><link rel="stylesheet" href="/assets/editorial.css"><link rel="stylesheet" href="/assets/comments.css"></head>
 <body class="post-page"><div id="reading-progress" aria-hidden="true"></div>
   <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/articles/">文章</a><a href="/collections/">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
   <main>
@@ -31,16 +31,16 @@
     <p class="summary">{{ page.summary | escape }}</p>
     <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/about/#contact">有想法？和我聊聊 ↗</a></div>
     <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
-      <div class="comments-heading"><h2 id="comments-heading">评论与讨论 <span data-comments-count></span></h2><button type="button" data-comments-refresh>刷新评论</button></div>
+      <div class="comments-heading"><div><div class="comments-kicker">LET’S TALK</div><h2 id="comments-heading">评论与讨论 <span data-comments-count></span></h2></div><button type="button" data-comments-refresh aria-label="刷新评论"><span aria-hidden="true">↻</span> 刷新</button></div>
       <p class="comment-muted comments-intro">有问题、补充或不同的想法？欢迎一起交流。</p>
-      <form class="comment-form">
-        <label>留下你的想法<textarea name="content" maxlength="3000" required rows="4" placeholder="围绕这篇文章，聊聊你的想法…" aria-describedby="comment-policy"></textarea></label>
+      <form class="comment-form"><div class="comment-compose-title"><span aria-hidden="true">✳</span><div><strong>加入这场讨论</strong><p>你的问题、补充和不同视角，都很欢迎。</p></div></div>
+        <label>留下你的想法<textarea name="content" maxlength="3000" required rows="4" placeholder="分享一个想法，或留下你想问的问题…" aria-describedby="comment-policy"></textarea></label>
         <div class="comment-compose-bottom"><label>昵称<input name="name" maxlength="80" required autocomplete="nickname" placeholder="怎么称呼你"></label><span class="comment-muted" data-comment-length>0 / 3000</span><button type="submit">发表评论</button></div>
         <label class="comment-trap" aria-hidden="true">网站<input name="website" tabindex="-1" autocomplete="off"></label>
         <p id="comment-policy" class="comment-muted">提交后公开显示 · 昵称由访客自填 · 请勿填写私密信息</p><p data-comment-notice role="status" aria-live="polite"></p>
       </form>
-      <div data-comments-list aria-live="polite"><p class="comment-empty">正在加载讨论…</p></div>
-      <div class="comments-pagination" hidden><button type="button" data-comments-prev disabled aria-label="上一页评论">←</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">→</button></div>
+      <div class="discussion-label"><h3>全部讨论</h3><span>最新主评论在前</span></div><div data-comments-list aria-live="polite" tabindex="-1"><p class="comment-empty">正在加载讨论…</p></div>
+      <div class="comments-pagination" hidden><button type="button" data-comments-prev disabled aria-label="上一页评论">← 上一页</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">下一页 →</button></div>
       <noscript>请启用 JavaScript 查看和提交评论。</noscript>
     </section>
   </main>

@@ -1,3 +1,7 @@
+## 评论展示与讨论交互
+
+_layouts/post.html 定义评论表单与讨论区，assets/comments.js 处理主评论20条/回复10条分页、回复对象、错误提示及换页焦点，assets/comments.css 为文章页专用视觉层（在 editorial.css 后加载）。worker/comments-ui.test.mjs 覆盖输入保留、错误重试及分页交互；API和数据关系仍由 worker/comments.js 负责，样式变更不修改数据库结构。
+
 ## 首页主题浏览入口
 
 index.html 的 home-explore/home-topics 由 assets/front.js 从公开文章的合集名称生成，展示最多六个主题及对应文章数，使用 public-utils.mjs 的 listStateUrl 进入文章列表筛选。主题来源与已有列表一致，空合集不生成入口；样式及首页原生笔记插画位于 assets/editorial.css，后台不加载。
