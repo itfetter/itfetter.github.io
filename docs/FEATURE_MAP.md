@@ -1,3 +1,7 @@
+## 首页主题浏览入口
+
+index.html 的 home-explore/home-topics 由 assets/front.js 从公开文章的合集名称生成，展示最多六个主题及对应文章数，使用 public-utils.mjs 的 listStateUrl 进入文章列表筛选。主题来源与已有列表一致，空合集不生成入口；样式及首页原生笔记插画位于 assets/editorial.css，后台不加载。
+
 ## 前台杂志式视觉设计（2026-10-16）
 
 公开页面新增 assets/editorial.css，统一纸色、深绿与赭色、系统衬线标题、细线列表和紧凑合集。首页改为文字主视觉与精选文章；阅读页收窄画布，长标题均衡换行；归档、关于页沿用同一视觉。仅参考 Astro 博客与 Medium 的布局思路，不迁移框架、后台或部署。
