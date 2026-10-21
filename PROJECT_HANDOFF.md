@@ -1,3 +1,11 @@
+## 部署指南重写（2026-10-21）
+
+按用户要求重写 worker/README.md，区分首次空站、现有站更新、旧文章可选导入、本地模拟、备份补回与全库恢复。明确 worker/ 工作目录、先全部迁移再管理员初始化、私有完整配置、GitHub Builds 授权/构建变量/测试构建部署命令、域名与品牌硬编码检查、专用配置本地dev、迁移兼容回退、故障排查及当前草稿/历史/多合集/直接公开评论规则。保留 README 项目简介职责，不复制日志到 AGENTS 或功能地图。
+
+依据：当前 migrations 0001～0014、worker/package.json、wrangler.example.jsonc、auth.js、backup.js、scripts/build.mjs、create-admin.mjs、import-posts.mjs、validate-worker.yml；核对 Cloudflare 官方 Builds、D1 Wrangler、Custom Domains 文档。指南的 npm ci/迁移/部署/初始化是部署者说明，本轮没有执行、没有安装依赖或生产读写，也没有修改运行配置、业务代码或迁移。
+
+验证：配置示例JSON解析、绑定和路径、14项迁移文件核对、内部链接、全部Bash命令语法、配置生成隔离执行与生产development拒绝、文档差异和常见密钥格式检查均通过。未在全新Cloudflare账户实操，不宣称零起点部署已实测；提交/推送结果以本轮实际操作为准。仅文档变更无需业务测试。
+
 上线验收：功能提交 ea1e8e03c817fee5a8689e73618a949ea63762b1；Cloudflare Build 50ed6951-5ab1-43a1-ae40-ab7c2d08930f 成功，93/93测试通过、0失败；Worker 588ea03c-bac4-4836-ad42-f180c641d52d。真实演示页已显示新版评论视觉，浏览器正常提交1条主评论与1条回复并确认成功、刷新后仍公开。演示数据合计44条（27主评论、17回复），主评论20+7分页且换页聚焦列表，第一讨论串13条回复按10+3加载；390px无横向溢出、输入16px。320px及取消回复保留输入已在本地预览验证。UI新增的2个演示ID保存在 outputs/comment-demo-ui-results.json，另外42个在 outputs/comment-demo-data.json；没有修改其他文章或真实留言。截图 outputs/comments-live-desktop.png、comments-live-mobile.png。演示文章 /articles/comment-experience-demo-20261021/ 及“功能演示”合集保留供用户查看；后续清理只针对演示数据，永久删除仍按确认规则操作。浏览器尺寸已恢复，本地预览服务已结束。
 
 
