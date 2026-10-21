@@ -1,3 +1,5 @@
+交接补充：功能提交 7b8cf665d20eaa4bb219e84662666fbaaa6d3817 已进入 main；GitHub Actions 39617210172 的 test 作业（npm ci、npm test、npm run build）全部成功。本地差异检查按仓库原CRLF换行处理通过。线上首页复查仍为旧品牌，Cloudflare连接接口返回内部错误且浏览器控制台未登录，本轮无法确认其自动部署结果；不得称已经上线。桌面预览截图保存于本地 outputs/logo-one-home-preview.png，390px/320px无横向溢出。
+
 ## 第①版网站 Logo 接入（2026-10-21）
 
 用户选定生成方案①。将深绿圆角底、米白斜体 i 与陶橙圆点重绘为 assets/logo.svg，轮廓为矢量路径，不依赖系统字体；assets/brand.css 统一图标和衬线字标，桌面36px、手机30px并声明图片尺寸。首页、文章列表、归档、关于、文章模板、动态合集及后台使用同一品牌入口；各入口及404增加SVG favicon。资源随既有assets白名单发布，原生成概念图不作为大图下载到网页。
