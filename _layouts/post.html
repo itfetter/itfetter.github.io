@@ -22,9 +22,9 @@
     @media(max-width:620px){.article-body pre,article pre{font-size:12px}.article-body th,.article-body td,article th,article td{padding:10px 12px}}
   </style>
 <link rel="stylesheet" href="/assets/front.css">
-<link rel="stylesheet" href="/assets/collections.css"><link rel="stylesheet" href="/assets/editorial.css"><link rel="stylesheet" href="/assets/comments.css"></head>
+<link rel="stylesheet" href="/assets/collections.css"><link rel="stylesheet" href="/assets/editorial.css"><link rel="stylesheet" href="/assets/comments.css"><link rel="icon" href="/assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/brand.css"></head>
 <body class="post-page"><div id="reading-progress" aria-hidden="true"></div>
-  <header class="post-topbar"><a href="/">itfetter<span style="color:#ce603e">.</span></a><a href="/articles/">文章</a><a href="/collections/">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
+  <header class="post-topbar"><a class="brand" href="/" aria-label="回到首页"><img class="brand-logo" src="/assets/logo.svg" width="36" height="36" alt="" aria-hidden="true"><span class="brand-wordmark">itfetter<span class="brand-dot">.</span></span></a><a href="/articles/">文章</a><a href="/collections/">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
   <main>
     <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>

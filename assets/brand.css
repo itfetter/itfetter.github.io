@@ -1,0 +1,5 @@
+/* 品牌图标使用路径，不依赖字体或远程资源；前后台共用。 */
+.brand,.post-page .post-topbar>a.brand{display:inline-flex;align-items:center;gap:10px;font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:-.045em;text-decoration:none;vertical-align:middle;white-space:nowrap;color:#214d3c}
+.brand img.brand-logo{display:block;width:36px;height:36px;flex:0 0 36px;border:0;border-radius:0;margin:0;padding:0;box-shadow:none;object-fit:contain}
+.brand .brand-wordmark{color:#214d3c}.brand .brand-dot{color:#c65d3b}
+@media(max-width:700px){.brand img.brand-logo{width:30px;height:30px;flex-basis:30px}.brand,.post-page .post-topbar>a.brand{gap:8px}}

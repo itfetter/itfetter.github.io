@@ -1,3 +1,7 @@
+## 网站品牌与标签图标
+
+assets/logo.svg 是第①版品牌标志（深绿圆角底、米白斜体 i、陶橙圆点），assets/brand.css 统一前后台图标尺寸与字标。首页、文章列表、归档、关于、文章模板、worker/collections.js 和 admin/index.html 加载同一图标与样式；404 使用同一 favicon。资源随现有 assets 白名单发布，无字体或远程图片依赖。
+
 ## 评论展示与讨论交互
 
 _layouts/post.html 定义评论表单与讨论区，assets/comments.js 处理主评论20条/回复10条分页、回复对象、错误提示及换页焦点，assets/comments.css 为文章页专用视觉层（在 editorial.css 后加载）。worker/comments-ui.test.mjs 覆盖输入保留、错误重试及分页交互；API和数据关系仍由 worker/comments.js 负责，样式变更不修改数据库结构。
