@@ -72,3 +72,9 @@ npm --prefix worker run build
 | [项目交接](PROJECT_HANDOFF.md) | 修改记录、验证结果、历史决策与待办 |
 
 README 用于介绍项目及当前使用方式。开发前请阅读开发规则与项目交接；具体修改和验收记录统一维护在 `PROJECT_HANDOFF.md`。
+
+## Linux 容器运行
+
+除 Cloudflare 外，项目提供 Node.js + SQLite + 本地图片的单容器运行方式，前后台和文章地址沿用同一套业务代码。程序镜像与持久化数据分开，支持在宝塔中为同一镜像创建多个独立实例。镜像通过 GitHub Actions 测试后发布到 GHCR，不要求站长在本地构建。
+
+部署配置、管理员初始化、数据迁移、备份和更新步骤见 [Linux Docker 部署指南](docs/LINUX_DOCKER_MIGRATION.md)。容器运行不自动迁移 Cloudflare 的文章、数据库和图片；生产切换前需要单独迁移与验收。

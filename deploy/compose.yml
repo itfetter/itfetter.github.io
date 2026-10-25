@@ -1,0 +1,25 @@
+# Import as a separate BaoTa instance; no fixed project/container name.
+services:
+  blog:
+    image: ghcr.io/itfetter/itfetter-blog:${IMAGE_TAG:?Set a tested sha tag in .env}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:${BLOG_PORT:-3100}:3000"
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the HTTPS site origin}
+      TRUST_PROXY_IPS: ${TRUST_PROXY_IPS:-}
+    volumes:
+      - ./data:/data
+      - ./uploads:/uploads
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

@@ -1,3 +1,23 @@
+## Linux 容器适配与 GHCR 构建（2026-10-26）
+
+用户授权开始修改程序并构建镜像。新增 server/ 运行适配，复用原 Worker 业务处理，Node.js 24 内置 SQLite 替代 D1 绑定、本地图片目录替代 R2 绑定，原 Cloudflare 入口保持可用。SQLite batch 同步事务，14 个迁移顺序执行与校验和保护，升级前留快照；登录、同源检查、会话、版本冲突和公开过滤沿用。HTTP 入口固定 PUBLIC_ORIGIN，清理访客伪造的代理头，仅信任显式配置代理 IP。镜像非 root、可配只读根文件系统，不包含真实数据和私有配置。
+
+新增 Dockerfile、构建上下文白名单、宝塔多实例 Compose 和 Nginx 示例。实例路径沿用 /www/dk_project/dk_app/itfetter-blog/itfetter-blog-<实例标识>/，每实例独立配置/端口/data/uploads，不修改宝塔 JSON、Docker 引擎或其他容器。管理员在可信交互终端初始化，密码不进入命令行、环境或镜像。提供 SQLite 一致快照命令与迁移/备份/回退指南。
+
+新增 GitHub Actions 容器流程：原业务测试、适配测试、真实 SQLite 集成、镜像构建及容器重建持久化验证通过后，发布 GHCR 的 sha-完整提交号和 latest。当前本机 7 项无依赖检查及新增脚本语法检查通过；完整集成、Docker 构建、镜像发布以云端实际结果为准。未在 Windows 安装或下载依赖，没有迁移生产数据、创建服务器容器或切换域名。GHCR 首次包公开可见性和服务器部署仍需实际确认。
+
+## 宝塔多实例目录约定修正（2026-10-25）
+
+用户纠正上条目录设计：参考青龙采用“应用目录/实例目录”，同一镜像可创建多个容器实例；不得另套自定义项目目录。当前约定改为 `/www/dk_project/dk_app/itfetter-blog/itfetter-blog-<实例标识>/` 示例，以宝塔实际生成路径为准。各实例使用独立名称、端口、配置和持久化目录；不再固定所有实例共用一个 Compose 项目名。此条取代下方同日单项目目录的旧约定，迁移备忘已同步修正。
+
+仅修改本地文档；未创建或调整服务器目录、实例、镜像或宝塔设置。
+
+## 宝塔 Docker 部署目录约定（2026-10-25）
+
+用户指定后续部署位于服务器 `/www/dk_project/dk_app` 并要求在宝塔 Docker 面板统一可见。博客采用独立 `itfetter-blog/` 子目录，集中 Compose、私有配置和持久化数据，固定 Compose 项目名并使用现有 Docker 引擎，面板实际可见性纳入验收。docs/LINUX_DOCKER_MIGRATION.md 已补充当前目录与管理约定，保留其他应用，不手改宝塔管理 JSON 或 Docker 全局存储位置。沿用用户选定的 GitHub 云端构建 → GHCR → SSH 拉取部署流程。
+
+本次仅修改本地迁移备忘与交接记录；未创建服务器目录、容器或镜像，未安装依赖、未更改服务器配置，未提交/推送或触发部署。数据库和图片存储仍待最终确定。本轮为文档约定，无需业务测试。
+
 上线验收补充（2026-10-21）：Cloudflare 部署列表现已出现功能提交7b8cf665d20eaa4bb219e84662666fbaaa6d3817，Build 957a07db-72f3-4e42-aebd-93a17b992af6就绪、耗时58秒，版本e9f39499承载100%正式流量。Chrome刷新正式首页确认/assets/logo.svg成功加载（complete=true、naturalWidth>0），衬线字标生效。独立390px测试标签页logo宽30px、scrollWidth375px，无横向溢出；视口已恢复。线上截图outputs/logo-one-home-live.png及logo-one-home-live-mobile.png。本轮查到的是先前部署尚未跟上提交，具体延迟原因未证实；不把网页交接提交误说成该7b8cf66构建的触发原因。旧提交重试644ae990已取消且未创建版本。无本机依赖安装或业务数据改动。
 
 ## Logo 正式环境未更新的排查（2026-10-21）

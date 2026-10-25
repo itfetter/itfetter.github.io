@@ -1,0 +1,59 @@
+name: Build and publish Linux container
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['server/**', 'worker/**', 'scripts/**', 'assets/**', 'admin/**', 'articles/**', 'archive/**', 'about/**', '_layouts/**', 'index.html', 'Dockerfile', '.dockerignore', 'deploy/**', '.github/workflows/container.yml']
+  push:
+    branches: [main]
+    paths: ['server/**', 'worker/**', 'scripts/**', 'assets/**', 'admin/**', 'articles/**', 'archive/**', 'about/**', '_layouts/**', 'index.html', 'Dockerfile', '.dockerignore', 'deploy/**', '.github/workflows/container.yml']
+permissions:
+  contents: read
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TEST_IMAGE: ghcr.io/itfetter/itfetter-blog:sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+        working-directory: worker
+      - run: npm test
+        working-directory: worker
+      - run: node --test server/test.mjs
+      - run: npm run build
+        working-directory: worker
+      - run: node --test server/integration.mjs
+      - name: Validate multi-instance Compose
+        run: docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet
+      - name: Build image on cloud runner
+        run: docker build --build-arg REVISION="$GITHUB_SHA" --tag "$TEST_IMAGE" .
+      - name: Test actual container before publishing
+        run: node server/smoke.mjs
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          docker push "$TEST_IMAGE"
+          docker tag "$TEST_IMAGE" ghcr.io/itfetter/itfetter-blog:latest
+          docker push ghcr.io/itfetter/itfetter-blog:latest
+          echo "### Tested image" >> "$GITHUB_STEP_SUMMARY"
+          echo "$TEST_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          docker image inspect "$TEST_IMAGE" --format '{{json .RepoDigests}}' >> "$GITHUB_STEP_SUMMARY"

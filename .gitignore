@@ -7,3 +7,14 @@ worker/node_modules/
 dist/
 worker/.wrangler/
 .migration/
+
+# Private container instance configuration and persisted data
+deploy/.env
+deploy/data/
+deploy/uploads/
+deploy/backups/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+**/connections.local.json
+**/connection.local.json
