@@ -9,9 +9,9 @@ const image=process.env.TEST_IMAGE;if(!image)throw Error('TEST_IMAGE required');
 const root=mkdtempSync(join(tmpdir(),'blog-container-')),name='blog-smoke-'+process.pid;
 for(const path of ['data','uploads']){mkdirSync(join(root,path));chmodSync(join(root,path),0o777);}
 const docker=(...args)=>execFileSync('docker',args,{encoding:'utf8',timeout:120000}).trim();
-function get(port,path){return new Promise((resolve,reject)=>{const req=request({hostname:'127.0.0.1',port,path,headers:{host:'itfetter.com'}},res=>{let body='';res.on('data',c=>body+=c);res.on('end',()=>resolve({status:res.statusCode,body,headers:res.headers}));});req.on('error',reject);req.end();});}
+function get(port,path,host='itfetter.com'){return new Promise((resolve,reject)=>{const req=request({hostname:'127.0.0.1',port,path,headers:{host}},res=>{let body='';res.on('data',c=>body+=c);res.on('end',()=>resolve({status:res.statusCode,body,headers:res.headers}));});req.on('error',reject);req.end();});}
 async function start(){
- docker('run','-d','--name',name,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:size=32m','-e','PUBLIC_ORIGIN=https://itfetter.com','-p','127.0.0.1::3000','--mount','type=bind,src='+join(root,'data')+',dst=/data','--mount','type=bind,src='+join(root,'uploads')+',dst=/uploads',image);
+ docker('run','-d','--name',name,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:size=32m','-p','127.0.0.1::3000','--mount','type=bind,src='+join(root,'data')+',dst=/data','--mount','type=bind,src='+join(root,'uploads')+',dst=/uploads',image);
  const port=Number(docker('inspect','--format','{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}',name));
  for(let i=0;i<30;i++){try{if((await get(port,'/healthz')).status===200)return port;}catch{}await new Promise(r=>setTimeout(r,1000));}
  throw Error('Container did not become ready');
@@ -19,10 +19,15 @@ async function start(){
 try {
  let port=await start();
  assert.notEqual(docker('exec',name,'id','-u'),'0');
- for(const path of ['/','/articles/','/about/','/admin/login/','/posts.json','/collections/','/assets/logo.svg'])assert.equal((await get(port,path)).status,200,path);
+ assert.equal((await get(port,'/','localhost:'+port)).status,200);
+ assert.equal((await get(port,'/admin/login/','localhost:'+port)).status,200);
+ assert.match((await get(port,'/','replacement.example')).body,/rel="canonical" href="http:\/\/replacement.example\//);
+ assert.match((await get(port,'/robots.txt','replacement.example')).body,/http:\/\/replacement.example\/sitemap.xml/);
+ for(const path of ['/','/articles/','/about/','/posts.json','/collections/','/assets/logo.svg'])assert.equal((await get(port,path)).status,200,path);
  assert.equal((await get(port,'/.env')).status,404);
  assert.equal((await get(port,'/article-template.html')).status,404);
  assert.equal((await get(port,'/api/posts')).status,401);
+ assert.equal((await get(port,'/admin/login/')).status,403);
  docker('exec',name,'node','--input-type=module','-e',"import {LocalDatabase,LocalImages} from './server/storage.mjs';const db=new LocalDatabase('/data/blog.sqlite');await db.prepare('INSERT INTO site_settings VALUES(1,?,1)').bind('smoke@example.com').run();db.close();await new LocalImages('/uploads').put('12345678-1234-1234-1234-123456789abc.png',new Uint8Array([137,80,78,71,13,10,26,10]));");
  docker('stop','--time','15',name);docker('rm',name);
  port=await start();

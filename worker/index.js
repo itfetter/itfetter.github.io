@@ -277,12 +277,12 @@ async function handle(request, env) {
   }
   if (['/posts.json','/posts.js','/sitemap.xml','/robots.txt'].includes(path)) {
     if (!['GET','HEAD'].includes(method)) return fail('请使用 GET。',405);
-    if(path==='/robots.txt')return new Response(method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: https://itfetter.com/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+    if(path==='/robots.txt')return new Response(method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nSitemap: '+url.origin+'/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
     // 显式选择公开字段，不查询正文或草稿；日期、排序仍以首次发布为准。
     const {results}=await env.DB.prepare("SELECT id,title,category,summary,published_at,public_updated_at,permalink,read_count FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all();
     const entries=results.filter(post=>slug(post.id));
     if(path==='/sitemap.xml'){
-      const locations=['https://itfetter.com/','https://itfetter.com/articles/','https://itfetter.com/archive/','https://itfetter.com/about/','https://itfetter.com/collections/',...(await listCollections(env)).map(c=>'https://itfetter.com/collections/'+c.slug+'/'),...entries.map(post=>'https://itfetter.com/articles/'+post.id+'/')];
+      const locations=['/','/articles/','/archive/','/about/','/collections/',...(await listCollections(env)).map(c=>'/collections/'+c.slug+'/'),...entries.map(post=>'/articles/'+post.id+'/')].map(path=>url.origin+path);
       const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+locations.map(location=>'<url><loc>'+escapeHtml(location)+'</loc></url>').join('')+'</urlset>';
       return new Response(method==='HEAD'?null:xml,{headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
     }

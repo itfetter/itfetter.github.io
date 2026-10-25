@@ -6,6 +6,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import worker from '../worker/index.js';
+import {httpServer,configuration} from './runtime.mjs';
+import {request as httpRequest} from 'node:http';
 import {hashPassword} from '../worker/auth.js';
 import {LocalDatabase,LocalImages,migrate} from './storage.mjs';
 import {localAssets} from './assets.mjs';
@@ -37,4 +39,20 @@ test('real SQLite: login, draft, publish, stale version, comments and JSON backu
  assert.equal((await exported.json()).format,'itfetter-content-v1');
  const cross=await worker.fetch(new Request('https://itfetter.com/api/post',{method:'POST',headers:{origin:'https://evil.example',cookie,'content-type':'application/json'},body:'{}'}),env,{});
  assert.equal(cross.status,403);
+ const server=httpServer(worker,env,configuration({TRUST_PROXY_IPS:'127.0.0.1',HOST:'127.0.0.1',PORT:'0'}));
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try {
+   const loginAt=(host,protocol,origin)=>new Promise((resolve,reject)=>{
+     const req=httpRequest({hostname:'127.0.0.1',port:server.address().port,path:'/api/login',method:'POST',headers:{host,'x-forwarded-proto':protocol,origin,'content-type':'application/json'}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,cookie:res.headers['set-cookie']?.[0]}));});
+     req.on('error',reject);req.end(JSON.stringify({username:'test-admin',password:'temporary-test-password'}));
+   });
+   const first=await loginAt('first.example','https','https://first.example');
+   assert.equal(first.status,200);assert.match(first.cookie,/__Host-blog_session=/);assert.match(first.cookie,/Secure/);
+   const second=await loginAt('replacement.example','https','https://replacement.example');assert.equal(second.status,200);
+   const local=await loginAt('127.0.0.1:3100','http','http://127.0.0.1:3100');
+   assert.equal(local.status,200);assert.match(local.cookie,/blog_session_local=/);assert.doesNotMatch(local.cookie,/Secure/);
+   assert.equal((await loginAt('replacement.example','https','https://evil.example')).status,403);
+   assert.equal((await loginAt('replacement.example','http','http://replacement.example')).status,403);
+ }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+
 });

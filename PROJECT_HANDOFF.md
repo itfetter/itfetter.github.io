@@ -1,3 +1,17 @@
+## 容器取消固定域名绑定（2026-10-26）
+
+按用户要求移除 PUBLIC_ORIGIN 配置和Host域名相等校验。运行入口根据请求Host与可信代理的X-Forwarded-Proto重建URL，不采信转发域名；继续校验Host语法、绝对请求目标与同源写请求。HTTP localhost/127.0.0.1访问使用原有本地开发Cookie规则，公网域名登录继续HTTPS与Secure Cookie。宝塔示例改为传Host与$scheme，保留精确代理IP信任名单。
+
+站点地图和robots改用当前请求origin；Node适配仅修正head中的站点元信息，不改文章正文原链接。测试覆盖两个HTTPS域名切换、本地HTTP会话、伪造代理头、错误Host/请求目标、跨站写入和公网HTTP拒绝；本机9项无依赖测试与脚本语法检查通过。完整业务/集成/容器验证、GHCR新镜像与服务器实例升级以实际云端及SSH结果为准。未安装本机依赖。
+
+## 阿里云测试容器创建成功（2026-10-26）
+
+用户授权使用本地账号配置通过 SSH 拉取镜像并创建容器。通过 Windows 现有 OpenSSH 读取私有配置完成连接，未输出凭据。服务器现有 Docker 26.1.3 / Compose 2.27.0，amd64，未安装或修改 Docker。成功匿名拉取 ghcr.io/itfetter/itfetter-blog@sha256:996b449fb9843f1da54b9ec04da41b952f5782b8319b4fc3530560ffa5b05f40，镜像展开大小 236660400 字节。
+
+创建实例 /www/dk_project/dk_app/itfetter-blog/itfetter-blog-test-20261026/，其中 compose.yml 固定镜像 digest，.env 为该实例配置，data/uploads 绑定持久化、UID/GID 1000、目录权限700。Compose项目 itfetter-blog-test-20261026，容器 itfetter-blog-test-20261026-blog-1，映射127.0.0.1:3100到容器3000，PUBLIC_ORIGIN=https://itfetter.com，TRUST_PROXY_IPS暂空（尚未配置Nginx反向代理）。没有修改宝塔管理JSON或注册编排项目；容器由现有Docker管理，可在面板容器列表按名称查找，尚未通过宝塔UI验收编排登记。
+
+实测容器healthy、restart_count=0、node非root、根文件系统只读；/healthz返回ok，首页和/admin/login/返回200，14个数据库迁移已执行。新库文章0、管理员0，尚未初始化账号、导入生产数据、绑定公网域名或切换Cloudflare。既有qinglong-debian仍Up 7 weeks (healthy)。本机仅创建小型SSH脚本，未安装依赖或拉取镜像。本条暂存本地交接记录。
+
 ## 容器镜像构建发布结果（2026-10-26）
 
 功能提交 d49cf6f85ad6cc578bf06ba5701b5d368ed87599 已推送 main。GitHub Actions 40210799966 的容器流程全部成功：原业务 93 项、运行适配 7 项、真实 SQLite 集成 1 项测试通过，Compose 检查、云端 Docker 构建及真实容器 HTTP/非 root/只读根文件系统/替换后数据库与图片保留的冒烟验证均通过。

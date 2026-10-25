@@ -10,7 +10,6 @@ services:
     ports:
       - "127.0.0.1:${BLOG_PORT:-3100}:3000"
     environment:
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the HTTPS site origin}
       TRUST_PROXY_IPS: ${TRUST_PROXY_IPS:-}
     volumes:
       - ./data:/data
