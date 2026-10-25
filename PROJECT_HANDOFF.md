@@ -1,3 +1,9 @@
+## 容器镜像构建发布结果（2026-10-26）
+
+功能提交 d49cf6f85ad6cc578bf06ba5701b5d368ed87599 已推送 main。GitHub Actions 40210799966 的容器流程全部成功：原业务 93 项、运行适配 7 项、真实 SQLite 集成 1 项测试通过，Compose 检查、云端 Docker 构建及真实容器 HTTP/非 root/只读根文件系统/替换后数据库与图片保留的冒烟验证均通过。
+
+已发布 ghcr.io/itfetter/itfetter-blog:sha-d49cf6f85ad6cc578bf06ba5701b5d368ed87599 与 latest，digest 为 sha256:996b449fb9843f1da54b9ec04da41b952f5782b8319b4fc3530560ffa5b05f40，目标架构 linux/amd64。Chrome 浏览器标签页查看 GitHub Package 显示 Public 和这两个标签，无需修改可见性。未在本机安装依赖或拉取镜像，也未在阿里云创建容器、导入数据或切换生产域名。下一步使用宝塔实际实例目录部署、初始化账号并迁移验收；不能把本次镜像发布称为生产迁移完成。
+
 ## Linux 容器适配与 GHCR 构建（2026-10-26）
 
 用户授权开始修改程序并构建镜像。新增 server/ 运行适配，复用原 Worker 业务处理，Node.js 24 内置 SQLite 替代 D1 绑定、本地图片目录替代 R2 绑定，原 Cloudflare 入口保持可用。SQLite batch 同步事务，14 个迁移顺序执行与校验和保护，升级前留快照；登录、同源检查、会话、版本冲突和公开过滤沿用。HTTP 入口固定 PUBLIC_ORIGIN，清理访客伪造的代理头，仅信任显式配置代理 IP。镜像非 root、可配只读根文件系统，不包含真实数据和私有配置。
