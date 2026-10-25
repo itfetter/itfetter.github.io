@@ -1,3 +1,9 @@
+## 动态域名镜像与测试实例升级验收（2026-10-26）
+
+功能提交2277e0750120d3567489b35d3821badb965ee999已推送。GitHub Actions 40213156438全部成功：93项业务、9项适配、1项真实SQLite/HTTP集成，共103项测试通过，实际容器冒烟验证通过。GHCR发布sha-2277e0750120d3567489b35d3821badb965ee999与latest，digest sha256:be1d7d04a169892efdd4b39ea25a633cbe9e8d78173ab9e7d55c1b034c706515。
+
+通过已有SSH配置更新itfetter-blog-test-20261026-blog-1；升级前已生成SQLite一致快照，保留compose/.env旧副本和旧镜像。实例路径、3100本机端口与data/uploads挂载不变，移除PUBLIC_ORIGIN，按实际Docker网关配置TRUST_PROXY_IPS。容器healthy、restart_count=0，14个迁移不重复写，文章0、管理员0。服务器实测127.0.0.1:3100、localhost:3100、itfetter.com、changed.example四个Host首页均200；本地HTTP登录页和可信代理HTTPS登录页均200，robots输出当前HTTPS域名。CI验证真实登录的本地Cookie/HTTPS Secure Cookie和跨域拒绝。未创建管理员、迁移文章、配置宝塔公网反代或切换正式域名。现有青龙仍healthy；本机未安装依赖、未下载镜像。后续宝塔反代需覆盖Host并设置X-Forwarded-Proto $scheme，域名不写入容器。
+
 ## 容器取消固定域名绑定（2026-10-26）
 
 按用户要求移除 PUBLIC_ORIGIN 配置和Host域名相等校验。运行入口根据请求Host与可信代理的X-Forwarded-Proto重建URL，不采信转发域名；继续校验Host语法、绝对请求目标与同源写请求。HTTP localhost/127.0.0.1访问使用原有本地开发Cookie规则，公网域名登录继续HTTPS与Secure Cookie。宝塔示例改为传Host与$scheme，保留精确代理IP信任名单。
