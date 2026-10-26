@@ -1,3 +1,19 @@
+## 容器文章列表一直加载的修复（2026-10-26）
+
+用户在浏览器发现文章列表一直显示“正在加载文章”。已在本地Chrome复现。原因是Node静态资源适配缺少.mjs MIME映射，public-utils.mjs、heading-links.mjs等模块返回application/octet-stream且设置nosniff，浏览器不能执行模块；不是数据未导入。server/assets.mjs补充text/javascript，单测验证模块响应类型及内容，容器冒烟检查assets中所有.mjs。此前仅HTTP200与API校验不足以确认浏览器渲染，本轮需补实际Chrome列表、首页及文章页验收。无新依赖或数据迁移；升级保留已导入的数据库和图片。
+
+## Cloudflare 内容备份与测试实例导入完成（2026-10-26）
+
+用户授权“开始备份导入”。通过Cloudflare插件核对现有Worker绑定，对7张内容表执行只读SQL导出（不含管理员密码、会话、限速表）。首次跨调用导出轮询未取到有效结果，改在一次插件执行内连续轮询，已生成完整SQL快照。原Cloudflare内容未删除或改写，正式域名未切换。
+
+源数据为5篇文章记录（4篇published、1篇draft，无回收站文章）、4个合集、61条历史、45条评论、2条私密留言、6条合集关联；R2共11张图片、3033984字节。服务器直连原站图片返回Cloudflare403，改用本机已有代理下载，11张均核对源R2的MD5及大小/MIME，再通过已有OpenSSH SCP传至服务器并复核SHA256，无新增依赖。
+
+备份位于实例data/backups/cloudflare-import-20261026/，包含source.sql及校验文件、原图及manifest、portable-backup.json、verification.json、导入前数据库快照和staged.sqlite。本机另存outputs/ssh-check/cloudflare-backup-20261026/副本（约10.4MB，含SQL、可恢复JSON与图片），均在工作仓库外，不提交GitHub；临时签名下载URL已从本机辅助配置移除，含URL的下载脚本已清理。
+
+先复制目标数据库到隔离暂存库，仅清理暂存库中未使用的“随笔”默认种子合集，避免随机slug冲突改变原合集网址。复用原exportBackup/restoreBackup，在暂存库逐项比较所有内容与图片（排除导出时间），整体SHA256相同，SQLite完整性与外键检查通过。短暂停止仅博客测试容器，确认目标未出现用户新增内容，checkpoint后保留导入前快照，原子替换数据库并保留data/uploads挂载。第一次保护性检查发现SQLite空sidecar后未切换数据库并自动重启；修正为先checkpoint、归档空sidecar，再成功完成替换。
+
+实测新实例live_backup_matches=true，原始数据字段和图片完全一致；4篇公开文章页面均200，11张图片通过实际HTTP读取与SHA256/MIME检查，容器healthy、restart_count=0、外键错误0；本机SSH转发/posts.json同样显示4篇。现有青龙仍healthy。管理员未纳入内容备份，目标管理员0，需另行初始化。此次为快照复制，旧站之后新增内容不会自动同步，正式切换前仍需最终同步与入口验收。本条暂存本地交接记录。
+
 ## 动态域名镜像与测试实例升级验收（2026-10-26）
 
 功能提交2277e0750120d3567489b35d3821badb965ee999已推送。GitHub Actions 40213156438全部成功：93项业务、9项适配、1项真实SQLite/HTTP集成，共103项测试通过，实际容器冒烟验证通过。GHCR发布sha-2277e0750120d3567489b35d3821badb965ee999与latest，digest sha256:be1d7d04a169892efdd4b39ea25a633cbe9e8d78173ab9e7d55c1b034c706515。

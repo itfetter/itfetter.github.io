@@ -51,7 +51,12 @@ test('image writes are persistent and conditional creation never overwrites',asy
 });
 test('assets serve only public files, support HEAD and reject private/traversal paths',async t=>{
   const dir=fixture(t);mkdirSync(join(dir,'dist'));writeFileSync(join(dir,'secret'),'private');writeFileSync(join(dir,'dist','index.html'),'hello');
+  writeFileSync(join(dir,'dist','module.mjs'),'export const ready = true;');
   const assets=localAssets(join(dir,'dist'));
+  const module=await assets.fetch(new Request('https://example.com/module.mjs'));
+  assert.match(module.headers.get('content-type'),/^(text|application)\/javascript/);
+  assert.equal(module.headers.get('x-content-type-options'),'nosniff');
+  assert.equal(await module.text(),'export const ready = true;');
   assert.equal(await (await assets.fetch(new Request('https://example.com/'))).text(),'hello');
   assert.equal(await (await assets.fetch(new Request('https://example.com/',{method:'HEAD'}))).text(),'');
   for(const path of ['/.env','/%2e%2e%2fsecret','/..%5csecret'])assert.equal((await assets.fetch(new Request('https://example.com'+path))).status,404);

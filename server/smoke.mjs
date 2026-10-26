@@ -1,6 +1,6 @@
 // GitHub-hosted Linux runner only. Never run Docker or download images on the editing PC.
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync,mkdirSync,chmodSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,chmodSync,rmSync,readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {request} from 'node:http';
@@ -24,6 +24,11 @@ try {
  assert.match((await get(port,'/','replacement.example')).body,/rel="canonical" href="http:\/\/replacement.example\//);
  assert.match((await get(port,'/robots.txt','replacement.example')).body,/http:\/\/replacement.example\/sitemap.xml/);
  for(const path of ['/','/articles/','/about/','/posts.json','/collections/','/assets/logo.svg'])assert.equal((await get(port,path)).status,200,path);
+ for(const file of readdirSync('assets',{recursive:true}).filter(name=>name.endsWith('.mjs'))) {
+  const response=await get(port,'/assets/'+file);
+  assert.equal(response.status,200,file);
+  assert.match(response.headers['content-type'],/^(text|application)\/javascript/,file);
+ }
  assert.equal((await get(port,'/.env')).status,404);
  assert.equal((await get(port,'/article-template.html')).status,404);
  assert.equal((await get(port,'/api/posts')).status,401);
