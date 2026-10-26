@@ -1,3 +1,9 @@
+## mjs 修复镜像与实际浏览器验收通过（2026-10-26）
+
+功能提交0f39d6b5784306470d63ce14cf0541d14696cfae已进入main，GitHub Actions 40348823843通过93项业务、9项适配、1项集成及实际容器冒烟（含11个mjs模块MIME检查）。发布digest sha256:9e4922df28ae84ace9102806a1c2b18009df3ea0e26e930f43205811778d6b92；SSH已备份数据库并更新测试容器，data/uploads及3100端口不变，5篇文章记录和45条评论保留，public-utils.mjs响应为text/javascript。
+
+在本地Chrome真实复现旧版一直加载后，刷新新版确认“全部文章·4篇”及4个文章链接正常显示；搜索GitHub得到1篇匹配，清除搜索恢复4篇，首页文章/合集数和最近记录也正常渲染。使用浏览器标签页通道，未接管Windows桌面。本轮纠正先前仅验证HTTP200而未确认浏览器模块执行的验收缺口，无本机依赖安装、无业务内容修改。保留文章列表标签页供用户查看。
+
 ## 容器文章列表一直加载的修复（2026-10-26）
 
 用户在浏览器发现文章列表一直显示“正在加载文章”。已在本地Chrome复现。原因是Node静态资源适配缺少.mjs MIME映射，public-utils.mjs、heading-links.mjs等模块返回application/octet-stream且设置nosniff，浏览器不能执行模块；不是数据未导入。server/assets.mjs补充text/javascript，单测验证模块响应类型及内容，容器冒烟检查assets中所有.mjs。此前仅HTTP200与API校验不足以确认浏览器渲染，本轮需补实际Chrome列表、首页及文章页验收。无新依赖或数据迁移；升级保留已导入的数据库和图片。
