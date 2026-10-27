@@ -1,3 +1,13 @@
+## 云服务器运行、构建与部署入口
+
+- `server/main.mjs`、`runtime.mjs`：Node HTTP入口、动态域名、可信代理协议/IP、本地预览会话与优雅退出。
+- `server/storage.mjs`：SQLite的D1兼容接口、事务、迁移校验/快照和本地图片存储；`server/assets.mjs`：静态资源隔离及JS/mjs等MIME。
+- `server/admin.mjs`、`backup.mjs`：交互式管理员初始化与SQLite一致快照。
+- `Dockerfile`、`.dockerignore`：非root镜像和构建上下文白名单；`.github/workflows/container.yml`：云端验证、镜像构建和GHCR发布。
+- `deploy/compose.yml`、`.env.example`、`nginx-location.conf.example`：宝塔独立实例、持久化、代理与HTTPS配置。
+- `server/test.mjs`、`integration.mjs`、`smoke.mjs`：适配、真实SQLite/HTTP及实际容器回归，包括浏览器模块MIME检查。
+- [云服务器部署指南](LINUX_DOCKER_MIGRATION.md)：主要开发、联调、SSH预览、更新、备份和回滚方式；`worker/`业务和SQL迁移共用，Cloudflare专用部署在`worker/README.md`。
+
 ## 网站品牌与标签图标
 
 assets/logo.svg 是第①版品牌标志（深绿圆角底、米白斜体 i、陶橙圆点），assets/brand.css 统一前后台图标尺寸与字标。首页、文章列表、归档、关于、文章模板、worker/collections.js 和 admin/index.html 加载同一图标与样式；404 使用同一 favicon。资源随现有 assets 白名单发布，无字体或远程图片依赖。

@@ -1,8 +1,8 @@
-# Cloudflare 博客部署指南
+# Cloudflare 部署参考（兼容方案）
 
-本指南对应当前 Cloudflare Workers + Static Assets + D1 + R2 架构，适用于首次部署、已有站点更新和故障恢复。GitHub Pages、Issue 发文和 Access 登录属于历史方案，不是当前部署前提。
+项目的主要开发、联调与部署流程使用云服务器 Docker + Node.js + SQLite + 本地图片，见 [云服务器部署指南](../docs/LINUX_DOCKER_MIGRATION.md)。本篇仅适用于选择继续运行或维护 Cloudflare Workers + Static Assets + D1 + R2 的实例，涵盖该兼容方案的首次部署、更新和故障恢复。GitHub Pages、Issue 发文和 Access 登录属于历史方案，不属于本指南的部署前提。
 
-> 已经运行的 itfetter.com：日常更新从第 8 节开始，不要重新创建数据库、初始化管理员或导入仓库旧文章。本文命令供账户管理员在可信环境执行，不代表这些操作已在你的账户执行。
+> 已经运行的 Cloudflare 实例：日常更新从第 8 节开始，不要重新创建数据库、初始化管理员或导入仓库旧文章。本文命令供账户管理员在可信环境执行，不代表这些操作已在你的账户执行。
 
 ## 1. 先了解部署内容
 

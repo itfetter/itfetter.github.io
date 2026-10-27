@@ -17,7 +17,7 @@
 ### 写作与管理
 
 - 默认使用可视化写作，直接编辑排版后的正文；支持 Markdown 源码、只读预览和专注模式。
-- 支持粘贴、拖入和选择上传图片，图片保存到 R2。
+- 支持粘贴、拖入和选择上传图片，图片保存到云服务器的持久化上传目录。
 - 草稿与公开文章独立保存，保存草稿不会更新公开正文；点击发布或更新发布才对外生效。
 - 可选云端草稿自动保存默认关闭，新文章先手动保存一次后才能开启，自动保存始终不发布。
 - 提供文章库、合集管理、评论管理、私密留言管理和账号设置。
@@ -27,14 +27,15 @@
 
 | 部分 | 实现 |
 | --- | --- |
-| 前台 | HTML、CSS、JavaScript；Worker Static Assets 托管 |
-| 后端 | Cloudflare Workers，提供文章、登录、评论和管理接口 |
-| 数据 | Cloudflare D1，保存文章、草稿、合集、评论和留言等 |
-| 图片 | Cloudflare R2，通过网站图片路由读取 |
+| 前台 | HTML、CSS、JavaScript，由应用容器提供静态资源 |
+| 后端 | Node.js 24，通过 `server/` 适配层复用 `worker/` 的文章、登录和管理逻辑 |
+| 数据 | SQLite，持久化保存文章、草稿、合集、评论、留言和账号等 |
+| 图片 | 主机持久化上传目录，通过 `/images/` 路由读取 |
 | 登录 | 自建单管理员账号密码与服务端会话 |
-| 源码与部署 | GitHub 管理源码，Cloudflare Workers Builds 自动构建部署 |
+| 源码与发布 | GitHub 管理源码，GitHub Actions 测试并构建镜像，发布到 GHCR |
+| 运行与访问 | 云服务器 Docker Compose，宝塔 Nginx 提供域名反向代理和 HTTPS |
 
-程序更新与日常写作分开：修改程序后提交到 GitHub，由 Cloudflare 部署；在后台保存文章直接写入 D1，上传图片写入 R2，不需要为每篇文章提交代码或重新构建网站。
+程序更新与日常写作分开：修改程序后提交 GitHub，由云端构建镜像，再通过 SSH 在服务器拉取并更新应用容器；后台写文章直接保存到 SQLite，图片写入上传目录，不需要重新构建镜像。数据库与图片独立于镜像，更新容器保留持久化目录。
 
 ## 使用方式
 
@@ -46,16 +47,15 @@
 
 ## 部署与开发
 
-当前采用 Cloudflare Workers、D1 与 R2，完整配置、数据库迁移和管理员初始化步骤见 [部署指南](worker/README.md)。真实密钥和账户配置不随仓库提交。
+以云服务器容器作为运行与联调环境：GitHub 源码 → GitHub Actions 测试与构建 → GHCR 镜像 → SSH 拉取 → Docker Compose 更新。域名、证书及 HTTPS 反向代理交给宝塔管理，程序不绑定固定域名。
 
-开发环境使用 Node.js 24。依赖已准备好时，在仓库根目录运行：
+完整部署、管理员初始化、开发联调、SSH 预览、备份和更新步骤见 [云服务器部署指南](docs/LINUX_DOCKER_MIGRATION.md)。每个实例使用独立配置、端口和持久化目录；生产凭据、数据库和备份不进入源码或镜像。
 
-```bash
-npm --prefix worker test
-npm --prefix worker run build
-```
+本机用于轻量编辑、代码检查和 SSH 控制，不要求安装 Docker、下载镜像或重新准备整套依赖。依赖较重的完整验证交给现有 GitHub Actions。修改以 GitHub 源码为准，不在运行中的容器里直接改代码作为长期更新方式。
 
-本地预览需要按部署指南配置开发环境和本地数据库；普通静态服务器不能完整运行文章与管理接口。完整回归也可使用仓库现有的 GitHub Actions 验证工作流。
+通过 SSH 本地转发可以在浏览器访问服务器实例；隧道需要保持运行，浏览器里的 `127.0.0.1` 指当前电脑，不等于服务器本机地址。
+
+Cloudflare Workers + D1 + R2 保留为兼容运行方案，其专用操作见 [Cloudflare 部署参考](worker/README.md)。两种后端各自保存数据，不自动同步；内容迁移与域名切换需要单独完成。
 
 ## 项目结构与文档
 
@@ -64,17 +64,15 @@ npm --prefix worker run build
 | `index.html`、`articles/`、`archive/`、`about/` | 公开页面 |
 | `_layouts/post.html`、`assets/` | 文章模板、样式与前后台交互 |
 | `admin/` | 创作与内容管理界面 |
-| `worker/` | 服务端、数据库迁移及测试 |
+| `worker/` | 共享业务处理、SQL 迁移、Cloudflare 兼容入口与业务测试 |
+| `server/` | Node HTTP、SQLite、图片/静态资源适配、管理员和备份工具 |
+| `deploy/` | 多实例 Compose、私有配置示例与 Nginx 反向代理示例 |
+| `.github/workflows/container.yml` | 云端测试、镜像构建及 GHCR 发布 |
 | `scripts/` | 构建与维护工具 |
-| [部署指南](worker/README.md) | 部署、初始化与运行配置 |
+| [云服务器部署指南](docs/LINUX_DOCKER_MIGRATION.md) | 主要部署、联调、初始化、备份和更新方式 |
+| [Cloudflare 部署参考](worker/README.md) | 可选 Cloudflare 运行方式 |
 | [功能地图](docs/FEATURE_MAP.md) | 功能对应的源码和修改入口 |
 | [开发规则](AGENTS.md) | 协作约束与维护要求 |
 | [项目交接](PROJECT_HANDOFF.md) | 修改记录、验证结果、历史决策与待办 |
 
 README 用于介绍项目及当前使用方式。开发前请阅读开发规则与项目交接；具体修改和验收记录统一维护在 `PROJECT_HANDOFF.md`。
-
-## Linux 容器运行
-
-除 Cloudflare 外，项目提供 Node.js + SQLite + 本地图片的单容器运行方式，前后台和文章地址沿用同一套业务代码。程序镜像与持久化数据分开，支持在宝塔中为同一镜像创建多个独立实例。域名和证书由宝塔反向代理管理，程序无需绑定固定域名，也支持 SSH 本地转发预览。镜像通过 GitHub Actions 测试后发布到 GHCR，不要求站长在本地构建。
-
-部署配置、管理员初始化、数据迁移、备份和更新步骤见 [Linux Docker 部署指南](docs/LINUX_DOCKER_MIGRATION.md)。容器运行不自动迁移 Cloudflare 的文章、数据库和图片；生产切换前需要单独迁移与验收。
