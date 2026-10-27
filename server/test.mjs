@@ -1,3 +1,5 @@
+import {firstRun,localSetupConnection} from './setup.mjs';
+import {verifyPassword} from '../worker/auth.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,mkdirSync,writeFileSync,readFileSync,cpSync} from 'node:fs';
@@ -94,4 +96,51 @@ test('only site metadata is rebound; authored article links are preserved',()=>{
  assert.match(result,/href="https:\/\/new.example\/"/);
  assert.match(result,/content="https:\/\/new.example\/assets/);
  assert.match(result,/<a href="https:\/\/itfetter.com\/article\/">/);
+});
+
+test('bootstrap local connection excludes spoofed hosts and all reverse-proxy traffic',()=>{
+ const config=configuration({TRUST_PROXY_IPS:'172.19.0.1'});
+ const url=new URL('http://127.0.0.1:3100/admin/');
+ const req=(peer,headers={})=>({socket:{remoteAddress:peer},headers});
+ assert.equal(localSetupConnection(req('127.0.0.1'),config,url),true);
+ assert.equal(localSetupConnection(req('::ffff:172.19.0.1'),config,url),true);
+ assert.equal(localSetupConnection(req('198.51.100.1'),config,url),false);
+ assert.equal(localSetupConnection(req('172.19.0.1',{'x-real-ip':'198.51.100.1'}),config,url),false);
+ assert.equal(localSetupConnection(req('172.19.0.1',{'x-forwarded-proto':'https'}),config,url),false);
+ assert.equal(localSetupConnection(req('127.0.0.1'),config,new URL('http://public.example/admin/')),false);
+});
+test('bootstrap creates exactly one administrator, starts normal session, and preserves content',async t=>{
+ const dir=fixture(t,()=>db.close()),db=new LocalDatabase(join(dir,'db'));
+ await migrate(db,migrations,join(dir,'backups'));
+ const now=new Date().toISOString();
+ await db.prepare("INSERT INTO posts(id,title,category,summary,body,published_at,permalink,updated_at,collection_token) VALUES('preserved','Preserved','','Summary','Original article',?,'/articles/preserved/',?,'bootstrap-test')").bind(now,now).run();
+ const env={DB:db,ENVIRONMENT:'development'},origin='http://127.0.0.1:3100';
+ const make=(method='GET',data,otherOrigin=origin)=>new Request(origin+'/api/setup',{method,headers:{origin:otherOrigin,'content-type':'application/json','cf-connecting-ip':'127.0.0.1'},...(data?{body:JSON.stringify(data)}:{})});
+ const page=await firstRun(new Request(origin+'/admin/'),env,true);
+ assert.match(await page.text(),/id="admin-setup-form"/);assert.equal(page.headers.get('cache-control'),'no-store');
+ const password='temporary-bootstrap-password';
+ const input={username:'admin',password,confirmPassword:password};
+ assert.equal((await firstRun(make('POST',input,'https://evil.example'),env,true)).status,403);
+ assert.equal((await firstRun(make('POST',input),env,false)).status,403);
+ assert.equal((await firstRun(make('POST',{...input,confirmPassword:'different-value'}),env,true)).status,400);
+ assert.equal(await db.prepare('SELECT count(*) AS n FROM admin_users').first('n'),0);
+ const responses=await Promise.all([firstRun(make('POST',input),env,true),firstRun(make('POST',{...input,username:'other-admin'}),env,true)]);
+ assert.deepEqual(responses.map(r=>r.status).sort(),[201,409]);
+ const created=responses.find(r=>r.status===201);assert.match(created.headers.get('set-cookie'),/blog_session_local=/);
+ const user=await db.prepare('SELECT * FROM admin_users').first();assert.equal(await verifyPassword(password,user.password_hash),true);
+ const before=user.password_hash;
+ assert.equal((await firstRun(make('POST',{...input,password:'replacement-password',confirmPassword:'replacement-password'}),env,true)).status,409);
+ assert.equal((await db.prepare('SELECT password_hash FROM admin_users').first()).password_hash,before);
+ assert.equal(await firstRun(new Request(origin+'/admin/'),env,true),null);
+ assert.deepEqual(await (await firstRun(make(),env,true)).json(),{required:false,allowed:false});
+ assert.equal(await db.prepare("SELECT body FROM posts WHERE id='preserved'").first('body'),'Original article');
+});
+test('bootstrap validates input size and limits repeated creation attempts without writing an account',async t=>{
+ const dir=fixture(t,()=>db.close()),db=new LocalDatabase(join(dir,'db'));await migrate(db,migrations,join(dir,'backups'));
+ const env={DB:db,ENVIRONMENT:'development'},origin='http://localhost:3100';
+ const request=body=>new Request(origin+'/api/setup',{method:'POST',headers:{origin,'content-type':'application/json'},body});
+ assert.equal((await firstRun(request('x'.repeat(4097)),env,true)).status,413);
+ for(let i=0;i<9;i++)assert.equal((await firstRun(request('{}'),env,true)).status,400);
+ assert.equal((await firstRun(request('{}'),env,true)).status,429);
+ assert.equal(await db.prepare('SELECT count(*) AS n FROM admin_users').first('n'),0);
 });

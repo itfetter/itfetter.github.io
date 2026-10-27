@@ -11,7 +11,8 @@ for(const path of ['data','uploads']){mkdirSync(join(root,path));chmodSync(join(
 const docker=(...args)=>execFileSync('docker',args,{encoding:'utf8',timeout:120000}).trim();
 function get(port,path,host='itfetter.com'){return new Promise((resolve,reject)=>{const req=request({hostname:'127.0.0.1',port,path,headers:{host}},res=>{let body='';res.on('data',c=>body+=c);res.on('end',()=>resolve({status:res.statusCode,body,headers:res.headers}));});req.on('error',reject);req.end();});}
 async function start(){
- docker('run','-d','--name',name,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:size=32m','-p','127.0.0.1::3000','--mount','type=bind,src='+join(root,'data')+',dst=/data','--mount','type=bind,src='+join(root,'uploads')+',dst=/uploads',image);
+ const gateway=docker('network','inspect','bridge','--format','{{(index .IPAM.Config 0).Gateway}}');
+ docker('run','-d','--name',name,'--read-only','--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp:size=32m','-e','TRUST_PROXY_IPS='+gateway,'-p','127.0.0.1::3000','--mount','type=bind,src='+join(root,'data')+',dst=/data','--mount','type=bind,src='+join(root,'uploads')+',dst=/uploads',image);
  const port=Number(docker('inspect','--format','{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}',name));
  for(let i=0;i<30;i++){try{if((await get(port,'/healthz')).status===200)return port;}catch{}await new Promise(r=>setTimeout(r,1000));}
  throw Error('Container did not become ready');
@@ -20,7 +21,8 @@ try {
  let port=await start();
  assert.notEqual(docker('exec',name,'id','-u'),'0');
  assert.equal((await get(port,'/','localhost:'+port)).status,200);
- assert.equal((await get(port,'/admin/login/','localhost:'+port)).status,200);
+ const setupPage=await get(port,'/admin/login/','localhost:'+port);
+ assert.equal(setupPage.status,200);assert.match(setupPage.body,/id="admin-setup-form"/);
  assert.match((await get(port,'/','replacement.example')).body,/rel="canonical" href="http:\/\/replacement.example\//);
  assert.match((await get(port,'/robots.txt','replacement.example')).body,/http:\/\/replacement.example\/sitemap.xml/);
  for(const path of ['/','/articles/','/about/','/posts.json','/collections/','/assets/logo.svg'])assert.equal((await get(port,path)).status,200,path);

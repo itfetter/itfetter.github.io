@@ -1,3 +1,7 @@
+## 首次网页创建管理员
+
+`server/setup.mjs` 拦截尚无管理员时的后台入口及 `/api/setup`，限制实际本地/SSH预览通道、同源JSON、请求大小及尝试次数，条件INSERT保证并发只创建一个账号；成功沿用普通登录会话，已有管理员时关闭初始化。`assets/admin-setup.js`、`admin-setup.css` 提供账号/密码确认、提交状态和响应式页面。`server/runtime.mjs` 从原始socket与可信代理配置判断允许范围，不以Host单独判断。测试位于server/test.mjs与integration.mjs，Cloudflare兼容入口不提供该创建接口。
+
 ## 云服务器运行、构建与部署入口
 
 - `server/main.mjs`、`runtime.mjs`：Node HTTP入口、动态域名、可信代理协议/IP、本地预览会话与优雅退出。

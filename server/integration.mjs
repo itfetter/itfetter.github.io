@@ -56,3 +56,25 @@ test('real SQLite: login, draft, publish, stale version, comments and JSON backu
  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 
 });
+
+test('first browser setup through real HTTP bridge signs in and then permanently closes bootstrap',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'blog-setup-http-')),db=new LocalDatabase(join(dir,'blog.sqlite'));
+ const env={DB:db,IMAGES:new LocalImages(join(dir,'images')),ASSETS:localAssets(fileURLToPath(new URL('../dist/',import.meta.url))),ENVIRONMENT:'production'};
+ await migrate(db,fileURLToPath(new URL('../worker/migrations/',import.meta.url)));
+ const server=httpServer(worker,env,configuration({PORT:'0',HOST:'127.0.0.1'}));
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();rmSync(dir,{recursive:true,force:true});});
+ const origin='http://127.0.0.1:'+server.address().port;
+ const send=(path,method='GET',data,headers={})=>new Promise((resolve,reject)=>{
+  const req=httpRequest(origin+path,{method,headers:{origin,'content-type':'application/json',...headers}},res=>{let body='';res.on('data',c=>body+=c);res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body}));});req.on('error',reject);req.end(data?JSON.stringify(data):undefined);
+ });
+ const page=await send('/admin/');assert.equal(page.status,200);assert.match(page.body,/id="admin-setup-form"/);
+ const input={username:'admin',password:'temporary-browser-setup',confirmPassword:'temporary-browser-setup'};
+ assert.equal((await send('/api/setup','POST',input,{'x-real-ip':'198.51.100.2'})).status,403);
+ const result=await send('/api/setup','POST',input);assert.equal(result.status,201,result.body);
+ const cookie=result.headers['set-cookie'][0].split(';')[0];assert.match(cookie,/blog_session_local=/);
+ const me=await send('/api/me','GET',null,{cookie});assert.equal(me.status,200);assert.equal(JSON.parse(me.body).login,'admin');
+ assert.equal((await send('/api/setup','POST',input)).status,409);
+ const normal=await send('/admin/','GET',null,{cookie});assert.equal(normal.status,200);assert.doesNotMatch(normal.body,/id="admin-setup-form"/);
+ assert.equal((await send('/admin/')).status,302);
+});

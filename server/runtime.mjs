@@ -1,3 +1,4 @@
+import {firstRun,localSetupConnection} from './setup.mjs';
 import {createServer} from 'node:http';
 import {isIP} from 'node:net';
 import {Readable, Transform} from 'node:stream';
@@ -55,7 +56,9 @@ export function httpServer(handler, env, config) {
       // Pipe does not forward source errors automatically.
       req.on('error',error=>limiter.destroy(error));
       const request=new Request(url,{method:req.method,headers,body,...(body?{duplex:'half'}:{})});
-      let response=await handler.fetch(request,{...env,ENVIRONMENT:url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)?'development':'production'},{waitUntil(p){Promise.resolve(p).catch(()=>console.error('Background task failed'));}});
+      const runtimeEnv={...env,ENVIRONMENT:url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)?'development':'production'};
+      let response=await firstRun(request,runtimeEnv,localSetupConnection(req,config,url));
+      if(!response)response=await handler.fetch(request,runtimeEnv,{waitUntil(p){Promise.resolve(p).catch(()=>console.error('Background task failed'));}});
       if(response.body&&(response.headers.get('content-type')||'').includes('text/html')) {
         const html=siteMetadata(await response.text(),url.origin);
         const next=new Headers(response.headers);next.delete('content-length');next.delete('etag');

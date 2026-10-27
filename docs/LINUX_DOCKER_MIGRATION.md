@@ -32,7 +32,9 @@
 4. 在宝塔启动编排；命令行管理时，在实例目录执行 `docker compose --env-file .env -f compose.yml -p <独立实例名> up -d`。后续始终用同一个项目名。检查容器健康状态和宝塔面板中的名称、端口、挂载。
 5. 由宝塔 Nginx 为域名提供 HTTPS，参考 `deploy/nginx-location.conf.example` 代理到该实例的 `127.0.0.1:BLOG_PORT`。保留宝塔原证书与 HTTP 到 HTTPS 跳转。不要将容器端口直接暴露到公网。
 6. 根据实际实例网络检查 Docker 网关（`docker network inspect <实例网络名>`），将主机代理在容器看来对应的精确 IP 填到 TRUST_PROXY_IPS。Nginx 必须覆盖 Host、X-Real-IP，并通过 `X-Forwarded-Proto $scheme` 告知外部协议，而不是透传访客提供的值。未配置可信代理时不信任转发头；多个访客可能共享代理限额，HTTPS代理后的登录也会因为只识别到HTTP而被拒绝。不要填通配符、整个网段或其他容器 IP。更改后重建本实例。
-7. 运行 `docker compose -p <独立实例名> exec blog node server/admin.mjs`，在交互终端输入管理员账号和隐藏密码。不要把密码写到命令行、镜像或环境变量。已有账号重置必须显式加 `--reset`，并会撤销旧会话。
+7. 首次账号创建优先使用网页：建立下文的 SSH 本地转发，在 `http://127.0.0.1:3100/admin/` 填写管理员账号、12–128字符密码及确认密码，创建后自动进入后台。仅限实际回环连接或已配置可信主机网关、无代理转发头的本地预览请求；公网域名/反代入口不能抢先创建账号。已有管理员时初始化永久关闭，正常显示登录页，不清空文章或图片。
+
+命令行初始化保留作运维备用：`docker compose -p <独立实例名> exec blog node server/admin.mjs`，交互输入密码，不写入命令行、环境或镜像。重置已有账号必须显式使用 `--reset`，会撤销旧会话；不要与网页初始化同时运行。
 
 健康检查为容器内部的 `/healthz`，验证进程和 SQLite 可读；它不代表文章已迁移或公网 HTTPS 已验收。使用临时 HTTPS 域名检查前后台，不要在验收前切换正式域名。
 
