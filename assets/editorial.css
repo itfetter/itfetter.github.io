@@ -245,9 +245,11 @@ body[data-page=articles] .collection-discovery{padding-left:4px}
 @media(max-width:360px){.editorial-hero h1{font-size:34px}.topbar .nav a{padding-left:8px;padding-right:8px}.note-sheet{left:55px;right:55px}.scene-sticker{right:21px}.scene-tag{left:20px}.actions{gap:15px}}
 @media(prefers-reduced-motion:reduce){.button span[aria-hidden],.article-row,.row-arrow,.topic-card{transition:none}.button:hover span[aria-hidden],.article-row:hover .row-arrow{transform:none}}
 
-/* 长文阅读仍保留返回入口；原生链接支持无脚本、键盘和新标签页。 */
-.post-page .article-return{position:sticky;top:76px;z-index:10;display:flex;align-items:center;margin:0 0 24px;padding:8px 0;background:var(--paper,#faf9f5);border-bottom:1px solid var(--line,#deded6)}
-.post-page .article-return a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 12px;border:1px solid #d1dbd1;border-radius:8px;color:#234737;background:#f0f4ed;font:600 14px/1.5 system-ui,sans-serif;text-decoration:none}
-.post-page .article-return a:hover{background:#e4ecdf;text-decoration:underline}
-.post-page .article-return a:focus-visible{outline:3px solid #b64e32;outline-offset:3px}
-@media(max-width:700px){.post-page .article-return{top:0;margin-bottom:18px}.post-page .article-return a{font-size:16px}}
+/* 返回入口对齐外层导航左边缘，不占用正文阅读列。 */
+.post-page .article-return{max-width:1160px;margin:10px auto 0;padding:0 40px}
+.post-page .article-return a{display:inline-flex;align-items:center;gap:8px;min-height:44px;color:var(--muted,#657167);font:500 14px/1.5 system-ui,sans-serif;text-decoration:none;text-underline-offset:6px;text-decoration-thickness:1px}
+.post-page .article-return a:hover,.post-page .article-return a:focus-visible{color:var(--accent,#b65332);text-decoration:underline}
+.post-page .article-return a:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.post-page .article-return+main{margin-top:26px}
+@media(max-width:700px){.post-page .article-return{margin-top:8px;padding:0 22px}.post-page .article-return a{font-size:16px}.post-page .article-return+main{margin-top:20px}}
+@media(max-width:360px){.post-page .article-return{padding:0 18px}}
