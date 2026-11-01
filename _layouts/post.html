@@ -26,6 +26,7 @@
 <body class="post-page"><div id="reading-progress" aria-hidden="true"></div>
   <header class="post-topbar"><a class="brand" href="/" aria-label="回到首页"><img class="brand-logo" src="/assets/logo.svg" width="36" height="36" alt="" aria-hidden="true"><span class="brand-wordmark">itfetter<span class="brand-dot">.</span></span></a><a href="/articles/">文章</a><a href="/collections/">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
   <main>
+    <nav class="article-return" aria-label="返回文章列表"><a data-article-return href="/articles/"><span aria-hidden="true">←</span> 返回文章列表</a></nav>
     <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
