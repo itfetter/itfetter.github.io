@@ -90,3 +90,29 @@ body.editor-focus[data-panel="editor"] .writing-help{display:none}
 @media(max-width:700px){body.editor-focus[data-panel="editor"] .workspace{padding:12px}.editor-footer #save-state{overflow-wrap:anywhere}}
 
 .auto-draft-option{flex-wrap:wrap;gap:6px;font-size:13px;margin:0}.auto-draft-option input{width:18px;height:18px;min-height:0;margin:0;padding:0;flex:none}.auto-draft-option small{flex-basis:100%;font-size:11px}
+
+/* 分组导航：常用菜单独立滚动，设置与退出留在底部。 */
+.nav{overflow:hidden;min-height:0}
+#nav-items{min-height:0;overflow:hidden}
+.nav .nav-label{flex:none;margin:0;padding:0 12px 16px;letter-spacing:1px}
+.nav-scroll{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 8px;scrollbar-width:thin}
+.nav-group{margin-top:22px}
+.nav-group h2{margin:0 0 8px;padding:0 12px;font-size:11px;line-height:1.6;letter-spacing:1px;font-weight:500;color:var(--muted)}
+.nav button[data-nav]{color:#657168;font-weight:500;margin-bottom:4px;padding:10px 12px;border-radius:8px;position:relative;text-align:left}
+.nav button[data-nav]:hover{background:#f3f6f1;color:var(--green)}
+.nav button[data-nav].active{background:#e5eee2;color:#234b38;font-weight:750;box-shadow:inset 3px 0 #315b41}
+.nav-icon{display:inline-block;min-width:18px;text-align:center}
+.nav .nav-foot{flex:none;margin-top:12px;padding:12px 4px 0;border-top:1px solid var(--line)}
+.nav-foot #logout{color:var(--muted);font-weight:400;font-size:13px}
+.nav-foot small{padding:10px 12px 0;font-size:11px;line-height:1.8}
+@media(max-width:700px){
+ .nav{overflow:visible}
+ #nav-toggle[aria-expanded="true"]+#nav-items{display:flex;gap:0}
+ .nav-scroll{overflow:visible;flex:none;padding:0}
+ .nav-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-top:14px}
+ .nav-group h2{grid-column:1/-1;padding:0 12px;font-size:12px;margin-bottom:2px}
+ .nav button[data-nav]{width:100%;min-width:0;margin:0;font-size:14px}
+ .nav-scroll>button[data-nav]{width:100%}
+ .nav .nav-foot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px;padding-top:10px}
+ .nav-foot small{display:none}
+}
