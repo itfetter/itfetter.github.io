@@ -30,10 +30,10 @@
     <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
+    <a class="jump-to-comments" href="#article-comments">跳到评论 ↓</a>
     <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/about/#contact">有想法？和我聊聊 ↗</a></div>
     <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
       <div class="comments-heading"><div><div class="comments-kicker">LET’S TALK</div><h2 id="comments-heading">评论与讨论 <span data-comments-count></span></h2></div><button type="button" data-comments-refresh aria-label="刷新评论"><span aria-hidden="true">↻</span> 刷新</button></div>
-      <p class="comment-muted comments-intro">有问题、补充或不同的想法？欢迎一起交流。</p>
       <form class="comment-form"><div class="comment-compose-title"><span aria-hidden="true">✳</span><div><strong>加入这场讨论</strong><p>你的问题、补充和不同视角，都很欢迎。</p></div></div>
         <label>留下你的想法<textarea name="content" maxlength="3000" required rows="4" placeholder="分享一个想法，或留下你想问的问题…" aria-describedby="comment-policy"></textarea></label>
         <div class="comment-compose-bottom"><label>昵称<input name="name" maxlength="80" required autocomplete="nickname" placeholder="怎么称呼你"></label><span class="comment-muted" data-comment-length>0 / 3000</span><button type="submit">发表评论</button></div>
