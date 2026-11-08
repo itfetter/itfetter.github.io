@@ -90,3 +90,16 @@
  .post-page .comments-pagination{justify-content:center;flex-wrap:wrap;gap:10px}.post-page .comments-pagination span{order:3;flex-basis:100%}
 }
 @media(prefers-reduced-motion:reduce){.post-page .comment-form input,.post-page .comment-form textarea{transition:none}}
+
+/* Match the public form controls while preserving nested reply layouts. */
+.post-page .comment-form { background:#f7f8f3; border-color:#d9ddd2; box-shadow:none; }
+.post-page .comment-form :is(input,textarea) { border-radius:10px; font:400 16px/1.65 system-ui,sans-serif; background:#fffefa; }
+.post-page .comment-form :is(input,textarea)::placeholder { color:#657167; opacity:1; font-weight:400; }
+.post-page .comment-form :is(input,textarea):focus-visible { outline:2px solid #41684d; outline-offset:3px; }
+.post-page .comment-form :is(input,textarea):read-only { background:#eef1ea; }
+.post-page .comment-form textarea { resize:vertical; }
+.post-page .comment-meta time { font-variant-numeric:tabular-nums; color:#657167; }
+.post-page .comment-item { box-shadow:none; border-color:#d9ddd2; }
+.post-page .article-comments :is(button,[data-comments-refresh]) { min-height:44px; }
+.post-page .article-comments button:focus-visible { outline:2px solid #41684d; outline-offset:3px; }
+.post-page [data-comment-notice]:not(:empty) { padding:10px 12px; border-inline-start:3px solid currentColor; background:#edf2e9; border-radius:4px; }
