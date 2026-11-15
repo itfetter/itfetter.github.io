@@ -418,9 +418,14 @@ $("overview-drafts").onclick=()=>{$("filter-status").value="draft";page=1;render
 $("overview-messages").onclick=()=>document.querySelector('[data-nav="messages"]').click();
 $("overview-collections").onclick=()=>document.querySelector('[data-nav="collections"]').click();
 $("editor-back").onclick=()=>{if(discard()){clear();panel("articles")}};
-for(const id of ["search","filter-category","filter-status","sort"])$(id).addEventListener(id==="search"?"input":"change",()=>{page=1;renderList()});
+let listComposing=false;
+$("search").addEventListener("compositionstart",()=>{listComposing=true});
+$("search").addEventListener("compositionend",()=>{listComposing=false;page=1;renderList()});
+for(const id of ["search","filter-category","filter-status","sort"])$(id).addEventListener(id==="search"?"input":"change",()=>{if(id==="search"&&listComposing)return;page=1;renderList()});
+$("search").addEventListener("keydown",event=>{if(event.key==="Escape"&&$("search").value){$("search").value="";page=1;renderList()}});
+document.querySelector(".editor-more").addEventListener("keydown",event=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary").focus()}});
 $("page-prev").onclick=()=>{page--;renderList()};$("page-next").onclick=()=>{page++;renderList()};
-$("refresh-posts").onclick=async()=>{try{await refresh();$("list-notice").textContent="文章列表已刷新。"}catch(e){$("list-notice").textContent=e.message}};
+$("refresh-posts").onclick=async()=>{const button=$("refresh-posts");button.disabled=true;button.textContent="刷新中…";try{await refresh();$("list-notice").textContent="文章列表已刷新。"}catch(e){$("list-notice").textContent=e.message}finally{button.disabled=false;button.textContent="刷新列表"}};
 $("export").onclick=()=>{
  visual.flush(); if(!fields.title.value&&!fields.body.value){message("请先填写或打开文章。",true);return}
  const text=["---","title: "+JSON.stringify(fields.title.value),"category: "+JSON.stringify(fields.category.value),"collections: "+JSON.stringify(selectedPostCollections()),"summary: "+JSON.stringify(fields.summary.value),"blog_id: "+JSON.stringify(current?.id||fields.slug.value),"---","",fields.body.value].join("\n");
