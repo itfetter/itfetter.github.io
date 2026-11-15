@@ -33,3 +33,14 @@ export function legacyPageUrl(url) {
  const target=destinations[source.hash];
  return target?(target+(["#articles","#collections"].includes(source.hash)?source.search:"")):null;
 }
+
+export function articleReturnUrl(referrer,currentUrl) {
+ const current=new URL(currentUrl);
+ try {
+  const source=new URL(referrer);
+  if(source.origin===current.origin&&source.pathname!==current.pathname&&
+     (source.pathname==="/"||source.pathname==="/archive/"||source.pathname==="/about/"||source.pathname.startsWith("/collections/")||source.pathname.startsWith("/articles/")))
+   return source.pathname+source.search+source.hash;
+ } catch {}
+ return "/articles/";
+}

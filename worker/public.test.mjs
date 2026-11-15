@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {publicCacheKey,publicResponse,notFound} from "./public-response.mjs";
-import {readListState,listStateUrl,sendContact,legacyPageUrl} from "../assets/public-utils.mjs";
+import {readListState,listStateUrl,sendContact,legacyPageUrl,articleReturnUrl} from "../assets/public-utils.mjs";
 const origin="https://itfetter.com";
 test("公开缓存命中减少源读取，查询参数共享缓存，HEAD无正文",async()=>{
  const data=new Map(),pending=[],ctx={waitUntil(p){pending.push(p)}},cache={async match(key){return data.get(key.url)?.clone()},async put(key,response){data.set(key.url,response)}};
@@ -77,4 +77,12 @@ test('合集搜索忽略迟到结果，失败保留列表并允许手动重试',
  submit();assert.equal(requests.length,4);pending[3]({ok:true,text:async()=>'重试结果'});await tick();assert.equal(displayed,'重试结果');
  input.value='没有匹配';submit();pending[4]({ok:true,text:async()=>'空结果'});await tick();
  assert.equal(displayed,'空结果');assert.equal(status.textContent,'');assert.equal(clear.hidden,false);
+});
+
+test("文章返回实际站内来源，保留筛选，直达不使用旧列表记录",()=>{
+ const article=origin+"/articles/hello/";
+ for(const path of ["/","/collections/linux/?q=ssh","/articles/?category=tech&page=2","/archive/","/articles/previous/"])
+  assert.equal(articleReturnUrl(origin+path,article),path);
+ for(const source of ["","https://example.com/",article,origin+"/admin/",origin+"/api/posts"])
+  assert.equal(articleReturnUrl(source,article),"/articles/");
 });
