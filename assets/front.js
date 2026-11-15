@@ -25,8 +25,8 @@ function renderList(){
  const pager=document.getElementById("article-pagination");pager.hidden=found.length<=pageSize;
  document.getElementById("article-page-label").textContent=`第 ${page} / ${pageCount} 页`;
  document.getElementById("article-prev").disabled=page===1;document.getElementById("article-next").disabled=page===pageCount;
- list.innerHTML=found.length?visible.map((p,i)=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(collectionNames(p).join(" · "))}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p><small class="row-reads">${readMeta(p)}</small></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join(""):'<div class="empty"><strong>暂时没有匹配的文章</strong><p>试试其他关键词，或返回全部文章。</p></div>';
- document.getElementById("reset-search")?.addEventListener("click",()=>{search.value="";setFilter("全部")});
+ list.innerHTML=found.length?visible.map((p,i)=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(collectionNames(p).join(" · "))}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p><small class="row-reads">${readMeta(p)}</small></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join(""):'<div class="empty"><strong>暂时没有匹配的文章</strong><p>试试更短的关键词，或清除筛选查看全部文章。</p><button id="reset-search" class="button secondary" type="button">查看全部文章</button></div>';
+ document.getElementById("reset-search")?.addEventListener("click",()=>{search.value="";document.getElementById("public-sort").value="recent";setFilter("全部");search.focus()});
 }
 function setFilter(name){filter=name;page=1;if(collectionFilter)collectionFilter.value=name;for(const b of filters?.querySelectorAll("button")||[]){const active=b.dataset.filter===name;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active))}renderList()}
 collectionFilter?.addEventListener("change",()=>setFilter(collectionFilter.value));
@@ -38,8 +38,13 @@ document.getElementById("clear-article-filters")?.addEventListener("click",()=>{
  setFilter("全部");
 });
 function resetPage(){page=1;renderList()}
-search?.addEventListener("input",resetPage);document.getElementById("public-sort")?.addEventListener("change",resetPage);
-function changePage(delta){page+=delta;renderList();document.querySelector(".article-controls").scrollIntoView({block:"start"})}
+let searchTimer,composing=false;
+search?.addEventListener("compositionstart",()=>{composing=true;clearTimeout(searchTimer)});
+search?.addEventListener("compositionend",()=>{composing=false;clearTimeout(searchTimer);resetPage()});
+search?.addEventListener("input",()=>{clearTimeout(searchTimer);if(!composing)searchTimer=setTimeout(resetPage,180)});
+search?.addEventListener("keydown",event=>{if(event.key==="Escape"&&search.value){clearTimeout(searchTimer);search.value="";resetPage()}});
+document.addEventListener("keydown",event=>{if(event.key!=="/"||event.ctrlKey||event.metaKey||event.altKey||event.target.closest("input,textarea,select,[contenteditable]"))return;if(search&&!search.disabled){event.preventDefault();search.focus()}});document.getElementById("public-sort")?.addEventListener("change",resetPage);
+function changePage(delta){page+=delta;renderList();list.tabIndex=-1;list.focus({preventScroll:true});document.querySelector(".article-controls").scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"})}
 document.getElementById("article-prev")?.addEventListener("click",()=>changePage(-1));document.getElementById("article-next")?.addEventListener("click",()=>changePage(1));
 function renderArticles(){
  const categories=[...new Set(articles.flatMap(collectionNames).filter(Boolean))];
@@ -85,8 +90,8 @@ form.addEventListener("submit",async event=>{
  const fields=[form.elements.name,form.elements.email,form.elements.message];
  button.disabled=true;button.textContent="正在提交…";notice.textContent="";
  fields.forEach(field=>{field.readOnly=true});
- try{await sendContact(Object.fromEntries(new FormData(form)));form.reset();document.getElementById("message-length").textContent="0";notice.classList.remove("error");notice.textContent="留言已收到，谢谢你的分享！"}
- catch(error){notice.classList.add("error");notice.textContent=error.message}
+ try{await sendContact(Object.fromEntries(new FormData(form)));form.reset();document.getElementById("message-length").textContent="0";notice.classList.remove("error");notice.textContent="留言已收到，谢谢你的分享！";notice.tabIndex=-1;notice.focus()}
+ catch(error){notice.classList.add("error");notice.textContent=error.message;notice.tabIndex=-1;notice.focus()}
  finally{fields.forEach(field=>{field.readOnly=false});button.disabled=false;button.textContent="发送留言"}
 });
 }
