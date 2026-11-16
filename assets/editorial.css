@@ -1,5 +1,5 @@
 /* 独立杂志视觉层：仅公开页面加载，业务交互沿用现有脚本。 */
-:root{--paper:#f7f6f0;--surface:#fffefa;--ink:#213b31;--dark:#213b31;--muted:#657167;--line:#d9ddd2;--accent:#b65332;--control-radius:10px;--panel-radius:16px;--focus-ring:#41684d;--display:Georgia,"Noto Serif SC","Songti SC",SimSun,serif}
+:root{--paper:#fafaf8;--surface:#ffffff;--ink:#292d32;--dark:#244c39;--muted:#656b73;--line:#e1e3e5;--accent:#b65332;--control-radius:10px;--panel-radius:16px;--focus-ring:#41684d;--display:Georgia,"Noto Serif SC","Songti SC",SimSun,serif}
 body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","Noto Sans SC",sans-serif}
 ::selection{background:#e9d8bd;color:#213b31}
 .shell{max-width:1160px;padding-left:40px;padding-right:40px}
@@ -422,7 +422,7 @@ body[data-page=articles] .article-controls {
 }
 
 /* Quiet surfaces, visible interaction states across the public site. */
-:root { --state-hover: #eaf0e5; --state-pressed: #dce6d5; }
+:root { --state-hover: #f0f2f1; --state-pressed: #e5eee7; }
 :where(a,button,input,select,textarea,summary):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
 :where(button,.button,.nav a,.article-row,.collection-card-main,.archive-month summary) { transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
 .nav a { padding-inline: 12px; border-radius: 24px; color: var(--muted); font-weight: 500; }
@@ -483,3 +483,44 @@ body[data-page=articles] .article-controls { background: transparent; border: 0;
 @media (prefers-reduced-motion: reduce) {
  :where(button,.button,.nav a,.article-row,.collection-card-main,.archive-month summary) { transition: none; }
 }
+
+/* Neutral reading palette; green stays with identity and interaction. */
+::selection { background:#dce9e0; color:#24282d; }
+:where(h1,h2,h3,h4,h5,h6) { color:var(--ink); }
+.featured { background:#f0f2f2; }
+.featured .meta,.featured p,.journal-mark p,.about p { color:var(--muted); }
+.journal-mark-glyph { color:var(--dark); }
+.article-row { color:var(--ink); }
+.article-row:hover { background:#f1f3f3; border-bottom-color:#cdd3cf; }
+.article-row h3 { color:var(--ink); }
+.article-row:hover h3 { color:var(--dark); }
+.article-row :is(time,p,small),.row-reads { color:var(--muted); }
+.row-category { color:var(--muted); }
+.eyebrow,.about .eyebrow { color:#7a665a; }
+.eyebrow:before,.about .eyebrow:before { background:#b65332; }
+.article-controls :is(input,select),.public-picker,.collection-search :is(input,select) { color:var(--ink); border-color:#c9cdd1; background:var(--surface); }
+.article-controls :is(input,select)::placeholder { color:#6e747c; }
+.public-picker::picker-icon { color:var(--muted); }
+.article-controls :is(input,select):hover { border-color:#8d9692; }
+.article-controls :is(input,select):focus { border-color:var(--focus-ring); }
+.contact-form :is(input,textarea) { color:var(--ink); border-color:#c9cdd1; }
+.contact-form :is(input,textarea)::placeholder { color:#6e747c; }
+.post-page .post-topbar { background:#fafaf8f5; border-color:var(--line); }
+.post-page main>article,.post-page .article-summary { color:var(--ink); }
+.post-page .meta { color:var(--muted); }
+.post-page main>article pre { background:#f3f4f5; border-color:var(--line); color:#303740; }
+.post-page main>article th { background:#f1f2f3; }
+.post-page .reading-tools nav a { color:var(--ink); }
+.post-page .reading-tools nav a:hover { background:#f0f2f1; }
+.post-page .reading-tools nav a[aria-current=location] { background:#e5eee7; color:var(--dark); }
+.collection-card,.collection-posts li,.collection-search,.collection-start { background:var(--surface); border-color:var(--line); }
+.collection-card-main,.collection-posts a,.collection-start a,.collection-heading { color:var(--ink); }
+.collection-card p,.collection-posts p,.collection-intro p,.collection-guide p,.collection-card small,.collection-posts small { color:var(--muted); }
+.collection-card .collection-cover { background:#f0f2f1; color:var(--dark); }
+.collection-guide,.collection-reading { background:#f1f3f2; border-color:var(--line); }
+.post-page .article-comments { border-color:var(--line); }
+.post-page .comment-form { background:#fff; border-color:var(--line); }
+.post-page .comment-form :is(input,textarea) { background:#fff; color:var(--ink); border-color:#c9cdd1; }
+.post-page .comment-form :is(input,textarea)::placeholder { color:#6e747c; }
+.post-page .comment-compose-title strong,.post-page .comments-heading h2 { color:var(--ink); }
+.post-page .comment-compose-title p,.post-page .comments-intro,.comments-kicker { color:var(--muted); }
