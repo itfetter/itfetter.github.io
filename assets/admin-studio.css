@@ -1,3 +1,4 @@
+@import url("./interaction.css");
 /* 后台统一布局；不改变编辑器引擎、API或数据规则。 */
 :root{--muted:#64736a;--line:#dfe6df}
 html{scroll-padding-bottom:150px}body{font-size:14px}

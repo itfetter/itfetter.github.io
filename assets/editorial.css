@@ -1,3 +1,4 @@
+@import url("./interaction.css");
 /* 独立杂志视觉层：仅公开页面加载，业务交互沿用现有脚本。 */
 :root{--paper:#fafaf8;--surface:#ffffff;--ink:#292d32;--dark:#244c39;--muted:#656b73;--line:#e1e3e5;--accent:#b65332;--control-radius:10px;--panel-radius:16px;--focus-ring:#41684d;--display:Georgia,"Noto Serif SC","Songti SC",SimSun,serif}
 body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","Noto Sans SC",sans-serif}

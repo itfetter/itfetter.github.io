@@ -1,0 +1,52 @@
+/* Shared public/admin interaction states, independent of the content palette. */
+:root { --interaction-focus:#41684d; --interaction-hover:#edf1ed; --interaction-selected:#e4eee5; }
+body :is(button,.button,select,summary) { -webkit-tap-highlight-color:transparent; }
+body :is(button,.button):not(:disabled) { transition:background-color 140ms ease,border-color 140ms ease,box-shadow 140ms ease,filter 100ms ease; }
+body :is(button,.button):not(:disabled):active { filter:brightness(.92); }
+body :is(button,.button,input,textarea,select,summary,a):focus-visible { outline:2px solid var(--interaction-focus); outline-offset:3px; }
+body :is(button,.button):disabled { cursor:default; }
+body input[type=checkbox] { accent-color:var(--interaction-focus); }
+body :is(input,textarea):focus-visible { border-color:var(--interaction-focus); }
+body :is(.editor-more,.post-collection-picker,.editor-advanced)>summary { transition:background-color 140ms ease; }
+body :is(.editor-more,.post-collection-picker,.editor-advanced)>summary:hover { background:var(--interaction-hover); }
+body .editor-more[open]>summary { background:var(--interaction-selected); }
+body .editor-more-menu { transform-origin:bottom left; }
+body .editor-more-menu :is(button,a):hover { background:var(--interaction-hover); }
+body .editor-more-menu :is(button,a):focus-visible { outline-offset:-2px; }
+body :is(.workspace,.collection-search) select,.public-picker { cursor:pointer; }
+@supports (appearance:base-select) and selector(::picker(select)) {
+ body :is(.workspace,.collection-search) select,
+ body :is(.workspace,.collection-search) select::picker(select),
+ body .public-picker,body .public-picker::picker(select) { appearance:base-select; }
+ body :is(.workspace,.collection-search) select::picker(select),body .public-picker::picker(select) {
+  padding:6px; margin-block:6px; max-height:min(360px,50dvh); max-width:calc(100vw - 24px);
+  border:1px solid #d6ddd6; border-radius:14px; background:#fff; color:#292d32;
+  box-shadow:0 8px 28px #24352c26; overflow:auto;
+ }
+ body :is(.workspace,.collection-search) select option,body .public-picker option {
+  display:flex; align-items:center; gap:10px; min-height:44px; padding:10px 12px;
+  border-radius:8px; white-space:normal; overflow-wrap:anywhere; font-size:14px;
+ }
+ body :is(.workspace,.collection-search) select option:hover,body .public-picker option:hover { background:var(--interaction-hover); }
+ body :is(.workspace,.collection-search) select option:checked,body .public-picker option:checked { background:var(--interaction-selected); color:#244c39; font-weight:600; }
+ body :is(.workspace,.collection-search) select option:focus-visible,body .public-picker option:focus-visible { outline:2px solid var(--interaction-focus); outline-offset:-2px; }
+ body :is(.workspace,.collection-search) select::picker-icon,body .public-picker::picker-icon { color:#656b73; transition:rotate 160ms ease; }
+ body :is(.workspace,.collection-search) select:open::picker-icon,body .public-picker:open::picker-icon { rotate:180deg; }
+}
+body #article-list[aria-busy=true] .empty::before,body #archive-list[aria-busy=true] .empty::before {
+ content:""; display:block; width:22px; height:22px; border:2px solid #d9e2da;
+ border-top-color:var(--interaction-focus); border-radius:50%; margin:0 auto 16px;
+}
+body #reset-admin-filters { min-height:40px; border:0; background:transparent; color:#365c42; padding:8px 14px; }
+body #reset-admin-filters:hover { background:var(--interaction-hover); }
+@media(prefers-reduced-motion:no-preference) {
+ body .editor-more-menu { animation:menu-arrive 130ms ease-out; }
+ body dialog[open] { animation:dialog-arrive 160ms ease-out; }
+ body #article-list[aria-busy=true] .empty::before,body #archive-list[aria-busy=true] .empty::before { animation:control-spin 700ms linear infinite; }
+ body :is(.workspace,.collection-search) select::picker(select),body .public-picker::picker(select) { transition:opacity 140ms ease,translate 140ms ease; }
+ @starting-style { body :is(.workspace,.collection-search) select::picker(select),body .public-picker::picker(select) { opacity:0; translate:0 -4px; } }
+}
+@keyframes menu-arrive { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@keyframes dialog-arrive { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes control-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { body :is(button,.button,select,summary) { transition:none!important; } }
