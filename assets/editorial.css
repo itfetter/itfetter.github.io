@@ -524,3 +524,5 @@ body[data-page=articles] .article-controls { background: transparent; border: 0;
 .post-page .comment-form :is(input,textarea)::placeholder { color:#6e747c; }
 .post-page .comment-compose-title strong,.post-page .comments-heading h2 { color:var(--ink); }
 .post-page .comment-compose-title p,.post-page .comments-intro,.comments-kicker { color:var(--muted); }
+
+.post-page main>article :is(h1,h2,h3,h4,h5,h6) { color:var(--ink); }
