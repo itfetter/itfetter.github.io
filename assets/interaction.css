@@ -1,5 +1,5 @@
 /* Shared public/admin interaction states, independent of the content palette. */
-:root { --interaction-focus:#41684d; --interaction-hover:#edf1ed; --interaction-selected:#e4eee5; }
+:root { --interaction-focus:#3759bd; --interaction-hover:#edf1fa; --interaction-selected:#e5edff; }
 body :is(button,.button,select,summary) { -webkit-tap-highlight-color:transparent; }
 body :is(button,.button):not(:disabled) { transition:background-color 140ms ease,border-color 140ms ease,box-shadow 140ms ease,filter 100ms ease; }
 body :is(button,.button):not(:disabled):active { filter:brightness(.92); }
@@ -20,7 +20,7 @@ body :is(.workspace,.collection-search) select,.public-picker { cursor:pointer; 
  body .public-picker,body .public-picker::picker(select) { appearance:base-select; }
  body :is(.workspace,.collection-search) select::picker(select),body .public-picker::picker(select) {
   padding:6px; margin-block:6px; max-height:min(360px,50dvh); max-width:calc(100vw - 24px);
-  border:1px solid #d6ddd6; border-radius:14px; background:#fff; color:#292d32;
+  border:1px solid #d6deec; border-radius:14px; background:#fff; color:#192237;
   box-shadow:0 8px 28px #24352c26; overflow:auto;
  }
  body :is(.workspace,.collection-search) select option,body .public-picker option {
@@ -28,16 +28,16 @@ body :is(.workspace,.collection-search) select,.public-picker { cursor:pointer; 
   border-radius:8px; white-space:normal; overflow-wrap:anywhere; font-size:14px;
  }
  body :is(.workspace,.collection-search) select option:hover,body .public-picker option:hover { background:var(--interaction-hover); }
- body :is(.workspace,.collection-search) select option:checked,body .public-picker option:checked { background:var(--interaction-selected); color:#244c39; font-weight:600; }
+ body :is(.workspace,.collection-search) select option:checked,body .public-picker option:checked { background:var(--interaction-selected); color:#2848a7; font-weight:600; }
  body :is(.workspace,.collection-search) select option:focus-visible,body .public-picker option:focus-visible { outline:2px solid var(--interaction-focus); outline-offset:-2px; }
  body :is(.workspace,.collection-search) select::picker-icon,body .public-picker::picker-icon { color:#656b73; transition:rotate 160ms ease; }
  body :is(.workspace,.collection-search) select:open::picker-icon,body .public-picker:open::picker-icon { rotate:180deg; }
 }
 body #article-list[aria-busy=true] .empty::before,body #archive-list[aria-busy=true] .empty::before {
- content:""; display:block; width:22px; height:22px; border:2px solid #d9e2da;
+ content:""; display:block; width:22px; height:22px; border:2px solid #dce5fb;
  border-top-color:var(--interaction-focus); border-radius:50%; margin:0 auto 16px;
 }
-body #reset-admin-filters { min-height:40px; border:0; background:transparent; color:#365c42; padding:8px 14px; }
+body #reset-admin-filters { min-height:40px; border:0; background:transparent; color:#2848a7; padding:8px 14px; }
 body #reset-admin-filters:hover { background:var(--interaction-hover); }
 @media (min-width:701px) {
  nav.nav { padding-block:16px 12px; }
@@ -55,12 +55,12 @@ body #reset-admin-filters:hover { background:var(--interaction-hover); }
  nav.nav .nav-foot small { display:none; }
 }
 @media (min-width:701px) and (forced-colors:none) {
- nav.nav .nav-scroll { scrollbar-color:#7b8c7d transparent; }
+ nav.nav .nav-scroll { scrollbar-color:#7889ab transparent; }
  @supports selector(::-webkit-scrollbar) {
   nav.nav .nav-scroll { scrollbar-width:auto; scrollbar-color:auto; }
   .nav-scroll::-webkit-scrollbar { width:8px; }
-  .nav-scroll::-webkit-scrollbar-thumb { background:#7b8c7d; border-radius:8px; }
-  .nav-scroll::-webkit-scrollbar-thumb:hover { background:#556d58; }
+  .nav-scroll::-webkit-scrollbar-thumb { background:#7889ab; border-radius:8px; }
+  .nav-scroll::-webkit-scrollbar-thumb:hover { background:#53678f; }
   .nav-scroll::-webkit-scrollbar-button { display:none; }
  }
 }
