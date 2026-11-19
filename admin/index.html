@@ -220,7 +220,19 @@ function renderList(){
  edit.textContent="编辑";edit.onclick=()=>openPost(item.id);view.textContent="查看";view.href=item.permalink||"/articles/"+item.id+"/";view.target="_blank";view.rel="noopener noreferrer";view.className="button subtle";
  const action=item.deleted_at?"purge":"trash";
  remove.textContent=item.deleted_at?"彻底删除":"移入回收站";remove.className="danger";remove.setAttribute("aria-label",remove.textContent+"文章："+(item.title||"未命名草稿"));remove.onclick=()=>deleteFromList(item,remove,action);
- actions.className="table-actions";actions.dataset.label="操作";if(item.deleted_at){edit.textContent="恢复";edit.onclick=()=>deleteFromList(item,edit,"restore");actions.append(edit)}else{actions.append(edit);if(item.status!=="draft")actions.append(view)}actions.append(remove);tr.append(actions);target.append(tr);
+ actions.className="table-actions";actions.dataset.label="操作";
+ if(item.deleted_at){edit.textContent="恢复";edit.onclick=()=>deleteFromList(item,edit,"restore");actions.append(edit)}
+ else{
+  actions.append(edit);
+  if(item.status==="published"){
+   const unpublish=document.createElement("button");unpublish.textContent="取消发布";
+   unpublish.onclick=()=>deleteFromList(item,unpublish,"unpublish");actions.append(view,unpublish);
+  }else{
+   const previewButton=document.createElement("button");previewButton.textContent="预览";
+   previewButton.onclick=async()=>{if(await openPost(item.id))setEditorView("preview")};actions.append(previewButton);
+  }
+ }
+ actions.append(remove);tr.append(actions);target.append(tr);
  }
  const popular=$("popular-list");popular.replaceChildren();
  for(const item of selectPosts(listing.filter(p=>p.status==="published"&&p.published_at<=new Date().toISOString()&&p.read_count>0),{order:"reads",pageSize:5}).items){
@@ -238,12 +250,16 @@ function confirmDeletion(title,warning="",action="trash"){
  const dialog=$("delete-modal");
  if(dialog.open)return Promise.resolve(false);
  $("delete-modal-title").textContent=title||"未命名草稿";
- const label=action==="purge"?"彻底删除":action==="restore"?"恢复":"移入回收站";
+ const label=action==="purge"?"彻底删除":action==="restore"?"恢复":action==="unpublish"?"取消发布":"移入回收站";
  $("delete-modal-heading").textContent=label+"这篇文章？";
  $("delete-modal-description").textContent=action==="purge"?"正文、草稿、历史版本和文章评论将永久删除。共享图片仍保留。":action==="restore"?"恢复原有链接和内容。原本已发布且已到发布日期的文章会重新公开，未发布的草稿仍为草稿。":"已发布文章会从博客撤下，正文、草稿、历史版本和评论保留，可在文章库的回收站恢复。";
  dialog.querySelector(".delete-modal-article small").textContent="文章";
  dialog.querySelector(".confirm-delete").textContent=label;
  $("delete-modal-warning").textContent=(warning?warning+" ":"")+(action==="purge"?"此操作无法撤销，请确认后再删除。":action==="restore"?"恢复后文章将按原状态显示。":"回收站不会自动清空；只有彻底删除才会永久移除文章数据。");
+ if(action==="unpublish"){
+  $("delete-modal-description").textContent="这篇文章将从前台撤下。已有草稿、评论和阅读量会保留；你仍可以在后台编辑、预览并重新发布。";
+  $("delete-modal-warning").textContent=warning;
+ }
  dialog.returnValue="";
  return new Promise(resolve=>{
   dialog.addEventListener("close",()=>resolve(dialog.returnValue==="delete"),{once:true});
@@ -369,7 +385,7 @@ $("message-next").onclick=()=>{if(!messageLoading&&!messageMutating&&messagePage
 const deletingIds=new Set();
 async function deleteFromList(item,button,action="trash"){
  if(deletingIds.has(item.id))return;
- const fromEditor=activePanel==="editor",notice=$(fromEditor?"notice":"list-notice"),label=action==="purge"?"彻底删除":action==="restore"?"恢复":"移入回收站";notice.classList.remove("error");
+ const fromEditor=activePanel==="editor",notice=$(fromEditor?"notice":"list-notice"),label=button.textContent;notice.classList.remove("error");
  if(uploads||saving){notice.textContent="请等保存或图片上传完成后再操作。";return}
  const title=item.title||"未命名草稿",warning=current?.id===item.id&&dirty?"当前编辑器还有未保存的修改，也会一并放弃。":"";
  if(!await confirmDeletion(title,warning,action))return;
@@ -377,7 +393,7 @@ async function deleteFromList(item,button,action="trash"){
  try{
  const result=await api(action==="trash"?"/api/post":"/api/post/"+action,{method:action==="trash"?"DELETE":"POST",body:JSON.stringify({id:item.id,version:item.version,...(action==="purge"?{confirm:true}:{})})});
  if(action==="purge")listing=listing.filter(post=>post.id!==item.id);
- else listing=listing.map(post=>post.id===item.id?{...post,version:result.version,deleted_at:result.deleted_at}:post);
+ else listing=listing.map(post=>post.id===item.id?{...post,version:result.version,...(action==="unpublish"?{status:"draft",has_draft:true}:{deleted_at:result.deleted_at})}:post);
  if(current?.id===item.id&&action!=="restore"){clear();if(fromEditor)panel("articles")}else renderList();
  $("list-notice").textContent="“"+title+"”已"+label+"。";
  notice.textContent="“"+title+"”已"+label+"。";

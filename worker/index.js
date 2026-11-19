@@ -218,6 +218,19 @@ async function handle(request, env) {
       if(!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))return fail('请求必须为 JSON。',415);
       return movePost(env,await readJson(request,2048),path==='/api/post'?'trash':path.endsWith('/restore')?'restore':'purge');
     }
+    if (path === '/api/post/unpublish') {
+      if (method !== 'POST') return fail('请求方法无效。',405);
+      if (!(request.headers.get('content-type')||'').toLowerCase().startsWith('application/json')) return fail('请求必须为 JSON。',415);
+      const data=await readJson(request,2048);
+      if (!slug(data?.id)||!Number.isSafeInteger(data.version)||data.version<1) return fail('文章标识或版本无效。');
+      const {id,version}=data;
+      const [,result]=await env.DB.batch([
+        env.DB.prepare("INSERT INTO post_collections(post_id,collection_slug,state,position) SELECT m.post_id,m.collection_slug,'draft',m.position FROM post_collections m JOIN posts p ON p.id=m.post_id WHERE m.post_id=? AND m.state='published' AND p.version=? AND p.status='published' AND p.deleted_at IS NULL AND p.draft_body IS NULL ON CONFLICT DO NOTHING").bind(id,version),
+        env.DB.prepare("UPDATE posts SET status='draft',draft_title=COALESCE(draft_title,title),draft_category=COALESCE(draft_category,category),draft_summary=COALESCE(draft_summary,summary),draft_body=COALESCE(draft_body,body),collection_token=?,version=version+1,updated_at=? WHERE id=? AND version=? AND status='published' AND deleted_at IS NULL").bind(crypto.randomUUID(),new Date().toISOString(),id,version)
+      ]);
+      if (!result.meta.changes) return fail('文章已被修改、下架或删除，请刷新后重试。',409);
+      return json({id,version:version+1,status:'draft'});
+    }
     if (path === '/api/post' && method === 'GET') {
       const id = url.searchParams.get('id');
       if (!slug(id)) return fail('无效文章标识。');
