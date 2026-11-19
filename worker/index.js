@@ -334,7 +334,7 @@ async function renderArticlePage(request,env,article,{categories,navigation='',p
   if(!template.ok)throw new Error('缺少文章模板');
   const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
   const dates=preview?'<time datetime="'+escapeHtml(article.updated_at)+'">保存于 '+dateLabel(article.updated_at)+'</time>':'<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
-  const notice=preview?'<nav class="article-return" aria-label="草稿预览"><a href="/admin/?panel=articles">← 返回文章库</a> · 草稿预览（仅管理员可见）</nav>':'';
+  const notice=preview?'<nav class="article-return" aria-label="草稿预览"><a href="/admin/?view=articles">← 返回文章库</a> · 草稿预览（仅管理员可见）</nav>':'';
   let markup=await template.text();
   markup=markup.replace(/<!-- public-only -->[\s\S]*?<!-- \/public-only -->/g,block=>preview?'':block);
   const replacements={PREVIEW_NOTICE:notice,NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(categories.join(' · ')),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
