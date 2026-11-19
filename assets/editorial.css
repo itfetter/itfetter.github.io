@@ -506,13 +506,19 @@ body[data-page=articles] .article-controls { background: transparent; border: 0;
 .article-controls :is(input,select):focus { border-color:var(--focus-ring); }
 .contact-form :is(input,textarea) { color:var(--ink); border-color:#c9cdd1; }
 .contact-form :is(input,textarea)::placeholder { color:#6e747c; }
-.post-page .post-topbar { background:#f3f5faf5; border-color:var(--line); }
-.post-page main>article,.post-page .article-summary { color:var(--ink); }
+.post-page {
+ --surface:#fcfcfb; --ink:#292d32; --muted:#5c6169; --line:#e1e3e5; --state-hover:#f0f1f3;
+ background:var(--surface);
+}
+.post-page .post-topbar { background:var(--surface); border-color:var(--line); }
+.post-page main>article,.post-page main>article :is(p,li),.post-page .article-summary { color:var(--ink); }
+.post-page .summary,.post-page main>article blockquote p { color:var(--muted); }
 .post-page .meta { color:var(--muted); }
+.post-page main>article blockquote { background:#f2f3f4; border-left-color:#b9bec5; }
 .post-page main>article pre { background:#f3f4f5; border-color:var(--line); color:#303740; }
 .post-page main>article th { background:#f1f2f3; }
 .post-page .reading-tools nav a { color:var(--ink); }
-.post-page .reading-tools nav a:hover { background:#edf1fa; }
+.post-page .reading-tools nav a:hover { background:var(--state-hover); }
 .post-page .reading-tools nav a[aria-current=location] { background:#e5edff; color:var(--dark); }
 .collection-card,.collection-posts li,.collection-search,.collection-start { background:var(--surface); border-color:var(--line); }
 .collection-card-main,.collection-posts a,.collection-start a,.collection-heading { color:var(--ink); }
