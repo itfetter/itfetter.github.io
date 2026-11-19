@@ -59,10 +59,13 @@ function renderArticles(){
  for(const category of categories){const b=document.createElement("button");b.className="filter";b.type="button";b.dataset.filter=category;b.textContent=category;b.setAttribute("aria-pressed","false");filters.append(b)}
  }
  if(collectionFilter){collectionFilter.replaceChildren(new Option("全部合集","全部"),...categories.map(name=>new Option(name,name)))}
+ const featured=articles[0];
+if(document.getElementById("featured-slot"))document.getElementById("featured-slot").innerHTML="";
+if(featured&&document.getElementById("featured-slot"))document.getElementById("featured-slot").innerHTML=`<article class="featured"><div class="featured-text"><div class="meta">最新发布 · ${escapeText(collectionNames(featured).join(" · "))}</div><h3><a href="${postLink(featured)}">${escapeText(featured.title)}</a></h3><p>${escapeText(featured.summary)}</p><div class="row spread"><a class="read-link" href="${postLink(featured)}">开始阅读</a><small class="muted">${readMeta(featured)}</small></div></div></article>`;
 const months=[...new Set(articles.map(p=>p.date))];
 if(archive)archive.innerHTML=months.map((month,index)=>`<details class="archive-month" ${index===0?"open":""}><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
 
- if(search){restoreState();renderList()}else if(list){list.innerHTML=articles.slice(0,4).map(post=>articleRow(post)).join("")||'<p class="empty">还没有公开文章，欢迎稍后再来。</p>'}
+ if(search){restoreState();renderList()}else if(list){list.innerHTML=articles.slice(1,3).map(p=>`<a class="article-row" href="${postLink(p)}"><time>${escapeText(p.date)}</time><div><span class="row-category">${escapeText(collectionNames(p).join(" · "))}</span><h3>${escapeText(p.title)}</h3><p>${escapeText(p.summary)}</p></div><span class="row-arrow" aria-hidden="true">↗</span></a>`).join("")||(featured?"":'<p class="empty">还没有公开文章，欢迎稍后再来。</p>')}
 }
 let loading=false;
 async function loadArticles(){
