@@ -103,6 +103,15 @@ async function handle(request, env) {
       return fail('请登录管理员账号。',401);
     }
     if (!['GET','HEAD'].includes(method) && request.headers.get('origin') !== url.origin) return fail('来源未获允许。',403);
+    if(path==='/admin/preview/'){
+      if(!['GET','HEAD'].includes(method))return fail('请使用 GET。',405);
+      const id=url.searchParams.get('id');
+      if(!slug(id))return notFound(request);
+      const article=await env.DB.prepare("SELECT id,COALESCE(draft_title,title) AS title,COALESCE(draft_summary,summary) AS summary,COALESCE(draft_body,body) AS body,published_at,updated_at,read_count,(draft_body IS NOT NULL) AS has_draft FROM posts WHERE id=? AND deleted_at IS NULL").bind(id).first();
+      if(!article)return notFound(request);
+      const categories=(await postCollections(env,id,Boolean(article.has_draft))).map(category=>category.name);
+      return renderArticlePage(request,env,article,{categories,preview:true});
+    }
     if(path==='/api/site-settings'){
       if(method==='GET')return json(await readSiteSettings(env));
       if(method!=='PATCH')return fail('请使用 GET 或 PATCH。',405);
@@ -306,17 +315,12 @@ async function handle(request, env) {
   if (path.startsWith('/articles/') && path !== '/articles/' && ['GET','HEAD'].includes(method)) {
     const article = await env.DB.prepare("SELECT * FROM posts WHERE deleted_at IS NULL AND status='published' AND permalink=? AND published_at<=?").bind(path,new Date().toISOString()).first();
     if (!article) return notFound(request);
-    const template = await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
-    if (!template.ok) throw new Error('缺少文章模板');
     const peers=(await env.DB.prepare("SELECT id,title,category,published_at FROM posts WHERE deleted_at IS NULL AND status='published' AND published_at<=? ORDER BY published_at DESC,id").bind(new Date().toISOString()).all()).results;
     const at=peers.findIndex(p=>p.id===article.id),link=p=>'<a href="/articles/'+encodeURIComponent(p.id)+'/">'+escapeHtml(p.title)+'</a>';
     const related=(await env.DB.prepare("SELECT DISTINCT p.id,p.title FROM posts p JOIN post_collections m ON m.post_id=p.id JOIN categories c ON c.slug=m.collection_slug WHERE p.id<>? AND p.deleted_at IS NULL AND p.status='published' AND p.published_at<=? AND m.state='published' AND c.hidden=0 AND m.collection_slug IN(SELECT collection_slug FROM post_collections WHERE post_id=? AND state='published') ORDER BY p.published_at DESC,p.id LIMIT 3").bind(article.id,new Date().toISOString(),article.id).all()).results;
     const navigation=await collectionNavigation(env,article)+'<nav class="post-neighbors" aria-label="继续阅读">'+(peers[at+1]?'<div><small>上一篇</small>'+link(peers[at+1])+'</div>':'')+(peers[at-1]?'<div><small>下一篇</small>'+link(peers[at-1])+'</div>':'')+'</nav>'+(related.length?'<section class="post-related"><h2>同合集，继续读</h2>'+related.map(link).join('')+'</section>':'');
-    const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
-    const dates='<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
-    const replacements = {NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml((await env.DB.prepare("SELECT c.name FROM categories c JOIN post_collections m ON c.slug=m.collection_slug WHERE m.post_id=? AND m.state='published' AND c.hidden=0 ORDER BY c.name").bind(article.id).all()).results.map(c=>c.name).join(' · ')),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
-    const html = (await template.text()).replace(/@@(NAVIGATION|DATES|ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
-    return new Response(method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+    const categories=(await env.DB.prepare("SELECT c.name FROM categories c JOIN post_collections m ON c.slug=m.collection_slug WHERE m.post_id=? AND m.state='published' AND c.hidden=0 ORDER BY c.name").bind(article.id).all()).results.map(c=>c.name);
+    return renderArticlePage(request,env,article,{categories,navigation});
   }
   if (path === '/write' || path === '/write/') return Response.redirect(url.origin+'/admin/',302);
   if (path === '/article-template.html') return new Response('Not found',{status:404});
@@ -324,13 +328,26 @@ async function handle(request, env) {
   if(asset.status===404&&['GET','HEAD'].includes(method)&&(request.headers.get('accept')||'').includes('text/html'))return notFound(request);
   return asset;
 }
+async function renderArticlePage(request,env,article,{categories,navigation='',preview=false}){
+  const url=new URL(request.url);
+  const template=await env.ASSETS.fetch(new Request(url.origin+'/article-template.html'));
+  if(!template.ok)throw new Error('缺少文章模板');
+  const dateLabel=value=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+  const dates=preview?'<time datetime="'+escapeHtml(article.updated_at)+'">保存于 '+dateLabel(article.updated_at)+'</time>':'<time datetime="'+escapeHtml(article.published_at)+'">发布于 '+dateLabel(article.published_at)+'</time>'+((article.public_updated_at||article.published_at)!==article.published_at?' · <time datetime="'+escapeHtml(article.public_updated_at)+'">更新于 '+dateLabel(article.public_updated_at)+'</time>':'');
+  const notice=preview?'<nav class="article-return" aria-label="草稿预览"><a href="/admin/?panel=articles">← 返回文章库</a> · 草稿预览（仅管理员可见）</nav>':'';
+  let markup=await template.text();
+  markup=markup.replace(/<!-- public-only -->[\s\S]*?<!-- \/public-only -->/g,block=>preview?'':block);
+  const replacements={PREVIEW_NOTICE:notice,NAVIGATION:navigation,DATES:dates,ID:escapeHtml(article.id),READS:String(article.read_count||0),TITLE:escapeHtml(article.title),SUMMARY:escapeHtml(article.summary),CATEGORY:escapeHtml(categories.join(' · ')),DATE:escapeHtml(publicPost(article).date),URL:escapeHtml(url.href),BODY:renderMarkdown(article.body),YEAR:String(new Date().getFullYear())};
+  const html=markup.replace(/@@(PREVIEW_NOTICE|NAVIGATION|DATES|ID|READS|TITLE|SUMMARY|CATEGORY|DATE|URL|BODY|YEAR)@@/g,(_,key)=>replacements[key]);
+  return new Response(request.method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store',...(preview?{'x-robots-tag':'noindex, nofollow','referrer-policy':'no-referrer'}:{})}});
+}
 export default {
   async fetch(request,env,ctx) {
     try {
       const original = await publicResponse(request,ctx,r=>handle(r,env));
       const response = new Response(original.body, original);
       response.headers.set('x-content-type-options','nosniff');
-      response.headers.set('referrer-policy','strict-origin-when-cross-origin');
+      if(!response.headers.has('referrer-policy'))response.headers.set('referrer-policy','strict-origin-when-cross-origin');
       const pathname=new URL(request.url).pathname;
       if (pathname.startsWith('/admin') || pathname.startsWith('/api/')) {
         response.headers.set('cache-control','no-store');

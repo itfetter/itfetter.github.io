@@ -227,9 +227,10 @@ function renderList(){
   if(item.status==="published"){
    const unpublish=document.createElement("button");unpublish.textContent="取消发布";
    unpublish.onclick=()=>deleteFromList(item,unpublish,"unpublish");actions.append(view,unpublish);
-  }else{
-   const previewButton=document.createElement("button");previewButton.textContent="预览";
-   previewButton.onclick=async()=>{if(await openPost(item.id))setEditorView("preview")};actions.append(previewButton);
+  }
+  if(item.status==="draft"||item.has_draft){
+   const previewLink=document.createElement("a");previewLink.textContent="预览";previewLink.className="button";
+   previewLink.href="/admin/preview/?id="+encodeURIComponent(item.id);previewLink.target="_blank";previewLink.rel="noopener noreferrer";actions.append(previewLink);
   }
  }
  actions.append(remove);tr.append(actions);target.append(tr);

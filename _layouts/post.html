@@ -25,13 +25,17 @@
 <link rel="stylesheet" href="/assets/collections.css"><link rel="stylesheet" href="/assets/editorial.css"><link rel="stylesheet" href="/assets/comments.css"><link rel="icon" href="/assets/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/brand.css"></head>
 <body class="post-page"><div id="reading-progress" aria-hidden="true"></div>
   <header class="post-topbar"><a class="brand" href="/" aria-label="回到首页"><img class="brand-logo" src="/assets/logo.svg" width="36" height="36" alt="" aria-hidden="true"><span class="brand-wordmark">itfetter<span class="brand-dot">.</span></span></a><a href="/articles/">文章</a><a href="/collections/">合集</a><a href="/archive/">归档</a><a href="/about/">关于我</a><a href="/about/#contact">联系 ↗</a></header>
+  @@PREVIEW_NOTICE@@
+  <!-- public-only -->
   <nav class="article-return" aria-label="返回"><a data-article-return href="/articles/"><span aria-hidden="true">←</span> 返回</a></nav>
+  <!-- /public-only -->
   <main>
     <div class="meta">{{ page.category | escape }} · @@DATES@@ · 阅读 <span id="read-count" data-article-id="{{ page.blog_id | escape }}">{{ page.read_count | default: 0 }}</span></div>
     <h1>{{ page.title | escape }}</h1>
     <p class="summary">{{ page.summary | escape }}</p>
-    <a class="jump-to-comments" href="#article-comments">跳到评论 ↓</a>
+    <!-- public-only --><a class="jump-to-comments" href="#article-comments">跳到评论 ↓</a><!-- /public-only -->
     <article>{{ content }}</article>@@NAVIGATION@@<div class="reading-end"><span>感谢读到这里。</span><a href="/about/#contact">有想法？和我聊聊 ↗</a></div>
+    <!-- public-only -->
     <section id="article-comments" class="article-comments" data-article-id="{{ page.blog_id | escape }}" aria-labelledby="comments-heading">
       <div class="comments-heading"><div><div class="comments-kicker">LET’S TALK</div><h2 id="comments-heading">评论与讨论 <span data-comments-count></span></h2></div><button type="button" data-comments-refresh aria-label="刷新评论"><span aria-hidden="true">↻</span> 刷新</button></div>
       <form class="comment-form"><div class="comment-compose-title"><span aria-hidden="true">✳</span><div><strong>加入这场讨论</strong><p>你的问题、补充和不同视角，都很欢迎。</p></div></div>
@@ -44,10 +48,11 @@
       <div class="comments-pagination" hidden><button type="button" data-comments-prev disabled aria-label="上一页评论">← 上一页</button><span data-comments-page></span><button type="button" data-comments-next disabled aria-label="下一页评论">下一页 →</button></div>
       <noscript>请启用 JavaScript 查看和提交评论。</noscript>
     </section>
+    <!-- /public-only -->
   </main>
   <button id="back-top" type="button" aria-label="回到顶部" hidden>↑</button><footer>© {{ site.time | date: "%Y" }} itfetter</footer>
-<script src="/assets/read-count.js"></script>
+<!-- public-only --><script src="/assets/read-count.js"></script><!-- /public-only -->
 <script type="module" src="/assets/reading-tools.js"></script>
-<script type="module" src="/assets/comments.js"></script>
+<!-- public-only --><script type="module" src="/assets/comments.js"></script><!-- /public-only -->
 </body>
 </html>
