@@ -55,6 +55,8 @@ function changePage(delta){page+=delta;renderList();list.tabIndex=-1;list.focus(
 document.getElementById("article-prev")?.addEventListener("click",()=>changePage(-1));document.getElementById("article-next")?.addEventListener("click",()=>changePage(1));
 function renderArticles(){
  const categories=[...new Set(articles.flatMap(collectionNames).filter(Boolean))];
+ const topics=document.getElementById("journal-topics");
+ if(topics&&categories.length)topics.innerHTML='<h3>近期主题</h3><div class="journal-topics">'+categories.slice(0,8).map(name=>`<a href="/articles/?${new URLSearchParams({category:name})}">${escapeText(name)}</a>`).join("")+'</div>';
  if(filters){filters.innerHTML='<button class="filter active" data-filter="全部" type="button" aria-pressed="true">全部</button>';
  for(const category of categories){const b=document.createElement("button");b.className="filter";b.type="button";b.dataset.filter=category;b.textContent=category;b.setAttribute("aria-pressed","false");filters.append(b)}
  }
@@ -63,6 +65,29 @@ const months=[...new Set(articles.map(p=>p.date))];
 if(archive)archive.innerHTML=months.map((month,index)=>`<details class="archive-month" ${index===0?"open":""}><summary>${escapeText(month)} <span>${articles.filter(p=>p.date===month).length} 篇</span></summary><div>${articles.filter(p=>p.date===month).map(p=>`<a href="${postLink(p)}">${escapeText(p.title)}<span aria-hidden="true">↗</span></a>`).join("")}</div></details>`).join("")||'<p class="muted">还没有文章记录。</p>';
 
  if(search){restoreState();renderList()}else if(list){list.innerHTML=articles.slice(0,4).map(post=>articleRow(post)).join("")||'<p class="empty">还没有公开文章，欢迎稍后再来。</p>'}
+}
+const searchTrigger=document.querySelector("[data-journal-search]");
+if(searchTrigger){
+ const dialog=document.createElement("dialog");
+ dialog.className="journal-search-dialog";
+ dialog.setAttribute("aria-labelledby","journal-search-title");
+ dialog.innerHTML='<div class="journal-search-heading"><h2 id="journal-search-title">搜索笔记</h2><form method="dialog"><button aria-label="关闭搜索">×</button></form></div><form class="journal-search-form" action="/articles/"><input type="search" name="q" maxlength="300" aria-label="搜索笔记" placeholder="输入标题、摘要或主题" autofocus><button type="submit">全部结果 →</button></form><p role="status"></p><ul></ul>';
+ document.body.append(dialog);
+ const field=dialog.querySelector("input"),status=dialog.querySelector("[role=status]"),results=dialog.querySelector("ul");
+ const update=()=>{
+  const term=field.value.trim().toLocaleLowerCase();
+  const matches=term?articles.filter(post=>[post.title,post.summary,...collectionNames(post)].some(value=>String(value??"").toLocaleLowerCase().includes(term))):articles;
+  status.textContent=!loaded?"文章尚未载入，可以前往文章页搜索。":!matches.length?"没有找到匹配的笔记。":term?"找到 "+matches.length+" 篇"+(matches.length>6?"，显示前 6 篇":""):"最近发布";
+  results.innerHTML=matches.slice(0,6).map(post=>`<li><a href="${postLink(post)}">${escapeText(post.title)} <span aria-hidden="true">↗</span></a></li>`).join("");
+ };
+ field.addEventListener("input",update);
+ list.addEventListener("journal-loaded",()=>{if(dialog.open)update()});
+ searchTrigger.addEventListener("click",()=>{update();dialog.showModal();field.focus()});
+ dialog.addEventListener("close",()=>searchTrigger.focus());
+ document.addEventListener("keydown",event=>{
+  if(event.key!=="/"||event.ctrlKey||event.metaKey||event.altKey||event.target.closest("input,textarea,select,[contenteditable]")||dialog.open)return;
+  event.preventDefault();searchTrigger.click();
+ });
 }
 let loading=false;
 async function loadArticles(){
@@ -78,7 +103,7 @@ async function loadArticles(){
   if(!response.ok)throw Error("文章列表暂时无法读取");
   const data=await response.json();
   if(!Array.isArray(data)||!data.every(p=>p&&typeof p.id==="string"&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.id)&&["title","summary","category","date"].every(key=>typeof p[key]==="string")))throw Error("文章数据格式错误");
-  articles=data;loaded=true;renderArticles();
+  articles=data;loaded=true;renderArticles();target.dispatchEvent(new Event("journal-loaded"));
  }catch{
   if(document.getElementById("search-results"))document.getElementById("search-results").textContent="文章加载失败";
   target.innerHTML='<div class="empty" role="alert"><strong>暂时无法加载文章</strong><p>请检查网络连接后重试。你仍可以通过关于我页面找到联系方式。</p><button id="retry-articles" class="button secondary" type="button">重新加载</button></div>';
