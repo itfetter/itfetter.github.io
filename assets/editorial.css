@@ -527,3 +527,30 @@ body[data-page=articles] .article-controls { background: transparent; border: 0;
 .post-page .comment-compose-title p,.post-page .comments-intro,.comments-kicker { color:var(--muted); }
 
 .post-page main>article :is(h1,h2,h3,h4,h5,h6) { color:var(--ink); }
+
+.journal-intro,body[data-page=home] main>.section,body[data-page=home] .home-project,
+body[data-page=articles] main>.section { max-width:940px; }
+.journal-intro { padding-block:clamp(32px,6vw,68px) 24px; }
+.journal-intro .eyebrow { margin:0 0 12px; }
+.journal-intro h1 { margin:0; font:650 clamp(32px,5vw,52px)/1.24 var(--display); letter-spacing:-.035em; }
+.journal-intro>p:not(.eyebrow) { margin:14px 0 10px; color:var(--muted); }
+.journal-links { display:flex; flex-wrap:wrap; gap:0 22px; }
+.journal-links a { display:inline-flex; align-items:center; gap:6px; min-height:44px; color:var(--dark); font-weight:600; text-underline-offset:4px; }
+.journal-links a:hover,.journal-entry h3 a:hover { text-decoration:underline; }
+body[data-page=home] main>.section { padding-block:18px 28px; }
+body[data-page=home] .section-head { padding-bottom:8px; margin-bottom:0; }
+body[data-page=articles] .section-head { margin-bottom:20px; }
+body[data-page=articles] .section-head .page-title { margin-top:0; }
+.journal-entry { padding-block:20px; border-bottom:1px solid var(--line); }
+.journal-meta { display:flex; flex-wrap:wrap; gap:4px 12px; color:var(--muted); font-size:13px; }
+.journal-entry h3 { margin:5px 0; font-size:clamp(19px,2.5vw,23px); line-height:1.5; overflow-wrap:anywhere; }
+.journal-entry h3 a { color:var(--ink); text-underline-offset:4px; }
+.journal-entry p { margin:4px 0 0; color:var(--muted); font-size:15px; line-height:1.8; overflow-wrap:anywhere; }
+.journal-entry .row-reads { display:block; margin-top:6px; }
+.post-page main>h1 { text-wrap:balance; overflow-wrap:anywhere; }
+.post-page main>article { overflow-wrap:anywhere; }
+@media(max-width:700px){
+  .journal-entry { padding-block:16px; }
+  .journal-intro { padding-bottom:12px; }
+  body[data-page=articles] .article-controls { gap:10px; }
+}
